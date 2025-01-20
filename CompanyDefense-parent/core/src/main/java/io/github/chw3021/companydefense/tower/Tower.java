@@ -19,6 +19,7 @@ public class Tower extends Entity {
     private TransformComponent transform;
     
     // 새로운 속성들
+    private String name;
     private float physicalAttack;
     private float magicAttack;
     private float attackSpeed;
@@ -26,7 +27,7 @@ public class Tower extends Entity {
     private float attackCooldown; // 다음 공격까지 남은 시간
 
     public Tower(float startX, float startY, float physicalAttack, float magicAttack, float attackSpeed, 
-                 float attackRange, String path) {
+                 float attackRange, String path, String name) {
     	// TransformComponent 사용
         transform = new TransformComponent();
         transform.position.set(startX, startY);
@@ -37,6 +38,7 @@ public class Tower extends Entity {
         this.attackSpeed = attackSpeed;
         this.attackRange = attackRange;
         this.attackCooldown = 0; // 초기화
+        this.name = name; // 초기화
         
         // 텍스처 로드
         Pixmap originalPixmap = new Pixmap(Gdx.files.internal(path));

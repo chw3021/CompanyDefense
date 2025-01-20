@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.Array;
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.obstacle.Obstacle;
 import io.github.chw3021.companydefense.stage.Stage;
+import io.github.chw3021.companydefense.stage.Wave;
 import io.github.chw3021.companydefense.tower.Tower;
 
 import com.badlogic.gdx.InputAdapter;
@@ -58,13 +59,16 @@ public class Stage1 extends Stage {
             }
         }
 
+        availableTowers = new Array<>();
+        availableTowers.add(new Tower(0, 0, 10, 0, 1, 2, "tower/class1/man1.png", "man"));
         // A* 경로 설정
         setupAStar();
 
         // 적 웨이브 설정
         Array<Enemy> waveEnemies = new Array<>();
         waveEnemies.add(new Enemy(0, 2 * gridSize, 100, 5, 5, 100, "normal", "enemy/printer.png", new Vector2(9 * gridSize, 2 * gridSize)));
-        setupWave(waveEnemies);
+        Wave wave1 = new Wave(waveEnemies, waveTimeInterval);
+        setupWave(wave1);
     }
 
     @Override
@@ -74,6 +78,33 @@ public class Stage1 extends Stage {
         batch.draw(backgroundTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());  // 배경을 화면 크기대로 그리기
         batch.end();
 
+        // 경로 렌더링
+        batch.begin();
+        for (Obstacle path : pathVisuals) {
+            path.render(batch);  // 경로 장애물 그리기
+        }
+        batch.end();
+
+        // 장애물 렌더링
+        batch.begin();
+        for (Obstacle obstacle : obstacles) {
+            obstacle.render(batch);  // 장애물 그리기
+        }
+        batch.end();
+
+        // 타워 렌더링
+        batch.begin();
+        for (Tower tower : towers) {
+            tower.render(batch);  // 타워 그리기
+        }
+        batch.end();
+
+        // 적 렌더링
+        batch.begin();
+        for (Enemy enemy : enemies) {
+            enemy.render(batch);  // 적 그리기
+        }
+        batch.end();
         // 부모 클래스의 렌더링 (UI 및 버튼 등)
         super.render(batch);
     }

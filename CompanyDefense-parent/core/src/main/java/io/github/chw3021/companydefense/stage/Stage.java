@@ -22,6 +22,13 @@ public abstract class Stage {
     protected ShapeRenderer shapeRenderer;
     protected Array<Enemy> enemies;
     protected Array<Tower> towers;
+    protected Array<Wave> waves;
+    private int currentWaveIndex;
+    protected Wave currentWave;
+    protected float waveTimeInterval = 5.0f;  // 웨이브가 시작되는 시간 간격
+    protected float timeSinceLastWave = 0.0f; // 마지막 웨이브 이후 경과 시간
+    
+    
     protected Array<Obstacle> obstacles;  // 장애물 목록
     protected int gridSize = 40;
     protected Array<Obstacle> pathVisuals;
@@ -31,9 +38,6 @@ public abstract class Stage {
     
     protected AStarPathfinding aStar;  // AStar 경로 탐색
     protected int life = 10;  // 초기 Life 설정
-    protected float waveTimeInterval = 5.0f;  // 웨이브가 시작되는 시간 간격
-    protected float timeSinceLastWave = 0.0f; // 마지막 웨이브 이후 경과 시간
-    protected Wave currentWave;  // 현재 웨이브 관리
 
     // 맵의 크기 (gridWidth, gridHeight)
     protected int mapWidth = 20;  // 예시: 맵의 가로 크기
@@ -98,8 +102,8 @@ public abstract class Stage {
     }
 
     // Wave 관리 및 처리
-    public void setupWave(Array<Enemy> waveEnemies) {
-        currentWave = new Wave(waveEnemies);
+    public void setupWave(Wave wave) {
+        waves.add(wave);
     }
 
     // 웨이브 업데이트 메서드
@@ -110,19 +114,30 @@ public abstract class Stage {
             spawnNextWave(delta);
             timeSinceLastWave = 0;  // 시간 초기화
         }
+        if (currentWaveIndex < waves.size) {
+            Wave currentWave = waves.get(currentWaveIndex);
+            currentWave.execute(delta, enemies);  // 적 소환
+            if (currentWave.isComplete()) {
+                currentWaveIndex++;  // 웨이브 완료 시 다음 웨이브로 이동
+            }
+        }
+        checkWaveCompletion();
     }
 
     // 다음 웨이브 적들 추가
     private void spawnNextWave(float delta) {
-        if (currentWave != null) {
-            currentWave.execute(delta, enemies); 
+        if (currentWaveIndex < waves.size) {
+            Wave currentWave = waves.get(currentWaveIndex);
+            currentWave.spawnEnemies(enemies);  // 현재 웨이브의 적을 소환
         }
     }
 
     // 웨이브 완료 체크
     public void checkWaveCompletion() {
-        if (enemies.isEmpty() && currentWave != null && currentWave.isComplete()) {
-            win();
+        if (enemies.isEmpty() && currentWaveIndex < waves.size) {
+            if (waves.get(currentWaveIndex).isComplete()) {
+                win();  // 승리 처리
+            }
         }
     }
 
@@ -141,6 +156,11 @@ public abstract class Stage {
     public Stage() {
         pathVisuals = new Array<>();
         skin = new Skin(Gdx.files.internal("uiskin.json"));
+        towers = new Array<>();
+        
+        enemies = new Array<>();
+        waves = new Array<>();
+        currentWaveIndex = 0;
     }
 
     // 스테이지 초기화
@@ -178,6 +198,12 @@ public abstract class Stage {
             }
         }
 
+        batch.end();
+
+        batch.begin();
+        for (Enemy enemy : enemies) {
+            enemy.render(batch);  // 적 그리기
+        }
         batch.end();
     }
 

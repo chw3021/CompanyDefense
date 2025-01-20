@@ -54,6 +54,7 @@ public class StageSelectionScreen implements Screen {
 		    @Override
 		    public void clicked(InputEvent event, float x, float y) {
                 game.setScreen(new GameScreen(game, 1)); // 스테이지 1로 게임 시작
+                dispose();
 		    }
 		});
 
