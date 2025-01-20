@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 
+import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.component.EnemyComponent;
 import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.PathfindingComponent;
@@ -21,6 +22,8 @@ public class Enemy extends Entity {
     private int currentPathIndex; // 현재 경로 인덱스
     private Texture texture; // 적의 텍스처
     private TransformComponent transform; // 위치 및 이동 속도 관리
+    private HealthComponent healthComponent;
+    private DamageComponent damageComponent;
 
     public Enemy(float startX, float startY, float health, float physicalDefense, float magicDefense, float moveSpeed,
                  String type, String path, Vector2 target) {
@@ -30,7 +33,7 @@ public class Enemy extends Entity {
         transform.moveSpeed = moveSpeed;
 
         // HealthComponent 추가
-        HealthComponent healthComponent = new HealthComponent(health, physicalDefense, magicDefense);
+        healthComponent = new HealthComponent(health, physicalDefense, magicDefense);
 
         // EnemyComponent 추가
         EnemyComponent enemyComponent = new EnemyComponent();
@@ -39,11 +42,14 @@ public class Enemy extends Entity {
         // PathfindingComponent 추가
         PathfindingComponent pathfinding = new PathfindingComponent();
         pathfinding.target = target; // 목표 지점 설정
+        
+        damageComponent = new DamageComponent(0, 0);
 
         this.add(transform);
         this.add(healthComponent);
         this.add(enemyComponent);
         this.add(pathfinding);
+        this.add(damageComponent);
 
         // AStarPathfinding 객체 초기화
         this.aStarPathfinding = new AStarPathfinding(20, 20, 1);
@@ -122,4 +128,14 @@ public class Enemy extends Entity {
             texture.dispose(); // 텍스처 리소스 해제
         }
     }
+    public void addDamage(float physicalDamage, float magicDamage) {
+        // 기존의 DamageComponent에 데미지 추가
+        damageComponent.physicalDamage += physicalDamage;
+        damageComponent.magicDamage += magicDamage;
+    }
+
+	public Vector2 getPosition() {
+		
+		return transform.position;
+	}
 }

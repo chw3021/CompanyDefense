@@ -8,8 +8,12 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 
+import io.github.chw3021.companydefense.component.DamageComponent;
+import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.enemy.Enemy;
+
+
 public class Tower extends Entity {
     private Texture texture;
     private TransformComponent transform;
@@ -19,6 +23,7 @@ public class Tower extends Entity {
     private float magicAttack;
     private float attackSpeed;
     private float attackRange;
+    private float attackCooldown; // 다음 공격까지 남은 시간
 
     public Tower(float startX, float startY, float physicalAttack, float magicAttack, float attackSpeed, 
                  float attackRange, String path) {
@@ -31,6 +36,7 @@ public class Tower extends Entity {
         this.magicAttack = magicAttack;
         this.attackSpeed = attackSpeed;
         this.attackRange = attackRange;
+        this.attackCooldown = 0; // 초기화
         
         // 텍스처 로드
         Pixmap originalPixmap = new Pixmap(Gdx.files.internal(path));
@@ -44,6 +50,72 @@ public class Tower extends Entity {
         texture = new Texture(resizedPixmap); 
         
         this.add(transform);
+    }
+
+
+    // 적에게 피해를 주는 attack 메서드
+    public void attack(Enemy target) {
+        if (target != null) {
+            target.addDamage(physicalAttack, magicAttack); // 적에게 데미지를 추가
+        }
+    }
+
+    // 업데이트 메서드 (적을 탐지하고 공격하는 로직 포함)
+    public void update(float delta, Array<Enemy> enemies, String attackType) {
+        attackCooldown -= delta;
+
+        if (attackCooldown <= 0) {
+            attackCooldown = 1 / attackSpeed; // 공격 속도 기반 쿨타임 재설정
+
+            // 범위 내에서 타겟 탐색
+            Enemy target = findTarget(enemies, attackType);
+            if (target != null) {
+                attack(target); // 공격
+            }
+        }
+    }
+
+    // 범위 내 타겟을 찾는 메서드
+    private Enemy findTarget(Array<Enemy> enemies, String attackType) {
+        Enemy bestTarget = null;
+        float bestValue = attackType.equals("closest") ? Float.MAX_VALUE : 0; // 초기값 설정
+
+        for (Enemy enemy : enemies) {
+            Vector2 enemyPos = enemy.getPosition();
+            float distance = transform.position.dst(enemyPos);
+
+            // 타워 범위 내에 있는 적만 고려
+            if (distance <= attackRange) {
+                if (attackType.equals("closest")) {
+                    if (distance < bestValue) {
+                        bestValue = distance;
+                        bestTarget = enemy;
+                    }
+                } else if (attackType.equals("furthest")) {
+                    if (distance > bestValue) {
+                        bestValue = distance;
+                        bestTarget = enemy;
+                    }
+                } else if (attackType.equals("strongest")) {
+                    HealthComponent health = enemy.getComponent(HealthComponent.class);
+                    if (health != null && health.health > bestValue) {
+                        bestValue = health.health;
+                        bestTarget = enemy;
+                    }
+                }
+            }
+        }
+
+        return bestTarget;
+    }
+
+    public void render(SpriteBatch batch) {
+        batch.draw(texture, transform.position.x, transform.position.y);
+    }
+
+    
+    public void dispose() {
+        texture.dispose();
     }
 
     public void setPosition(Vector2 position) {
@@ -61,63 +133,6 @@ public class Tower extends Entity {
     public Vector2 getVelocity() {
         return transform.velocity;
     }
-
-    // 공격 범위 내의 적을 찾는 메서드
-    private Enemy findTarget(Array<Enemy> enemies, String attackType) {
-        Enemy target = null;
-
-        for (Enemy enemy : enemies) {
-            // 적과 타워 사이의 거리 계산
-            float distance = transform.position.dst(enemy.getPosition());
-
-            // 사정거리 내에 있는지 확인
-            if (distance <= attackRange) {
-                if (attackType.equals("nearest")) {
-                    if (target == null || distance < transform.position.dst(target.getPosition())) {
-                        target = enemy;  // 가장 가까운 적
-                    }
-                } else if (attackType.equals("farthest")) {
-                    if (target == null || distance > transform.position.dst(target.getPosition())) {
-                        target = enemy;  // 가장 멀리 있는 적
-                    }
-                } else if (attackType.equals("highestHealth")) {
-                    if (target == null || enemy.getHealth() > target.getHealth()) {
-                        target = enemy;  // 최대 체력을 가진 적
-                    }
-                }
-            }
-        }
-
-        return target;
-    }
-
-    // 공격 메서드: 공격 대상을 찾아서 공격 처리
-    public void attack(Array<Enemy> enemies, String attackType) {
-        Enemy target = findTarget(enemies, attackType);  // 공격 대상을 찾음
-
-        if (target != null) {
-            // 공격 관련 로직 구현 (예: 물리 공격, 마법 공격 등)
-            target.takeDamage(physicalAttack, magicAttack);  // 적에게 피해를 주는 메서드
-        }
-    }
-
-    public void update(float delta, Array<Enemy> enemies, String attackType) {
-        // 공격 주기 등을 고려하여 공격을 호출
-        attack(enemies, attackType);
-
-        // 위치 업데이트
-        transform.position.x += transform.velocity.x * delta;  // 경로를 따라 이동
-    }
-
-    public void render(SpriteBatch batch) {
-        batch.draw(texture, transform.position.x, transform.position.y);
-    }
-
-    
-    public void dispose() {
-        texture.dispose();
-    }
-
     // 추가적인 getter와 setter
     public float getPhysicalAttack() {
         return physicalAttack;

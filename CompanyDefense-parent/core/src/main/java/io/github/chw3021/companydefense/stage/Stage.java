@@ -7,6 +7,10 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Array;
 
 import io.github.chw3021.companydefense.enemy.Enemy;
@@ -15,13 +19,15 @@ import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.tower.Tower;
 
 public abstract class Stage {
-    protected SpriteBatch batch;
-    protected Texture background;
     protected ShapeRenderer shapeRenderer;
     protected Array<Enemy> enemies;
     protected Array<Tower> towers;
     protected Array<Obstacle> obstacles;  // 장애물 목록
     protected int gridSize = 40;
+    protected Array<Obstacle> pathVisuals;
+    private TextButton spawnButton;
+    private TextButton.TextButtonStyle buttonStyle;
+    private Skin skin;
     
     protected AStarPathfinding aStar;  // AStar 경로 탐색
     protected int life = 10;  // 초기 Life 설정
@@ -36,7 +42,7 @@ public abstract class Stage {
     // 소환할 수 있는 타워 리스트
     protected Array<Tower> availableTowers;
  // 소환 가능한 타워의 영역을 확인
-    private boolean canSpawnTowerAt(float x, float y) {
+    protected boolean canSpawnTowerAt(float x, float y) {
         // 맵 밖일 때 소환 불가
         if (x < 0 || x >= mapWidth * gridSize || y < 0 || y >= mapHeight * gridSize) {
             return false;
@@ -132,45 +138,48 @@ public abstract class Stage {
         System.out.println("You Win!");
         // 게임 승리 로직
     }
+    public Stage() {
+        pathVisuals = new Array<>();
+        skin = new Skin(Gdx.files.internal("uiskin.json"));
+    }
 
     // 스테이지 초기화
     public abstract void initialize();
-    
-    // 버튼을 렌더링하고 클릭 이벤트를 처리하는 부분
-    public void render(float delta) {
+
+    public void render(SpriteBatch batch) {
+        // 배경이나 맵 등의 요소를 먼저 렌더링
+
         batch.begin();
-        batch.draw(background, 0, 0);
 
-        // Spawn 버튼 그리기 (버튼 크기와 위치 설정)
-        float buttonWidth = 200;
-        float buttonHeight = 50;
-        float buttonX = Gdx.graphics.getWidth() - buttonWidth - 20;
-        float buttonY = 20;
+        // Spawn 버튼 스타일 설정
+        buttonStyle = new TextButton.TextButtonStyle();
+        buttonStyle.font = new BitmapFont();  // 기본 폰트 사용
+        buttonStyle.up = skin.getDrawable("default-rect");  // 버튼 배경
+        buttonStyle.down = skin.getDrawable("default-rect");  // 버튼 클릭 시 배경
+        buttonStyle.fontColor = Color.WHITE;  // 텍스트 색상 설정
 
-        // Spawn 버튼 사각형 그리기
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(Color.GREEN);
-        shapeRenderer.rect(buttonX, buttonY, buttonWidth, buttonHeight);
-        shapeRenderer.end();
+        // Spawn 버튼 생성 및 설정
+        if (spawnButton == null) {  // 버튼을 한 번만 생성하도록 조건 추가
+            spawnButton = new TextButton("Spawn", buttonStyle);
+            spawnButton.setPosition(Gdx.graphics.getWidth() - 220, 20);  // 버튼 위치
+            spawnButton.setSize(200, 50);  // 버튼 크기
+        }
 
-        // 버튼 텍스트 그리기
-        BitmapFont font = new BitmapFont(); // 기본 폰트 사용
-        font.setColor(Color.WHITE);
-        font.draw(batch, "Spawn", buttonX + buttonWidth / 2 - font.getRegion().getRegionWidth() / 2, buttonY + buttonHeight / 2 + font.getRegion().getRegionHeight() / 2);
+        // 버튼을 화면에 그리기
+        spawnButton.draw(batch, 1);
 
-        batch.end();
-
-        // Spawn 버튼 클릭 이벤트 처리
+        // 버튼 클릭 이벤트 처리
         if (Gdx.input.isTouched()) {
             float mouseX = Gdx.input.getX();
-            float mouseY = Gdx.input.getY();
-            if (mouseX >= buttonX && mouseX <= buttonX + buttonWidth &&
-                mouseY >= buttonY && mouseY <= buttonY + buttonHeight) {
+            float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();  // Y 좌표 반전
+            if (mouseX >= spawnButton.getX() && mouseX <= spawnButton.getX() + spawnButton.getWidth() &&
+                mouseY >= spawnButton.getY() && mouseY <= spawnButton.getY() + spawnButton.getHeight()) {
                 spawnTower();  // 타워 소환
             }
         }
-    }
 
+        batch.end();
+    }
 
     // 장애물 추가 메서드
     public void addObstacle(Obstacle obstacle) {
@@ -204,8 +213,6 @@ public abstract class Stage {
 
     // 게임 종료 처리
     public void dispose() {
-        batch.dispose();
-        background.dispose();
         shapeRenderer.dispose();
         for (Tower tower : towers) {
             tower.dispose();

@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
-public abstract class Obstacle { // 추상 클래스
+public class Obstacle { 
     private Texture texture;
     private Vector2 position;
 
@@ -22,9 +22,6 @@ public abstract class Obstacle { // 추상 클래스
                 0, 0, width, height);
         
         texture = new Texture(resizedPixmap);
-
-        // 리소스 해제
-        originalPixmap.dispose();
         resizedPixmap.dispose();
     }
 

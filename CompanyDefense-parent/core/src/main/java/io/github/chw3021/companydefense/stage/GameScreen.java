@@ -19,6 +19,7 @@ public class GameScreen implements Screen {
 
     public GameScreen(Game game, int stageId) {
         this.game = game;
+        this.batch = new SpriteBatch();
         // 스테이지에 따라 적, 타워, 경로 등을 설정
         if (stageId == 1) {
         	currentStage = new Stage1();
@@ -38,7 +39,7 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
-        currentStage.render(delta);  // 선택된 스테이지 렌더링
+        currentStage.render(batch);  // 선택된 스테이지 렌더링
     }
 
     @Override
@@ -55,6 +56,6 @@ public class GameScreen implements Screen {
 
     @Override
     public void dispose() {
-        currentStage.dispose();  // 스테이지 리소스 해제
+       // currentStage.dispose();  // 스테이지 리소스 해제
     }
 }
