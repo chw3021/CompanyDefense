@@ -14,7 +14,7 @@ public class GameScreen implements Screen {
     private Game game;
     private SpriteBatch batch;
     private Texture background;
-    private Stage currentStage;  // 현재 스테이지를 관리하는 객체
+    private StageParrent currentStage;  // 현재 스테이지를 관리하는 객체
 
 
     public GameScreen(Game game, int stageId) {

@@ -8,17 +8,21 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.obstacle.Obstacle;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.tower.Tower;
 
-public abstract class Stage {
+public abstract class StageParrent extends Stage{
+	protected float[][] map; // 맵 데이터 (0: 빈 공간, 1: 경로, 2: 장애물)
     protected ShapeRenderer shapeRenderer;
     protected Array<Enemy> enemies;
     protected Array<Tower> towers;
@@ -28,9 +32,9 @@ public abstract class Stage {
     protected float waveTimeInterval = 5.0f;  // 웨이브가 시작되는 시간 간격
     protected float timeSinceLastWave = 0.0f; // 마지막 웨이브 이후 경과 시간
     
-    
+    protected Stage uiStage;
     protected Array<Obstacle> obstacles;  // 장애물 목록
-    protected int gridSize = 40;
+    protected int gridSize = 64;
     protected Array<Obstacle> pathVisuals;
     private TextButton spawnButton;
     private TextButton.TextButtonStyle buttonStyle;
@@ -40,9 +44,8 @@ public abstract class Stage {
     protected int life = 10;  // 초기 Life 설정
 
     // 맵의 크기 (gridWidth, gridHeight)
-    protected int mapWidth = 20;  // 예시: 맵의 가로 크기
-    protected int mapHeight = 20; // 예시: 맵의 세로 크기
-    
+    protected int mapWidth;  // 예시: 맵의 가로 크기
+    protected int mapHeight; // 예시: 맵의 세로 크기
     // 소환할 수 있는 타워 리스트
     protected Array<Tower> availableTowers;
  // 소환 가능한 타워의 영역을 확인
@@ -60,54 +63,50 @@ public abstract class Stage {
         }
 
         // 장애물이 있는지 확인
-        boolean obstacleFound = false;
         for (Obstacle obstacle : obstacles) {
-            if (obstacle.getX() == x && obstacle.getY() == y) {
-                obstacleFound = true;  // 장애물이 있는 곳
-                break;
+            if (Math.abs(obstacle.getX() - x) < gridSize && Math.abs(obstacle.getY() - y) < gridSize) {
+                return true;  // 장애물이 있는 곳만 가능
             }
         }
 
-        return obstacleFound; // 장애물이 있어야만 소환 가능
+        return false; // 장애물이 있어야만 소환 가능
     }
+    private float buttonCooldownTime = 0.5f;  // 버튼 재사용 대기 시간 (초 단위)
+    private float timeSinceLastButtonPress = 0f;  // 마지막 버튼 입력 이후 경과 시간
 
     // 타워 소환 메서드
-    public void spawnTower() {
+    public void spawnTower(float delta) {
+        timeSinceLastButtonPress += delta;
+        if (timeSinceLastButtonPress < buttonCooldownTime) {
+            return;  // 대기 시간이 지나지 않았으면 실행하지 않음
+        }
         // 랜덤하게 타워를 소환
         if (availableTowers.size == 0) return; // 소환할 수 있는 타워가 없으면 종료
 
         // 랜덤으로 타워 선택
         Tower towerToSpawn = availableTowers.random();
 
-        // 랜덤 위치 찾기 (소환 가능한 위치)
-        float spawnX, spawnY;
-        boolean foundSpot = false;
 
-        for (int i = 0; i < 100; i++) { // 최대 100번 시도
-            spawnX = (float) Math.random() * mapWidth * gridSize;
-            spawnY = (float) Math.random() * mapHeight * gridSize;
-
-            if (canSpawnTowerAt(spawnX, spawnY)) {
-                towers.add(towerToSpawn);
-                towerToSpawn.setPosition(new Vector2(spawnX, spawnY)); // 타워 위치 설정
-                foundSpot = true;
-                break;
+        for (int y = 0; y < mapHeight; y++) {
+            for (int x = 0; x < mapWidth; x++) {
+                if (map[y][x] == 0 && canSpawnTowerAt(x * gridSize, y * gridSize)) { // 맵에서 빈 공간인지 확인
+                	towerToSpawn.setPosition(new Vector2(x * gridSize, y * gridSize));
+                    towers.add(towerToSpawn);
+                    return;
+                }
             }
         }
+        System.out.println("Cannot spawn tower: No valid spot available!");
 
-        // 만약 소환할 수 있는 자리가 없다면 실패 메시지 출력
-        if (!foundSpot) {
-            System.out.println("Cannot spawn tower: No valid spot available!");
-        }
     }
 
     // Wave 관리 및 처리
-    public void setupWave(Wave wave) {
+    protected void setupWave(Wave wave) {
         waves.add(wave);
     }
 
     // 웨이브 업데이트 메서드
-    public void updateWave(float delta) {
+    private void updateWave(float delta) {
         timeSinceLastWave += delta;
 
         if (timeSinceLastWave >= waveTimeInterval) {
@@ -133,7 +132,7 @@ public abstract class Stage {
     }
 
     // 웨이브 완료 체크
-    public void checkWaveCompletion() {
+    private void checkWaveCompletion() {
         if (enemies.isEmpty() && currentWaveIndex < waves.size) {
             if (waves.get(currentWaveIndex).isComplete()) {
                 win();  // 승리 처리
@@ -153,58 +152,43 @@ public abstract class Stage {
         System.out.println("You Win!");
         // 게임 승리 로직
     }
-    public Stage() {
+    public StageParrent() {
         pathVisuals = new Array<>();
-        skin = new Skin(Gdx.files.internal("uiskin.json"));
+        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
         towers = new Array<>();
         
         enemies = new Array<>();
         waves = new Array<>();
         currentWaveIndex = 0;
     }
+    public void initialize() {
+        uiStage = new Stage(new ScreenViewport());
+        Gdx.input.setInputProcessor(uiStage);
 
-    // 스테이지 초기화
-    public abstract void initialize();
+        spawnButton = new TextButton("Spawn Tower", skin);
+        spawnButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                spawnTower(Gdx.graphics.getDeltaTime());
+            }
+        });
+
+        Table uiTable = new Table();
+        uiTable.setFillParent(true);
+        uiTable.bottom();
+        uiTable.add(spawnButton).width(200).height(60).pad(10);
+        uiStage.addActor(uiTable);
+        updateWave(Gdx.graphics.getDeltaTime());
+    }
 
     public void render(SpriteBatch batch) {
-        // 배경이나 맵 등의 요소를 먼저 렌더링
-
-        batch.begin();
-
-        // Spawn 버튼 스타일 설정
-        buttonStyle = new TextButton.TextButtonStyle();
-        buttonStyle.font = new BitmapFont();  // 기본 폰트 사용
-        buttonStyle.up = skin.getDrawable("default-rect");  // 버튼 배경
-        buttonStyle.down = skin.getDrawable("default-rect");  // 버튼 클릭 시 배경
-        buttonStyle.fontColor = Color.WHITE;  // 텍스트 색상 설정
-
-        // Spawn 버튼 생성 및 설정
-        if (spawnButton == null) {  // 버튼을 한 번만 생성하도록 조건 추가
-            spawnButton = new TextButton("Spawn", buttonStyle);
-            spawnButton.setPosition(Gdx.graphics.getWidth() - 220, 20);  // 버튼 위치
-            spawnButton.setSize(200, 50);  // 버튼 크기
-        }
-
-        // 버튼을 화면에 그리기
-        spawnButton.draw(batch, 1);
-
-        // 버튼 클릭 이벤트 처리
-        if (Gdx.input.isTouched()) {
-            float mouseX = Gdx.input.getX();
-            float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();  // Y 좌표 반전
-            if (mouseX >= spawnButton.getX() && mouseX <= spawnButton.getX() + spawnButton.getWidth() &&
-                mouseY >= spawnButton.getY() && mouseY <= spawnButton.getY() + spawnButton.getHeight()) {
-                spawnTower();  // 타워 소환
-            }
-        }
-
-        batch.end();
-
         batch.begin();
         for (Enemy enemy : enemies) {
             enemy.render(batch);  // 적 그리기
         }
         batch.end();
+        uiStage.act();
+        uiStage.draw();
     }
 
     // 장애물 추가 메서드
@@ -249,5 +233,7 @@ public abstract class Stage {
             }
         }
     }
+    
+    
 }
 
