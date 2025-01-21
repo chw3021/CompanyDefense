@@ -8,7 +8,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 
-import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.enemy.Enemy;
@@ -55,6 +54,19 @@ public class Tower extends Entity {
     }
 
 
+    public Tower(Tower other) {
+    	this.transform = new TransformComponent();
+        this.transform.position.set(other.transform.position);
+        this.physicalAttack = other.physicalAttack;
+        this.magicAttack = other.magicAttack;
+        this.attackSpeed = other.attackSpeed;
+        this.attackRange = other.attackRange;
+        this.attackCooldown = other.attackCooldown;
+        this.name = other.name;
+        this.texture = other.texture;
+        this.add(transform);
+        // 필요한 필드를 추가적으로 복사
+    }
     // 적에게 피해를 주는 attack 메서드
     public void attack(Enemy target) {
         if (target != null) {

@@ -21,7 +21,7 @@ import io.github.chw3021.companydefense.obstacle.Obstacle;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.tower.Tower;
 
-public abstract class StageParrent extends Stage{
+public abstract class StageParent extends Stage{
 	protected float[][] map; // 맵 데이터 (0: 빈 공간, 1: 경로, 2: 장애물)
     protected ShapeRenderer shapeRenderer;
     protected Array<Enemy> enemies;
@@ -39,7 +39,7 @@ public abstract class StageParrent extends Stage{
     private TextButton spawnButton;
     private TextButton.TextButtonStyle buttonStyle;
     private Skin skin;
-    
+    protected float offsetY = 0;
     protected AStarPathfinding aStar;  // AStar 경로 탐색
     protected int life = 10;  // 초기 Life 설정
 
@@ -48,58 +48,55 @@ public abstract class StageParrent extends Stage{
     protected int mapHeight; // 예시: 맵의 세로 크기
     // 소환할 수 있는 타워 리스트
     protected Array<Tower> availableTowers;
- // 소환 가능한 타워의 영역을 확인
+    private Array<Vector2> spawnablePositions;
+    // 소환 가능한 타워의 영역을 확인
     protected boolean canSpawnTowerAt(float x, float y) {
-        // 맵 밖일 때 소환 불가
-        if (x < 0 || x >= mapWidth * gridSize || y < 0 || y >= mapHeight * gridSize) {
-            return false;
-        }
-
-        // 이미 타워가 있는지 확인
         for (Tower tower : towers) {
             if (tower.getPosition().x == x && tower.getPosition().y == y) {
                 return false;
             }
         }
 
-        // 장애물이 있는지 확인
-        for (Obstacle obstacle : obstacles) {
-            if (Math.abs(obstacle.getX() - x) < gridSize && Math.abs(obstacle.getY() - y) < gridSize) {
-                return true;  // 장애물이 있는 곳만 가능
-            }
-        }
-
-        return false; // 장애물이 있어야만 소환 가능
+        return true; 
     }
     private float buttonCooldownTime = 0.5f;  // 버튼 재사용 대기 시간 (초 단위)
     private float timeSinceLastButtonPress = 0f;  // 마지막 버튼 입력 이후 경과 시간
 
     // 타워 소환 메서드
-    public void spawnTower(float delta) {
-        timeSinceLastButtonPress += delta;
-        if (timeSinceLastButtonPress < buttonCooldownTime) {
-            return;  // 대기 시간이 지나지 않았으면 실행하지 않음
-        }
-        // 랜덤하게 타워를 소환
-        if (availableTowers.size == 0) return; // 소환할 수 있는 타워가 없으면 종료
+    public void spawnTower() {
+        Array<Vector2> filteredPositions = new Array<>();
 
-        // 랜덤으로 타워 선택
-        Tower towerToSpawn = availableTowers.random();
-
-
-        for (int y = 0; y < mapHeight; y++) {
-            for (int x = 0; x < mapWidth; x++) {
-                if (map[y][x] == 0 && canSpawnTowerAt(x * gridSize, y * gridSize)) { // 맵에서 빈 공간인지 확인
-                	towerToSpawn.setPosition(new Vector2(x * gridSize, y * gridSize));
-                    towers.add(towerToSpawn);
-                    return;
-                }
+        // 필터링
+        for (Vector2 position : spawnablePositions) {
+            if (canSpawnTowerAt(position.x, position.y)) {
+                filteredPositions.add(position);
             }
         }
-        System.out.println("Cannot spawn tower: No valid spot available!");
 
+        if (filteredPositions.size > 0) {
+            // 랜덤하게 위치 선택
+            Vector2 selectedPosition = filteredPositions.random();
+
+            // 타워 배치
+            Tower towerToSpawn = new Tower(availableTowers.random());
+            towerToSpawn.setPosition(selectedPosition);
+            towers.add(towerToSpawn);
+        } else {
+            System.out.println("No valid positions to spawn a tower!");
+        }
     }
 
+	private void initializeSpawnablePositions() {
+	    spawnablePositions = new Array<>();
+	    for (int y = 0; y < mapHeight; y++) {
+	        for (int x = 0; x < mapWidth; x++) {
+	            if (map[y][x] == 2) {
+	                float adjustedY = offsetY + y * gridSize;
+	                spawnablePositions.add(new Vector2(x * gridSize, adjustedY));
+	            }
+	        }
+	    }
+	}
     // Wave 관리 및 처리
     protected void setupWave(Wave wave) {
         waves.add(wave);
@@ -152,7 +149,7 @@ public abstract class StageParrent extends Stage{
         System.out.println("You Win!");
         // 게임 승리 로직
     }
-    public StageParrent() {
+    public StageParent() {
         pathVisuals = new Array<>();
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
         towers = new Array<>();
@@ -169,7 +166,7 @@ public abstract class StageParrent extends Stage{
         spawnButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                spawnTower(Gdx.graphics.getDeltaTime());
+                spawnTower();
             }
         });
 
@@ -179,14 +176,11 @@ public abstract class StageParrent extends Stage{
         uiTable.add(spawnButton).width(200).height(60).pad(10);
         uiStage.addActor(uiTable);
         updateWave(Gdx.graphics.getDeltaTime());
+        
+        initializeSpawnablePositions();
     }
 
     public void render(SpriteBatch batch) {
-        batch.begin();
-        for (Enemy enemy : enemies) {
-            enemy.render(batch);  // 적 그리기
-        }
-        batch.end();
         uiStage.act();
         uiStage.draw();
     }
@@ -194,7 +188,7 @@ public abstract class StageParrent extends Stage{
     // 장애물 추가 메서드
     public void addObstacle(Obstacle obstacle) {
         if (obstacles == null) {
-            obstacles = new Array<>();
+            obstacles = new Array<>(); 
         }
         obstacles.add(obstacle);
     }
@@ -206,7 +200,7 @@ public abstract class StageParrent extends Stage{
         Obstacle[][] obstacleMap = new Obstacle[mapWidth][mapHeight];
         for (Obstacle obstacle : obstacles) {
             int x = (int) (obstacle.getX() / gridSize);  
-            int y = (int) (obstacle.getY() / gridSize);  
+            int y = (int) ((obstacle.getY() - offsetY) / gridSize);  
             obstacleMap[x][y] = obstacle;
         }
         aStar.setObstacles(obstacleMap);
