@@ -20,7 +20,43 @@ public class MainMenuScreen implements Screen {
     private OrthographicCamera camera;
 
     private Game game;
+    private TextButton createButton(String text, Skin skin, Runnable onClick) {
+        TextButton button = new TextButton(text, skin);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                onClick.run();
+            }
+        });
+        return button;
+    }
 
+    private void addButtonToTable(Table table, TextButton button) {
+        table.add(button).fillX().uniformX().pad(10);
+        table.row().pad(10, 0, 10, 0);
+    }
+
+    // 버튼 및 테이블 초기화
+    public void initializeButtons(Skin skin, Table table) {
+        addButtonToTable(table, createButton("메뉴", skin, () -> {
+            // 메뉴 화면으로 이동 (구현 필요)
+        }));
+        addButtonToTable(table, createButton("게임 준비", skin, () -> {
+            game.setScreen(new StageSelectionScreen(game));
+        }));
+        addButtonToTable(table, createButton("자동 사냥", skin, () -> {
+            // 자동 사냥 화면으로 이동
+        }));
+        addButtonToTable(table, createButton("캐릭터/유물 정보", skin, () -> {
+            // 캐릭터/유물 정보 화면으로 이동
+        }));
+        addButtonToTable(table, createButton("뽑기 상점", skin, () -> {
+            // 뽑기 상점 화면으로 이동
+        }));
+    }
+
+    
+    
     public MainMenuScreen(Game game) {
         this.game = game;
         batch = new SpriteBatch();
@@ -40,43 +76,25 @@ public class MainMenuScreen implements Screen {
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
         Gdx.input.setInputProcessor(stage);  // Stage의 입력 처리기 설정
 
+        /*
+      		ImageButton menuButton = new ImageButton(style);
+			
+			// 클릭 이벤트 설정
+			menuButton.addListener(new ClickListener() {
+			    @Override
+			    public void clicked(InputEvent event, float x, float y) {
+			        // 메뉴 화면으로 이동
+			    }
+			});
+
+         */
+        
+        
         Table table = new Table();
         table.top().center();
         table.setFillParent(true);
-
-        // 버튼 생성
-        TextButton startGameButton = new TextButton("GameStart", skin);
-        TextButton settingsButton = new TextButton("Setting", skin);
-        TextButton rankingButton = new TextButton("Ranking", skin);
-
-        // 클릭 이벤트 설정
-        startGameButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                game.setScreen(new StageSelectionScreen(game));  // 게임 시작 버튼 클릭 시 화면 전환
-            }
-        });
-
-        settingsButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                // 설정 화면으로 이동 (추후 구현 가능)
-            }
-        });
-
-        rankingButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                // 랭킹 화면으로 이동 (추후 구현 가능)
-            }
-        });
-
-        // 버튼을 테이블에 추가
-        table.add(startGameButton).fillX().uniformX().pad(10);
-        table.row().pad(10, 0, 10, 0);
-        table.add(settingsButton).fillX().uniformX().pad(10);
-        table.row().pad(10, 0, 10, 0);
-        table.add(rankingButton).fillX().uniformX().pad(10);
+        
+        initializeButtons(skin, table);
 
         // 테이블을 Stage에 추가
         stage.addActor(table);

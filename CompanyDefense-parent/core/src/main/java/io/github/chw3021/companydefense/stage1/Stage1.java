@@ -30,20 +30,25 @@ public class Stage1 extends StageParent {
     public void initialize() {
         // 맵 데이터 초기화 (옆으로 누운 S자 경로)
     	map = new float[][] {
-    	    { 1, 1, 1, 1, 1, 1 },
-    	    { 2, 2, 2, 2, 2, 1 },
-    	    { 1, 1, 1, 1, 1, 1 },
-    	    { 1, 2, 2, 2, 2, 2 },
-    	    { 1, 1, 1, 1, 1, 1 },
-    	    { 2, 2, 2, 2, 2, 1 },
-    	    { 1, 1, 1, 1, 1, 1 }
+    	    { 1, 1, 1, 1, 1, 1, 1 },
+    	    { 2, 2, 2, 2, 2, 2 ,1 },
+    	    { 1, 1, 1, 1, 1, 1, 1 },
+    	    { 1, 2, 2, 2, 2, 2, 2 },
+    	    { 1, 1, 1, 1, 1, 1, 1 },
+    	    { 2, 2, 2, 2, 2, 2, 1 },
+    	    { 1, 1, 1, 1, 1, 1, 1 }
     	};
-        mapWidth = 6;  // 예시: 맵의 가로 크기
+        mapWidth = 7;  // 예시: 맵의 가로 크기
         mapHeight = 7; // 예시: 맵의 세로 크기
+        gridSize = Gdx.graphics.getWidth() / mapWidth; // 화면 너비에 맞게 그리드 크기 설정
+
+        // 배경 텍스처 로드
+        backgroundTexture = new Texture(Gdx.files.internal("background/stage1.jpg"));
+
         //<a href="https://kr.freepik.com/free-vector/realistic-office-design-flat-lay_24007772.htm">작가 pikisuperstar 출처 Freepik</a>
         // 텍스처 로드
         Pixmap obstaclePixmap = new Pixmap(Gdx.files.internal("constructure/obstacle/obstacle.jpg"));
-        Pixmap pathPixmap = new Pixmap(Gdx.files.internal("constructure/path/path.png"));
+        //Pixmap pathPixmap = new Pixmap(Gdx.files.internal("constructure/path/path.png"));
         backgroundTexture = new Texture(Gdx.files.internal("background/stage1.jpg"));
         offsetY = Gdx.graphics.getHeight() - (mapHeight * gridSize);
         // 장애물 추가
@@ -53,10 +58,11 @@ public class Stage1 extends StageParent {
                 if (map[y][x] == 2) {
                     // 장애물 생성
                     addObstacle(new Obstacle(x * gridSize, adjustedY, obstaclePixmap, gridSize, gridSize));
-                } else if (map[y][x] == 1) {
-                    // 경로를 시각적으로 표현하기 위해 텍스처를 배치
-                    pathVisuals.add(new Obstacle(x * gridSize, adjustedY, pathPixmap, gridSize, gridSize));
-                }
+                } 
+//                else if (map[y][x] == 1) {
+//                    // 경로를 시각적으로 표현하기 위해 텍스처를 배치
+//                    pathVisuals.add(new Obstacle(x * gridSize, adjustedY, pathPixmap, gridSize, gridSize));
+//                }
             }
         }
 
@@ -77,8 +83,9 @@ public class Stage1 extends StageParent {
     public void render(SpriteBatch batch) {
     	batch.begin();
         // 배경
-        batch.draw(backgroundTexture, 0, Gdx.graphics.getHeight() / 4, Gdx.graphics.getWidth(), Gdx.graphics.getHeight() * 3 / 4);
-        
+        float backgroundHeight = mapHeight * gridSize;
+        batch.draw(backgroundTexture, 0, offsetY, Gdx.graphics.getWidth(), backgroundHeight);
+
         // 경로 및 장애물
         for (Obstacle path : pathVisuals) {
             path.render(batch);

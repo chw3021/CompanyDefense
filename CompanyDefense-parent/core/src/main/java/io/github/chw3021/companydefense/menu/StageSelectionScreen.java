@@ -23,6 +23,7 @@ public class StageSelectionScreen implements Screen {
     private Stage stage;
     private OrthographicCamera camera;
     private Skin skin;
+    private boolean disposed = false;
 
     public StageSelectionScreen(Game game) {
         this.game = game;
@@ -46,27 +47,26 @@ public class StageSelectionScreen implements Screen {
         table.setFillParent(true);
 
         // 버튼 생성 (스테이지 1, 2, 3 버튼)
-        TextButton stage1Button = new TextButton("Easy", skin);
-        TextButton stage2Button = new TextButton("Normal", skin);
-        TextButton stage3Button = new TextButton("Hard", skin);
-
-        stage1Button.addListener(new ClickListener() {
-		    @Override
-		    public void clicked(InputEvent event, float x, float y) {
-                game.setScreen(new GameScreen(game, 1)); // 스테이지 1로 게임 시작
-                dispose();
-		    }
-		});
-
-        table.add(stage1Button).fillX().uniformX().pad(10);
-        table.row().pad(10, 0, 10, 0);
-        table.add(stage2Button).fillX().uniformX().pad(10);
-        table.row().pad(10, 0, 10, 0);
-        table.add(stage3Button).fillX().uniformX().pad(10);
+        createButton(table, "Easy", () -> game.setScreen(new GameScreen(game, 1)));
+        createButton(table, "Normal", () -> game.setScreen(new GameScreen(game, 2)));
+        createButton(table, "Hard", () -> game.setScreen(new GameScreen(game, 3)));
 
         stage.addActor(table);
     }
 
+    // 버튼 생성 메서드
+    private void createButton(Table table, String buttonText, Runnable onClick) {
+        TextButton button = new TextButton(buttonText, skin);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                onClick.run(); // 버튼 클릭 시 동작
+                dispose();     // 현재 화면 리소스 정리
+            }
+        });
+        table.add(button).fillX().uniformX().pad(10);
+        table.row().pad(10, 0, 10, 0);
+    }
     @Override
     public void render(float delta) {
     	Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1);
@@ -87,7 +87,7 @@ public class StageSelectionScreen implements Screen {
 
     @Override
     public void hide() {
-        stage.dispose();
+        dispose();
     }
 
     @Override
@@ -98,6 +98,11 @@ public class StageSelectionScreen implements Screen {
 
     @Override
     public void dispose() {
-        batch.dispose();
+        if (disposed) return; // 이미 해제된 경우 반환
+        disposed = true;
+
+        if (stage != null) stage.dispose(); // Stage 리소스 정리
+        if (batch != null) batch.dispose(); // SpriteBatch 정리
+        Gdx.input.setInputProcessor(null); // InputProcessor 초기화
     }
 }
