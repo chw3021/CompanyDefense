@@ -31,7 +31,7 @@ public class Enemy extends Entity {
     
     
     public Enemy(float startX, float startY, float health, float physicalDefense, float magicDefense, float moveSpeed,
-                 String type, String image, Vector2 target, int gridWidth, int gridHeight, int gridSize) {
+                 String type, String image, Vector2 target, int mapWidth, int mapHeight, int gridSize) {
         // TransformComponent 사용
         transform = new TransformComponent();
         transform.setPosition(new Vector2(startX, startY));
@@ -56,7 +56,7 @@ public class Enemy extends Entity {
         this.add(damageComponent);
 
         // AStarPathfinding 객체 초기화
-        this.aStarPathfinding = new AStarPathfinding(gridWidth, gridHeight, gridSize);
+        this.aStarPathfinding = AStarPathfinding.getInstance(mapWidth, mapHeight, gridSize);
         this.path = new ArrayList<>();
         this.currentPathIndex = 0;
         
@@ -86,6 +86,7 @@ public class Enemy extends Entity {
         path = aStarPathfinding.findPath((int)transform.getPosition().x, (int)transform.getPosition().y,
                 (int)pathfinding.getTarget().x, (int)pathfinding.getTarget().y);
 
+        
         currentPathIndex = 0; // 경로를 다시 시작
     }
 
@@ -101,6 +102,7 @@ public class Enemy extends Entity {
             currentPathIndex++;
             if (currentPathIndex >= path.size()) {
                 currentPathIndex = path.size() - 1; // 마지막 경로에 도달하면 멈춤
+            	dispose();
             }
         } else {
             // 목표 지점으로 이동
@@ -132,6 +134,7 @@ public class Enemy extends Entity {
         if (texture != null) {
             texture.dispose(); // 텍스처 리소스 해제
         }
+    	wave.removeEnemy(this);
     }
     public void addDamage(float physicalDamage, float magicDamage) {
         // 기존의 DamageComponent에 데미지 추가
@@ -139,7 +142,6 @@ public class Enemy extends Entity {
         damageComponent.setMagicDamage(magicDamage);
         if(getHealth()<=0) {
         	dispose();
-        	wave.removeEnemy(this);
         }
         System.out.println(this +" "+ getHealth());
     }

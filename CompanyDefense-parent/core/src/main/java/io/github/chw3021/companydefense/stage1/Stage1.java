@@ -1,21 +1,18 @@
 package io.github.chw3021.companydefense.stage1;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.obstacle.Obstacle;
+import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage.Wave;
 import io.github.chw3021.companydefense.tower.Tower;
-
-import com.badlogic.gdx.InputAdapter;
 public class Stage1 extends StageParent {
     private Texture obstacleTexture;
     private Texture pathTexture;
@@ -28,8 +25,8 @@ public class Stage1 extends StageParent {
 
 	private Wave createFirstWave() {
 	    Wave wave = new Wave(2.0f);
-        for(int i = 0; i<20; i++) {
-        	Enemy printer = generateEnemy(100, 1, 1, 10, "normal", "enemy/printer.png");
+        for(int i = 0; i<1; i++) {
+        	Enemy printer = generateEnemy(100, 1, 1, 100, "normal", "enemy/printer.png");
         	wave.addEnemy(printer);
         	printer.setWave(wave);
         }
@@ -48,7 +45,7 @@ public class Stage1 extends StageParent {
 			moveSpeed,              // move speed
 			type,         // type
 			path, 
-			new Vector2((mapWidth) * gridSize, (mapHeight) * gridSize),
+			new Vector2(gridSize, (mapHeight * gridSize)+offsetY),
 			mapWidth,
 			mapHeight,
 			gridSize
@@ -80,6 +77,10 @@ public class Stage1 extends StageParent {
         //Pixmap pathPixmap = new Pixmap(Gdx.files.internal("constructure/path/path.png"));
         backgroundTexture = new Texture(Gdx.files.internal("background/stage1.jpg"));
         offsetY = Gdx.graphics.getHeight() - (mapHeight * gridSize);
+        
+        aStar = AStarPathfinding.getInstance(mapWidth, mapHeight, gridSize);
+        aStar.setObstacles(map);
+        
         // 장애물 추가
         for (int y = 0; y < mapHeight; y++) {
             for (int x = 0; x < mapWidth; x++) {
@@ -91,8 +92,7 @@ public class Stage1 extends StageParent {
                 
             }
         }
-        // A* 경로 설정
-    	setupAStar();
+
 
         availableTowers = new Array<>();
         availableTowers.add(new Tower(0, 0, 100, 100, 1, 2, "tower/class1/man1.png", "man", "closest"));

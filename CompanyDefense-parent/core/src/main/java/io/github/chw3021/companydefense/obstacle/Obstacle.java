@@ -34,10 +34,6 @@ public class Obstacle {
         this.position = position;
     }
 
-    public void moveBy(float deltaX, float deltaY) {
-        this.position.add(deltaX, deltaY);
-    }
-
     // X, Y 위치를 각각 반환하는 메서드 추가
     public float getX() {
         return position.x;

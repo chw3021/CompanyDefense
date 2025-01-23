@@ -167,6 +167,9 @@ public abstract class StageParent extends Stage{
         uiStage.act();
         uiStage.draw();
     }
+    public int getLife() {
+    	return life;
+    }
 
     // 장애물 추가 메서드
     public void addObstacle(Obstacle obstacle) {
@@ -176,22 +179,6 @@ public abstract class StageParent extends Stage{
         obstacles.add(obstacle);
     }
     
-    public int getLife() {
-    	return life;
-    }
-
-    // AStar 초기화 및 장애물 설정
-    public void setupAStar() {
-        aStar = new AStarPathfinding(mapWidth, mapHeight, gridSize);
-
-        Obstacle[][] obstacleMap = new Obstacle[mapWidth][mapHeight];
-        for (Obstacle obstacle : obstacles) {
-            int x = (int) (obstacle.getX() / gridSize);  
-            int y = (int) ((obstacle.getY() - offsetY) / gridSize);  
-            obstacleMap[x][y] = obstacle;
-        }
-        aStar.setObstacles(obstacleMap);
-    }
 
     // 게임 종료 처리
     public void dispose() {
