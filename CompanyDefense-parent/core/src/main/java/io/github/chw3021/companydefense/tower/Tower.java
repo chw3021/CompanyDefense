@@ -24,9 +24,10 @@ public class Tower extends Entity {
     private float attackSpeed;
     private float attackRange;
     private float attackCooldown; // 다음 공격까지 남은 시간
+    private String attackType = "closest";
 
     public Tower(float startX, float startY, float physicalAttack, float magicAttack, float attackSpeed, 
-                 float attackRange, String path, String name) {
+                 float attackRange, String path, String name, String attackType) {
     	// TransformComponent 사용
         transform = new TransformComponent();
         transform.position.set(startX, startY);
@@ -75,14 +76,14 @@ public class Tower extends Entity {
     }
 
     // 업데이트 메서드 (적을 탐지하고 공격하는 로직 포함)
-    public void update(float delta, Array<Enemy> enemies, String attackType) {
+    public void update(float delta, Array<Enemy> enemies) {
         attackCooldown -= delta;
 
         if (attackCooldown <= 0) {
             attackCooldown = 1 / attackSpeed; // 공격 속도 기반 쿨타임 재설정
 
             // 범위 내에서 타겟 탐색
-            Enemy target = findTarget(enemies, attackType);
+            Enemy target = findTarget(enemies,attackType);
             if (target != null) {
                 attack(target); // 공격
             }

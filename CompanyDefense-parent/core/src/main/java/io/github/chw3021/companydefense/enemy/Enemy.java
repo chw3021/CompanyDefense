@@ -16,6 +16,7 @@ import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.PathfindingComponent;
 import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
+import io.github.chw3021.companydefense.stage.Wave;
 public class Enemy extends Entity {
     private AStarPathfinding aStarPathfinding; // A* 경로 탐색
     private List<Vector2> path; // 적의 경로
@@ -24,24 +25,27 @@ public class Enemy extends Entity {
     private TransformComponent transform; // 위치 및 이동 속도 관리
     private HealthComponent healthComponent;
     private DamageComponent damageComponent;
-
+    private PathfindingComponent pathfinding;
+    private EnemyComponent enemyComponent;
+    private Wave wave;
+    
+    
     public Enemy(float startX, float startY, float health, float physicalDefense, float magicDefense, float moveSpeed,
-                 String type, String path, Vector2 target) {
+                 String type, String image, Vector2 target, int gridWidth, int gridHeight, int gridSize) {
         // TransformComponent 사용
         transform = new TransformComponent();
-        transform.position.set(startX, startY);
-        transform.moveSpeed = moveSpeed;
+        transform.setPosition(new Vector2(startX, startY));
+        transform.setMoveSpeed(moveSpeed);
 
         // HealthComponent 추가
         healthComponent = new HealthComponent(health, physicalDefense, magicDefense);
 
         // EnemyComponent 추가
-        EnemyComponent enemyComponent = new EnemyComponent();
-        enemyComponent.type = type;
+        enemyComponent = new EnemyComponent(type);
 
         // PathfindingComponent 추가
-        PathfindingComponent pathfinding = new PathfindingComponent();
-        pathfinding.target = target; // 목표 지점 설정
+        pathfinding = new PathfindingComponent();
+        pathfinding.setTarget(target);
         
         damageComponent = new DamageComponent(0, 0);
 
@@ -52,12 +56,12 @@ public class Enemy extends Entity {
         this.add(damageComponent);
 
         // AStarPathfinding 객체 초기화
-        this.aStarPathfinding = new AStarPathfinding(20, 20, 1);
+        this.aStarPathfinding = new AStarPathfinding(gridWidth, gridHeight, gridSize);
         this.path = new ArrayList<>();
         this.currentPathIndex = 0;
-
+        
         // 텍스처 로드
-        loadTexture(path);
+        loadTexture(image);
     }
 
     // 텍스처 로드 메서드
@@ -77,13 +81,10 @@ public class Enemy extends Entity {
 
     // 경로를 찾고 이동하는 메서드
     public void updatePath() {
-        // 현재 위치와 목표 위치를 A* 알고리즘에 전달하여 경로를 계산
-        TransformComponent transform = this.getComponent(TransformComponent.class);
-        PathfindingComponent pathfindingComponent = this.getComponent(PathfindingComponent.class);
-
         // AStarPathfinding의 findPath 메서드를 사용하여 경로 계산
-        path = aStarPathfinding.findPath((int)transform.position.x, (int)transform.position.y,
-                (int)pathfindingComponent.target.x, (int)pathfindingComponent.target.y);
+        
+        path = aStarPathfinding.findPath((int)transform.getPosition().x, (int)transform.getPosition().y,
+                (int)pathfinding.getTarget().x, (int)pathfinding.getTarget().y);
 
         currentPathIndex = 0; // 경로를 다시 시작
     }
@@ -117,6 +118,10 @@ public class Enemy extends Entity {
         }
     }
 
+    public boolean isAtTarget(Vector2 target) {
+        return transform.position.dst(target) < 5.0f;  // 목표 지점에 가까워지면 true
+    }
+
     // 화면에 적을 그리기 위한 렌더링 메서드
     public void render(SpriteBatch batch) {
         batch.draw(texture, transform.position.x, transform.position.y);
@@ -130,12 +135,31 @@ public class Enemy extends Entity {
     }
     public void addDamage(float physicalDamage, float magicDamage) {
         // 기존의 DamageComponent에 데미지 추가
-        damageComponent.physicalDamage += physicalDamage;
-        damageComponent.magicDamage += magicDamage;
+        damageComponent.setPhysicalDamage(physicalDamage);
+        damageComponent.setMagicDamage(magicDamage);
+        if(getHealth()<=0) {
+        	dispose();
+        	wave.removeEnemy(this);
+        }
+        System.out.println(this +" "+ getHealth());
+    }
+    
+    public void setWave(Wave wave) {
+    	this.wave = wave;
+    }
+    
+    public float getHealth() {
+    	return healthComponent.health;
     }
 
 	public Vector2 getPosition() {
 		
 		return transform.position;
+	}
+
+	@Override
+	public String toString() {
+		return "Enemy [transform=" + transform + ", healthComponent=" + healthComponent + ", damageComponent="
+				+ damageComponent + ", wave=" + wave + "]";
 	}
 }

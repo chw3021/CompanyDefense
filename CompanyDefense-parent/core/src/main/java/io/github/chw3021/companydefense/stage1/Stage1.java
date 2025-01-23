@@ -26,6 +26,35 @@ public class Stage1 extends StageParent {
         initialize();
     }
 
+	private Wave createFirstWave() {
+	    Wave wave = new Wave(2.0f);
+        for(int i = 0; i<20; i++) {
+        	Enemy printer = generateEnemy(100, 1, 1, 10, "normal", "enemy/printer.png");
+        	wave.addEnemy(printer);
+        	printer.setWave(wave);
+        }
+	    return wave;
+	}
+	
+	private Wave createSecondWave() {
+	    Array<Enemy> enemiesForWave = new Array<>();
+	    return new Wave(enemiesForWave, 1.5f);
+	}
+	
+	private Enemy generateEnemy(float health, float physicalDefense, 
+			float magicDefense, float moveSpeed, String type, String path) {
+		return new Enemy(0, offsetY,  // start position
+			health, physicalDefense, magicDefense,        // health, physical/magic defense 
+			moveSpeed,              // move speed
+			type,         // type
+			path, 
+			new Vector2((mapWidth) * gridSize, (mapHeight) * gridSize),
+			mapWidth,
+			mapHeight,
+			gridSize
+	    );
+	}
+
     @Override
     public void initialize() {
         // 맵 데이터 초기화 (옆으로 누운 S자 경로)
@@ -58,24 +87,27 @@ public class Stage1 extends StageParent {
                 if (map[y][x] == 2) {
                     // 장애물 생성
                     addObstacle(new Obstacle(x * gridSize, adjustedY, obstaclePixmap, gridSize, gridSize));
-                } 
-//                else if (map[y][x] == 1) {
-//                    // 경로를 시각적으로 표현하기 위해 텍스처를 배치
-//                    pathVisuals.add(new Obstacle(x * gridSize, adjustedY, pathPixmap, gridSize, gridSize));
-//                }
+                }
+                
             }
         }
+        // A* 경로 설정
+    	setupAStar();
 
         availableTowers = new Array<>();
-        availableTowers.add(new Tower(0, 0, 10, 0, 1, 2, "tower/class1/man1.png", "man"));
-        // A* 경로 설정
-//        setupAStar();
-//
-//        // 적 웨이브 설정
-//        Array<Enemy> waveEnemies = new Array<>();
-//        waveEnemies.add(new Enemy(0, 2 * gridSize, 100, 5, 5, 100, "normal", "enemy/printer.png", new Vector2(9 * gridSize, 2 * gridSize)));
-//        Wave wave1 = new Wave(waveEnemies, waveTimeInterval);
-//        setupWave(wave1);
+        availableTowers.add(new Tower(0, 0, 100, 100, 1, 2, "tower/class1/man1.png", "man", "closest"));
+
+        Wave wave1 = createFirstWave();
+        Wave wave2 = createSecondWave();
+        for(int i = 0; i<20; i++) {
+        	Enemy printer = generateEnemy(100, 1, 1, 10, "normal", "enemy/printer.png");
+        	wave2.addEnemy(printer);
+        	printer.setWave(wave2);
+        }
+        
+        waveManager.addWave(wave1);
+        waveManager.addWave(wave2);
+        
     	super.initialize();
     }
 
@@ -98,11 +130,12 @@ public class Stage1 extends StageParent {
         for (Tower tower : towers) {
             tower.render(batch);
         }
-        for (Enemy enemy : enemies) {
+        for (Enemy enemy : activeEnemies) {
             enemy.render(batch);
         }
         batch.end();
 
+        act(Gdx.graphics.getDeltaTime());
         super.render(batch);
         
     }

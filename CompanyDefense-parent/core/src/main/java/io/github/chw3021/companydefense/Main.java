@@ -5,10 +5,22 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 import io.github.chw3021.companydefense.menu.MainMenuScreen;
+import io.github.chw3021.companydefense.menu.StageSelectionScreen;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends Game {
     private OrthographicCamera camera;
+
+    private static Main instance;
+
+    public static Main getInstance() {
+        if (instance == null) {
+            instance = new Main();
+        }
+        return instance;
+    }
+    
+    
     @Override
     public void create() {
         new SpriteBatch();

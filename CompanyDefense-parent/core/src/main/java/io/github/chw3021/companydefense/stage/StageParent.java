@@ -24,11 +24,9 @@ import io.github.chw3021.companydefense.tower.Tower;
 public abstract class StageParent extends Stage{
 	protected float[][] map; // 맵 데이터 (0: 빈 공간, 1: 경로, 2: 장애물)
     protected ShapeRenderer shapeRenderer;
-    protected Array<Enemy> enemies;
+    protected WaveManager waveManager;
+    protected Array<Enemy> activeEnemies;
     protected Array<Tower> towers;
-    protected Array<Wave> waves;
-    private int currentWaveIndex;
-    protected Wave currentWave;
     protected float waveTimeInterval = 5.0f;  // 웨이브가 시작되는 시간 간격
     protected float timeSinceLastWave = 0.0f; // 마지막 웨이브 이후 경과 시간
     
@@ -37,7 +35,6 @@ public abstract class StageParent extends Stage{
     protected int gridSize = 64;
     protected Array<Obstacle> pathVisuals;
     private TextButton spawnButton;
-    private TextButton.TextButtonStyle buttonStyle;
     private Skin skin;
     protected float offsetY = 0;
     protected AStarPathfinding aStar;  // AStar 경로 탐색
@@ -59,9 +56,7 @@ public abstract class StageParent extends Stage{
 
         return true; 
     }
-    private float buttonCooldownTime = 0.5f;  // 버튼 재사용 대기 시간 (초 단위)
-    private float timeSinceLastButtonPress = 0f;  // 마지막 버튼 입력 이후 경과 시간
-
+    
     // 타워 소환 메서드
     public void spawnTower() {
         Array<Vector2> filteredPositions = new Array<>();
@@ -97,67 +92,56 @@ public abstract class StageParent extends Stage{
 	        }
 	    }
 	}
-    // Wave 관리 및 처리
-    protected void setupWave(Wave wave) {
-        waves.add(wave);
-    }
-
-    // 웨이브 업데이트 메서드
-    private void updateWave(float delta) {
-        timeSinceLastWave += delta;
-
-        if (timeSinceLastWave >= waveTimeInterval) {
-            spawnNextWave(delta);
-            timeSinceLastWave = 0;  // 시간 초기화
-        }
-        if (currentWaveIndex < waves.size) {
-            Wave currentWave = waves.get(currentWaveIndex);
-            currentWave.execute(delta, enemies);  // 적 소환
-            if (currentWave.isComplete()) {
-                currentWaveIndex++;  // 웨이브 완료 시 다음 웨이브로 이동
-            }
-        }
-        checkWaveCompletion();
-    }
-
-    // 다음 웨이브 적들 추가
-    private void spawnNextWave(float delta) {
-        if (currentWaveIndex < waves.size) {
-            Wave currentWave = waves.get(currentWaveIndex);
-            currentWave.spawnEnemies(enemies);  // 현재 웨이브의 적을 소환
-        }
-    }
-
-    // 웨이브 완료 체크
-    private void checkWaveCompletion() {
-        if (enemies.isEmpty() && currentWaveIndex < waves.size) {
-            if (waves.get(currentWaveIndex).isComplete()) {
-                win();  // 승리 처리
-            }
-        }
-    }
-
-
-    // 게임 종료 처리
-    private void gameOver() {
-        System.out.println("Game Over!");
-        // 게임 종료 로직
-    }
-
-    // 승리 처리
-    private void win() {
-        System.out.println("You Win!");
-        // 게임 승리 로직
-    }
+	
     public StageParent() {
+        super();
         pathVisuals = new Array<>();
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
         towers = new Array<>();
-        
-        enemies = new Array<>();
-        waves = new Array<>();
-        currentWaveIndex = 0;
+
+        waveManager = new WaveManager();
+        waveManager.setStage(uiStage);
+        activeEnemies = new Array<>();
     }
+    
+    @Override
+    public void act(float delta) {
+        super.act(delta);
+        
+        // Update enemies
+        for (Enemy enemy : new Array.ArrayIterator<>(activeEnemies)) {
+            enemy.update();
+            
+            // Check if enemy reached end
+            if (enemyReachedEnd(enemy)) {
+                handleEnemyExit(enemy);
+            }
+        }
+        // 타워 공격 로직 추가
+        for (Tower tower : towers) {
+            tower.update(delta, activeEnemies); // 타워가 범위 내 적을 공격
+        }
+
+        // Update wave management
+        waveManager.update(delta, this);
+        waveManager.checkGameOver(this);
+    }
+
+    private boolean enemyReachedEnd(Enemy enemy) {
+        // Implement logic to check if enemy reached end of path
+        return false; // Placeholder
+    }
+
+    public Array<Enemy> getActiveEnemies() {
+        return activeEnemies;
+    }
+
+    public void handleEnemyExit(Enemy enemy) {
+        activeEnemies.removeValue(enemy, true);
+        enemy.dispose();
+        life--;
+    }
+    
     public void initialize() {
         uiStage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(uiStage);
@@ -175,7 +159,6 @@ public abstract class StageParent extends Stage{
         uiTable.bottom();
         uiTable.add(spawnButton).width(200).height(60).pad(10);
         uiStage.addActor(uiTable);
-        updateWave(Gdx.graphics.getDeltaTime());
         
         initializeSpawnablePositions();
     }
@@ -192,6 +175,10 @@ public abstract class StageParent extends Stage{
         }
         obstacles.add(obstacle);
     }
+    
+    public int getLife() {
+    	return life;
+    }
 
     // AStar 초기화 및 장애물 설정
     public void setupAStar() {
@@ -206,15 +193,6 @@ public abstract class StageParent extends Stage{
         aStar.setObstacles(obstacleMap);
     }
 
-    // 적이 목표 지점에 도달하거나 생명 0일 때 처리
-    public void handleEnemyExit(Enemy enemy) {
-        enemies.removeValue(enemy, true);  
-        life--;  
-        if (life <= 0) {
-            gameOver();
-        }
-    }
-
     // 게임 종료 처리
     public void dispose() {
         shapeRenderer.dispose();
@@ -227,7 +205,5 @@ public abstract class StageParent extends Stage{
             }
         }
     }
-    
-    
 }
 

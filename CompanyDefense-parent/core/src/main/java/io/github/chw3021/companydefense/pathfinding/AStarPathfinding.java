@@ -57,6 +57,10 @@ public class AStarPathfinding {
             for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
                 int newX = current.x + dir[0];
                 int newY = current.y + dir[1];
+                
+                if(newX<0 || newY<0) {
+                	continue;
+                }
 
                 if (isValidGrid(newX, newY) && !obstacles[newX][newY]) {
                     Node neighbor = new Node(newX, newY, current,
@@ -75,7 +79,8 @@ public class AStarPathfinding {
     }
 
     private boolean isValidGrid(int x, int y) {
-        return x >= 0 && y >= 0 && x < gridWidth && y < gridHeight;
+    	return true;
+        //return x >= 0 && y >= 0 && x < gridWidth && y < gridHeight;
     }
 
     private double heuristic(int x1, int y1, int x2, int y2) {
