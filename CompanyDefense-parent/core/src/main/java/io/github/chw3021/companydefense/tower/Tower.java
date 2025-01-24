@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 
+import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.enemy.Enemy;
@@ -25,6 +26,7 @@ public class Tower extends Entity {
     private float attackRange;
     private float attackCooldown; // 다음 공격까지 남은 시간
     private String attackType = "closest";
+    private DamageComponent damageComponent;
 
     public Tower(float startX, float startY, float physicalAttack, float magicAttack, float attackSpeed, 
                  float attackRange, String path, String name, String attackType) {
@@ -39,6 +41,7 @@ public class Tower extends Entity {
         this.attackRange = attackRange;
         this.attackCooldown = 0; // 초기화
         this.name = name; // 초기화
+        damageComponent = new DamageComponent(physicalAttack, magicAttack);
         
         // 텍스처 로드
         Pixmap originalPixmap = new Pixmap(Gdx.files.internal(path));
@@ -63,6 +66,7 @@ public class Tower extends Entity {
         this.attackSpeed = other.attackSpeed;
         this.attackRange = other.attackRange;
         this.attackCooldown = other.attackCooldown;
+        this.damageComponent = other.damageComponent;
         this.name = other.name;
         this.texture = other.texture;
         this.add(transform);
@@ -70,9 +74,7 @@ public class Tower extends Entity {
     }
     // 적에게 피해를 주는 attack 메서드
     public void attack(Enemy target) {
-        if (target != null) {
-            target.addDamage(physicalAttack, magicAttack); // 적에게 데미지를 추가
-        }
+        target.addDamage(damageComponent); // 적에게 데미지를 추가
     }
 
     // 업데이트 메서드 (적을 탐지하고 공격하는 로직 포함)

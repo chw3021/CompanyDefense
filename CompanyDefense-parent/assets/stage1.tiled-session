@@ -1,0 +1,39 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "stage1.tmx",
+    "expandedProjectPaths": [
+        "ui",
+        "."
+    ],
+    "fileStates": {
+        "obstacle.tsx": {
+            "scaleInDock": 5.5,
+            "scaleInEditor": 0.0625
+        },
+        "stage1.tmx": {
+            "scale": 1.223125,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 160.24527337761882,
+                "y": 159.83648441492082
+            }
+        }
+    },
+    "last.imagePath": "C:/Users/user1/git/CompanyDefense/CompanyDefense-parent/assets/constructure/obstacle",
+    "map.height": 10,
+    "map.lastUsedFormat": "tmx",
+    "map.width": 10,
+    "openFiles": [
+        "stage1.tmx",
+        "obstacle.tsx"
+    ],
+    "project": "stage1.tiled-project",
+    "recentFiles": [
+        "obstacle.tsx",
+        "stage1.tmx"
+    ],
+    "tileset.lastUsedFormat": "tsx"
+}

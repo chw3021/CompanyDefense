@@ -14,9 +14,10 @@ import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage.Wave;
 import io.github.chw3021.companydefense.tower.Tower;
 public class Stage1 extends StageParent {
-    private Texture obstacleTexture;
-    private Texture pathTexture;
-    private Texture backgroundTexture;
+    private float startX;
+    private float startY;
+    private float endX;
+    private float endY;
 
     public Stage1() {
         super();
@@ -25,8 +26,8 @@ public class Stage1 extends StageParent {
 
 	private Wave createFirstWave() {
 	    Wave wave = new Wave(2.0f);
-        for(int i = 0; i<1; i++) {
-        	Enemy printer = generateEnemy(100, 1, 1, 100, "normal", "enemy/printer.png");
+        for(int i = 0; i<20; i++) {
+        	Enemy printer = generateEnemy(100, 1, 1, 500, "normal", "enemy/printer.png");
         	wave.addEnemy(printer);
         	printer.setWave(wave);
         }
@@ -40,32 +41,34 @@ public class Stage1 extends StageParent {
 	
 	private Enemy generateEnemy(float health, float physicalDefense, 
 			float magicDefense, float moveSpeed, String type, String path) {
-		return new Enemy(0, offsetY,  // start position
+		return new Enemy(startX* gridSize, startY* gridSize+offsetY,  // start position
 			health, physicalDefense, magicDefense,        // health, physical/magic defense 
 			moveSpeed,              // move speed
 			type,         // type
 			path, 
-			new Vector2(gridSize, (mapHeight * gridSize)+offsetY),
-			mapWidth,
-			mapHeight,
-			gridSize
+			new Vector2(endX * gridSize, (endY * gridSize)+offsetY),
+			this,
+			map
 	    );
 	}
-
     @Override
     public void initialize() {
-        // 맵 데이터 초기화 (옆으로 누운 S자 경로)
+    	super.initialize();
     	map = new float[][] {
-    	    { 1, 1, 1, 1, 1, 1, 1 },
-    	    { 2, 2, 2, 2, 2, 2 ,1 },
-    	    { 1, 1, 1, 1, 1, 1, 1 },
-    	    { 1, 2, 2, 2, 2, 2, 2 },
-    	    { 1, 1, 1, 1, 1, 1, 1 },
-    	    { 2, 2, 2, 2, 2, 2, 1 },
-    	    { 1, 1, 1, 1, 1, 1, 1 }
+    	    { 2.0f, 1.0f, 1.0f, 2.1f, 0.0f, 0.0f, 1.6f, 1.0f, 1.0f, 1.7f },
+    	    { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
+    	    { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
+    	    { 1.9f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.8f },
+    	    { 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f },
+    	    { 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f },
+    	    { 1.2f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.3f },
+    	    { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
+    	    { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
+    	    { 1.1f, 0.0f, 0.0f, 2.2f, 0.0f, 0.0f, 1.5f, 1.0f, 1.0f, 1.4f },
     	};
-        mapWidth = 7;  // 예시: 맵의 가로 크기
-        mapHeight = 7; // 예시: 맵의 세로 크기
+
+        mapWidth = 10;  // 예시: 맵의 가로 크기
+        mapHeight = 10; // 예시: 맵의 세로 크기
         gridSize = Gdx.graphics.getWidth() / mapWidth; // 화면 너비에 맞게 그리드 크기 설정
 
         // 배경 텍스처 로드
@@ -85,9 +88,17 @@ public class Stage1 extends StageParent {
         for (int y = 0; y < mapHeight; y++) {
             for (int x = 0; x < mapWidth; x++) {
                 float adjustedY = offsetY + y * gridSize;
-                if (map[y][x] == 2) {
+                if (map[y][x] == 0.0f) {
                     // 장애물 생성
                     addObstacle(new Obstacle(x * gridSize, adjustedY, obstaclePixmap, gridSize, gridSize));
+                }
+                if (map[y][x] == 1.1f) {
+                	startX = x;
+                	startY = y;
+                }
+                if (map[y][x] == 2.2f) {
+                	endX = x;
+                	endY = y;
                 }
                 
             }
@@ -95,7 +106,7 @@ public class Stage1 extends StageParent {
 
 
         availableTowers = new Array<>();
-        availableTowers.add(new Tower(0, 0, 100, 100, 1, 2, "tower/class1/man1.png", "man", "closest"));
+        availableTowers.add(new Tower(0, 0, 100, 100, 1, gridSize, "tower/class1/man1.png", "man", "closest"));
 
         Wave wave1 = createFirstWave();
         Wave wave2 = createSecondWave();
@@ -108,7 +119,6 @@ public class Stage1 extends StageParent {
         waveManager.addWave(wave1);
         waveManager.addWave(wave2);
         
-    	super.initialize();
     }
 
     @Override
@@ -142,8 +152,5 @@ public class Stage1 extends StageParent {
     @Override
     public void dispose() {
         super.dispose();
-        obstacleTexture.dispose();
-        pathTexture.dispose();
-        backgroundTexture.dispose();
     }
 }

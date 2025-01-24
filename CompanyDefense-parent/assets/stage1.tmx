@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.1" orientation="orthogonal" renderorder="right-down" width="10" height="10" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="43">
+ <tileset firstgid="1" source="obstacle.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="10" height="10" opacity="0.9">
+  <data encoding="csv">
+0,0,0,0,9589,9589,0,0,0,0,
+0,9589,9589,0,9589,9589,0,9589,9589,0,
+0,9589,9589,0,9589,9589,0,9589,9589,0,
+0,0,0,0,0,0,0,0,0,0,
+9589,9589,9589,0,9589,9589,0,9589,9589,9589,
+9589,9589,9589,0,9589,9589,0,9589,9589,9589,
+0,0,0,0,0,0,0,0,0,0,
+0,9589,9589,0,9589,9589,0,9589,9589,0,
+0,9589,9589,0,9589,9589,0,9589,9589,0,
+0,0,0,0,9589,9589,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="path">
+  <object id="12" x="111.191" y="26.1625">
+   <point/>
+  </object>
+  <object id="13" x="111.38" y="116.55">
+   <point/>
+  </object>
+  <object id="27" x="17.1691" y="118.549">
+   <point/>
+  </object>
+  <object id="28" x="20.4394" y="27.7976">
+   <point/>
+  </object>
+  <object id="29" x="111.191" y="22.8922">
+   <point/>
+  </object>
+  <object id="30" x="107.92" y="313.132">
+   <point/>
+  </object>
+  <object id="31" x="15.534" y="310.68">
+   <point/>
+  </object>
+  <object id="32" x="13.0812" y="213.388">
+   <point/>
+  </object>
+  <object id="33" x="303.321" y="218.293">
+   <point/>
+  </object>
+  <object id="34" x="303.321" y="315.585">
+   <point/>
+  </object>
+  <object id="35" x="206.847" y="311.497">
+   <point/>
+  </object>
+  <object id="36" x="211.753" y="24.5273">
+   <point/>
+  </object>
+  <object id="37" x="303.321" y="22.8922">
+   <point/>
+  </object>
+  <object id="38" x="304.139" y="117.731">
+   <point/>
+  </object>
+  <object id="39" x="16.3516" y="119.366">
+   <point/>
+  </object>
+  <object id="40" x="21.257" y="25.3449">
+   <point/>
+  </object>
+  <object id="41" x="112.008" y="22.8922">
+   <point/>
+  </object>
+  <object id="42" x="107.103" y="311.497">
+   <point/>
+  </object>
+ </objectgroup>
+</map>

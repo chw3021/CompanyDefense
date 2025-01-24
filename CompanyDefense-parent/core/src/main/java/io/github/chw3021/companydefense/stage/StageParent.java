@@ -1,9 +1,7 @@
 package io.github.chw3021.companydefense.stage;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
@@ -22,8 +20,7 @@ import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.tower.Tower;
 
 public abstract class StageParent extends Stage{
-	protected float[][] map; // 맵 데이터 (0: 빈 공간, 1: 경로, 2: 장애물)
-    protected ShapeRenderer shapeRenderer;
+	protected float[][] map; // 맵 데이터 (0: 장애물)
     protected WaveManager waveManager;
     protected Array<Enemy> activeEnemies;
     protected Array<Tower> towers;
@@ -32,20 +29,27 @@ public abstract class StageParent extends Stage{
     
     protected Stage uiStage;
     protected Array<Obstacle> obstacles;  // 장애물 목록
-    protected int gridSize = 64;
     protected Array<Obstacle> pathVisuals;
     private TextButton spawnButton;
     private Skin skin;
     protected float offsetY = 0;
     protected AStarPathfinding aStar;  // AStar 경로 탐색
-    protected int life = 10;  // 초기 Life 설정
+    protected int life = 1;  // 초기 Life 설정
 
     // 맵의 크기 (gridWidth, gridHeight)
-    protected int mapWidth;  // 예시: 맵의 가로 크기
-    protected int mapHeight; // 예시: 맵의 세로 크기
+    public int mapWidth;  // 예시: 맵의 가로 크기
+    public int mapHeight; // 예시: 맵의 세로 크기
+    public int gridSize;
     // 소환할 수 있는 타워 리스트
     protected Array<Tower> availableTowers;
     private Array<Vector2> spawnablePositions;
+
+    protected Texture obstacleTexture;
+    protected Texture pathTexture;
+    protected Texture backgroundTexture;
+    
+    
+    
     // 소환 가능한 타워의 영역을 확인
     protected boolean canSpawnTowerAt(float x, float y) {
         for (Tower tower : towers) {
@@ -85,7 +89,7 @@ public abstract class StageParent extends Stage{
 	    spawnablePositions = new Array<>();
 	    for (int y = 0; y < mapHeight; y++) {
 	        for (int x = 0; x < mapWidth; x++) {
-	            if (map[y][x] == 2) {
+	            if (map[y][x] == 0.0f) {
 	                float adjustedY = offsetY + y * gridSize;
 	                spawnablePositions.add(new Vector2(x * gridSize, adjustedY));
 	            }
@@ -99,23 +103,21 @@ public abstract class StageParent extends Stage{
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
         towers = new Array<>();
 
-        waveManager = new WaveManager();
-        waveManager.setStage(uiStage);
         activeEnemies = new Array<>();
     }
     
     @Override
     public void act(float delta) {
+    	
         super.act(delta);
         
         // Update enemies
         for (Enemy enemy : new Array.ArrayIterator<>(activeEnemies)) {
+        	if(enemy == null) {
+        		return;
+        	}
             enemy.update();
             
-            // Check if enemy reached end
-            if (enemyReachedEnd(enemy)) {
-                handleEnemyExit(enemy);
-            }
         }
         // 타워 공격 로직 추가
         for (Tower tower : towers) {
@@ -127,24 +129,16 @@ public abstract class StageParent extends Stage{
         waveManager.checkGameOver(this);
     }
 
-    private boolean enemyReachedEnd(Enemy enemy) {
-        // Implement logic to check if enemy reached end of path
-        return false; // Placeholder
-    }
-
     public Array<Enemy> getActiveEnemies() {
         return activeEnemies;
     }
-
-    public void handleEnemyExit(Enemy enemy) {
-        activeEnemies.removeValue(enemy, true);
-        enemy.dispose();
-        life--;
+    public void setLife(int life) {
+        this.life = life;
     }
     
     public void initialize() {
         uiStage = new Stage(new ScreenViewport());
-        Gdx.input.setInputProcessor(uiStage);
+        waveManager = new WaveManager(uiStage);
 
         spawnButton = new TextButton("Spawn Tower", skin);
         spawnButton.addListener(new ClickListener() {
@@ -161,9 +155,11 @@ public abstract class StageParent extends Stage{
         uiStage.addActor(uiTable);
         
         initializeSpawnablePositions();
+        Gdx.input.setInputProcessor(uiStage);
     }
 
     public void render(SpriteBatch batch) {
+    	//act(Gdx.graphics.getDeltaTime());
         uiStage.act();
         uiStage.draw();
     }
@@ -182,15 +178,26 @@ public abstract class StageParent extends Stage{
 
     // 게임 종료 처리
     public void dispose() {
-        shapeRenderer.dispose();
-        for (Tower tower : towers) {
-            tower.dispose();
+        if (towers != null) {
+            for (Tower tower : towers) {
+                tower.dispose();
+            }
+        }
+        if (activeEnemies != null) {
+            for (Enemy enemy : activeEnemies) {
+            	enemy.dispose();
+            }
         }
         if (obstacles != null) {
             for (Obstacle obstacle : obstacles) {
                 obstacle.dispose();
             }
         }
+        uiStage.dispose();
+        
+        obstacleTexture.dispose();
+        pathTexture.dispose();
+        backgroundTexture.dispose();
     }
 }
 

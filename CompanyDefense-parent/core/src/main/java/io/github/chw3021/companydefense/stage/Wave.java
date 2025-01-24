@@ -52,7 +52,6 @@ public class Wave {
                 Enemy enemyToSpawn = waveEnemies.removeIndex(0);
                 activeEnemies.add(enemyToSpawn);
                 enemyToSpawn.update(); // Calculate initial path
-                System.out.println(enemyToSpawn);
                 timeSinceLastSpawn = 0.0f;
             }
         } else if (activeEnemies.isEmpty()) {

@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.Stage;
 
 import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.component.EnemyComponent;
@@ -16,6 +17,7 @@ import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.PathfindingComponent;
 import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
+import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage.Wave;
 public class Enemy extends Entity {
     private AStarPathfinding aStarPathfinding; // A* 경로 탐색
@@ -24,14 +26,16 @@ public class Enemy extends Entity {
     private Texture texture; // 적의 텍스처
     private TransformComponent transform; // 위치 및 이동 속도 관리
     private HealthComponent healthComponent;
-    private DamageComponent damageComponent;
     private PathfindingComponent pathfinding;
     private EnemyComponent enemyComponent;
     private Wave wave;
+    private StageParent stage;
+    private int size;
+    private float[][] map;
     
     
     public Enemy(float startX, float startY, float health, float physicalDefense, float magicDefense, float moveSpeed,
-                 String type, String image, Vector2 target, int mapWidth, int mapHeight, int gridSize) {
+                 String type, String image, Vector2 target, StageParent stage, float[][] map) {
         // TransformComponent 사용
         transform = new TransformComponent();
         transform.setPosition(new Vector2(startX, startY));
@@ -47,18 +51,21 @@ public class Enemy extends Entity {
         pathfinding = new PathfindingComponent();
         pathfinding.setTarget(target);
         
-        damageComponent = new DamageComponent(0, 0);
 
         this.add(transform);
         this.add(healthComponent);
         this.add(enemyComponent);
         this.add(pathfinding);
-        this.add(damageComponent);
+        this.stage = stage;
 
         // AStarPathfinding 객체 초기화
-        this.aStarPathfinding = AStarPathfinding.getInstance(mapWidth, mapHeight, gridSize);
+        this.aStarPathfinding = AStarPathfinding.getInstance(stage.mapWidth, stage.mapHeight, stage.gridSize);
         this.path = new ArrayList<>();
         this.currentPathIndex = 0;
+        
+        
+        size = stage.gridSize;
+        this.map = map;
         
         // 텍스처 로드
         loadTexture(image);
@@ -68,8 +75,7 @@ public class Enemy extends Entity {
     private void loadTexture(String path) {
         Pixmap originalPixmap = new Pixmap(Gdx.files.internal(path));
 
-        // 텍스처 크기 조정 (예: 50x50)
-        Pixmap resizedPixmap = new Pixmap(50, 50, originalPixmap.getFormat());
+        Pixmap resizedPixmap = new Pixmap(size/2, size/2, originalPixmap.getFormat());
         resizedPixmap.drawPixmap(originalPixmap,
                 0, 0, originalPixmap.getWidth(), originalPixmap.getHeight(),
                 0, 0, resizedPixmap.getWidth(), resizedPixmap.getHeight());
@@ -83,8 +89,7 @@ public class Enemy extends Entity {
     public void updatePath() {
         // AStarPathfinding의 findPath 메서드를 사용하여 경로 계산
         
-        path = aStarPathfinding.findPath((int)transform.getPosition().x, (int)transform.getPosition().y,
-                (int)pathfinding.getTarget().x, (int)pathfinding.getTarget().y);
+        path = aStarPathfinding.findPath(map);
 
         
         currentPathIndex = 0; // 경로를 다시 시작
@@ -103,6 +108,7 @@ public class Enemy extends Entity {
             if (currentPathIndex >= path.size()) {
                 currentPathIndex = path.size() - 1; // 마지막 경로에 도달하면 멈춤
             	dispose();
+            	stage.setLife(stage.getLife()-1);
             }
         } else {
             // 목표 지점으로 이동
@@ -126,7 +132,9 @@ public class Enemy extends Entity {
 
     // 화면에 적을 그리기 위한 렌더링 메서드
     public void render(SpriteBatch batch) {
-        batch.draw(texture, transform.position.x, transform.position.y);
+        float textureX = transform.position.x + texture.getWidth() / 2f; // 텍스처 중심으로 x 조정
+        float textureY = transform.position.y + texture.getHeight() / 2f; // 텍스처 중심으로 y 조정
+        batch.draw(texture, textureX, textureY); // 조정된 좌표로 그리기
     }
 
     // 리소스를 해제하는 메서드
@@ -135,15 +143,13 @@ public class Enemy extends Entity {
             texture.dispose(); // 텍스처 리소스 해제
         }
     	wave.removeEnemy(this);
+    	stage.getActiveEnemies().removeValue(this, true);
     }
-    public void addDamage(float physicalDamage, float magicDamage) {
-        // 기존의 DamageComponent에 데미지 추가
-        damageComponent.setPhysicalDamage(physicalDamage);
-        damageComponent.setMagicDamage(magicDamage);
-        if(getHealth()<=0) {
+    public void addDamage(DamageComponent damageComponent) {
+        healthComponent.damage(damageComponent);
+    	if(getHealth()<=0) {
         	dispose();
         }
-        System.out.println(this +" "+ getHealth());
     }
     
     public void setWave(Wave wave) {
@@ -161,7 +167,6 @@ public class Enemy extends Entity {
 
 	@Override
 	public String toString() {
-		return "Enemy [transform=" + transform + ", healthComponent=" + healthComponent + ", damageComponent="
-				+ damageComponent + ", wave=" + wave + "]";
+		return "Enemy ["+  "healthComponent=" + healthComponent +  ", wave=" + wave + "]";
 	}
 }
