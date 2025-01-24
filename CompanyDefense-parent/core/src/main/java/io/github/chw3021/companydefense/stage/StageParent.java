@@ -2,6 +2,7 @@ package io.github.chw3021.companydefense.stage;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -30,7 +31,6 @@ public abstract class StageParent extends Stage{
     protected float waveTimeInterval = 5.0f;  // 웨이브가 시작되는 시간 간격
     protected float timeSinceLastWave = 0.0f; // 마지막 웨이브 이후 경과 시간
     
-    protected Stage uiStage;
     protected Array<Obstacle> obstacles;  // 장애물 목록
     protected Array<Obstacle> pathVisuals;
     private TextButton spawnButton;
@@ -111,9 +111,10 @@ public abstract class StageParent extends Stage{
     
     @Override
     public void act(float delta) {
-    	
-        super.act(delta);
-        
+        if (waveManager.isGameOver() || waveManager.isGameWon()) {
+            // 게임이 종료되었으면 더 이상 업데이트하지 않음
+            return;
+        }
         // Update enemies
         for (Enemy enemy : new Array.ArrayIterator<>(activeEnemies)) {
         	if(enemy == null) {
@@ -140,8 +141,7 @@ public abstract class StageParent extends Stage{
     }
     
     public void initialize() {
-        uiStage = new Stage(new ScreenViewport());
-        waveManager = new WaveManager(uiStage, game);
+        waveManager = new WaveManager(this, game);
 
         spawnButton = new TextButton("Spawn Tower", skin);
         spawnButton.addListener(new ClickListener() {
@@ -155,16 +155,18 @@ public abstract class StageParent extends Stage{
         uiTable.setFillParent(true);
         uiTable.bottom();
         uiTable.add(spawnButton).width(200).height(60).pad(10);
-        uiStage.addActor(uiTable);
+        this.addActor(uiTable);
         
         initializeSpawnablePositions();
-        Gdx.input.setInputProcessor(uiStage);
+
+        InputMultiplexer inputMultiplexer = new InputMultiplexer();
+        inputMultiplexer.addProcessor(this); // StageParent 자체를 InputProcessor로 설정
+        Gdx.input.setInputProcessor(inputMultiplexer);
     }
 
     public void render(SpriteBatch batch) {
-    	//act(Gdx.graphics.getDeltaTime());
-        uiStage.act();
-        uiStage.draw();
+        act(Gdx.graphics.getDeltaTime());
+        draw();
     }
     public int getLife() {
     	return life;
@@ -181,6 +183,7 @@ public abstract class StageParent extends Stage{
 
     // 게임 종료 처리
     public void dispose() {
+        super.dispose();
         if (towers != null) {
             for (Tower tower : towers) {
                 tower.dispose();
@@ -196,10 +199,7 @@ public abstract class StageParent extends Stage{
                 obstacle.dispose();
             }
         }
-        uiStage.dispose();
         
-        obstacleTexture.dispose();
-        pathTexture.dispose();
         backgroundTexture.dispose();
     }
 }

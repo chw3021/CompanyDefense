@@ -28,8 +28,8 @@ public class Stage1 extends StageParent {
 
 	private Wave createFirstWave() {
 	    Wave wave = new Wave(2.0f);
-        for(int i = 0; i<20; i++) {
-        	Enemy printer = generateEnemy(100, 1, 1, 500, "normal", "enemy/printer.png");
+        for(int i = 0; i<1; i++) {
+        	Enemy printer = generateEnemy(100, 1, 1, 1000, "normal", "enemy/printer.png");
         	wave.addEnemy(printer);
         	printer.setWave(wave);
         }
@@ -80,7 +80,6 @@ public class Stage1 extends StageParent {
         // 텍스처 로드
         Pixmap obstaclePixmap = new Pixmap(Gdx.files.internal("constructure/obstacle/obstacle.jpg"));
         //Pixmap pathPixmap = new Pixmap(Gdx.files.internal("constructure/path/path.png"));
-        backgroundTexture = new Texture(Gdx.files.internal("background/stage1.jpg"));
         offsetY = Gdx.graphics.getHeight() - (mapHeight * gridSize);
         
         aStar = AStarPathfinding.getInstance(mapWidth, mapHeight, gridSize);
@@ -111,15 +110,8 @@ public class Stage1 extends StageParent {
         availableTowers.add(new Tower(0, 0, 100, 100, 1, gridSize, "tower/class1/man1.png", "man", "closest"));
 
         Wave wave1 = createFirstWave();
-        Wave wave2 = createSecondWave();
-        for(int i = 0; i<20; i++) {
-        	Enemy printer = generateEnemy(100, 1, 1, 10, "normal", "enemy/printer.png");
-        	wave2.addEnemy(printer);
-        	printer.setWave(wave2);
-        }
         
         waveManager.addWave(wave1);
-        waveManager.addWave(wave2);
         
     }
 
@@ -146,8 +138,6 @@ public class Stage1 extends StageParent {
             enemy.render(batch);
         }
         batch.end();
-
-        act(Gdx.graphics.getDeltaTime());
         super.render(batch);
         
     }
