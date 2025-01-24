@@ -1,10 +1,12 @@
 package io.github.chw3021.companydefense.stage;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Array;
 
@@ -20,12 +22,14 @@ public class WaveManager {
     private float waveTransitionTimer;
     private boolean gameOver;
     private boolean gameWon;
+    private Game game;
 
-    public WaveManager(Stage uiStage) {
+    public WaveManager(Stage uiStage, Game game) {
         waves = new Array<>();
         currentWaveIndex = 0;
         waveTransitionTimer = 0;
         this.uiStage = uiStage;
+        this.game = game;
     }
 
     public void addWave(Wave wave) {
@@ -82,19 +86,15 @@ public class WaveManager {
         Dialog dialog = new Dialog(isWin ? "Victory!" : "Defeat", skin);
         dialog.text(isWin ? "Congratulations! You win!" : "Game Over! You lose.")
               .pad(20); // 패딩 추가로 텍스트 간격 조정
-        dialog.button("Main Menu", new ClickListener() {
+        TextButton button = new TextButton("Main Menu", skin);
+        button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // 메인 화면으로 이동
-                Main mainInstance = Main.getInstance();
-                if (mainInstance != null) {
-                    mainInstance.setScreen(new StageSelectionScreen(mainInstance));
-                } else {
-                    Gdx.app.error("WaveManager", "Main instance is null!");
-                }
+                game.setScreen(new StageSelectionScreen(game));
                 stage.dispose();
             }
         });
+        dialog.button(button);
         dialog.show(uiStage);
     }
     

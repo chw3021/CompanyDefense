@@ -22,12 +22,12 @@ public class GameScreen implements Screen {
         this.batch = new SpriteBatch();
         // 스테이지에 따라 적, 타워, 경로 등을 설정
         if (stageId == 1) {
-        	currentStage = new Stage1();
+        	currentStage = new Stage1(game);
         } else if (stageId == 2) {
             // 스테이지 2에 맞는 설정
         }
         else {
-        	currentStage = new Stage1();
+        	currentStage = new Stage1(game);
         }
     }
 

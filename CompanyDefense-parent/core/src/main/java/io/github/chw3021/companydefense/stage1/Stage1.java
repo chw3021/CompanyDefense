@@ -1,5 +1,6 @@
 package io.github.chw3021.companydefense.stage1;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
@@ -18,9 +19,10 @@ public class Stage1 extends StageParent {
     private float startY;
     private float endX;
     private float endY;
-
-    public Stage1() {
+    
+    public Stage1(Game game) {
         super();
+        super.game = game;
         initialize();
     }
 

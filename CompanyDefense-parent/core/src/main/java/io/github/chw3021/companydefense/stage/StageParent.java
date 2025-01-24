@@ -1,5 +1,6 @@
 package io.github.chw3021.companydefense.stage;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -20,6 +21,8 @@ import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.tower.Tower;
 
 public abstract class StageParent extends Stage{
+	protected Game game;
+    
 	protected float[][] map; // 맵 데이터 (0: 장애물)
     protected WaveManager waveManager;
     protected Array<Enemy> activeEnemies;
@@ -138,7 +141,7 @@ public abstract class StageParent extends Stage{
     
     public void initialize() {
         uiStage = new Stage(new ScreenViewport());
-        waveManager = new WaveManager(uiStage);
+        waveManager = new WaveManager(uiStage, game);
 
         spawnButton = new TextButton("Spawn Tower", skin);
         spawnButton.addListener(new ClickListener() {
