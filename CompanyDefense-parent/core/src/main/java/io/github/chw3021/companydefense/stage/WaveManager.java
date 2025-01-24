@@ -38,7 +38,6 @@ public class WaveManager {
     public void startNextWave() {
         if (!waveInProgress && currentWaveIndex < waves.size) {
             waveInProgress = true; // 웨이브 시작
-            Gdx.app.log("WaveManager", "Starting wave: " + currentWaveIndex);
         }
     }
 

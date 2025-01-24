@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -16,6 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Array;
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.obstacle.Obstacle;
@@ -53,7 +55,7 @@ public abstract class StageParent extends Stage{
     private ImageButton spawnButton;
     private Skin skin;
     private Label lifeLabel; // Life를 표시하는 Label
-    private TextButton waveButton; // 웨이브 시작 버튼
+    private ImageButton waveButton; // 웨이브 시작 버튼
     private Table uiTable; // UI 구성
     
     
@@ -145,27 +147,52 @@ public abstract class StageParent extends Stage{
         this.life = life;
     }
     
+    public ImageButton createImageButton(String upImagePath, String downImagePath, ClickListener listener) {
+        // 텍스처 로드
+        Texture upTexture = new Texture(Gdx.files.internal(upImagePath));
+        Texture downTexture = new Texture(Gdx.files.internal(downImagePath));
+
+        // TextureRegionDrawable로 버튼 이미지 설정
+        TextureRegionDrawable upDrawable = new TextureRegionDrawable(new TextureRegion(upTexture));
+        TextureRegionDrawable downDrawable = new TextureRegionDrawable(new TextureRegion(downTexture));
+
+        // ImageButtonStyle 설정
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        style.up = upDrawable;
+        style.down = downDrawable;
+
+        // 클릭된 상태를 처리하기 위해 checked 상태 추가
+        style.checked = downDrawable;  // 다운 상태와 클릭된 상태를 동일하게 설정
+
+        // ImageButton 생성
+        ImageButton button = new ImageButton(style);
+        button.addListener(listener); // 클릭 리스너 추가
+
+        return button;
+    }
+
+    
+    
     public void initialize() {
         waveManager = new WaveManager(this, game);
 
-        // 웨이브 시작 버튼 생성
-        waveButton = new TextButton("Start Wave", skin);
-        waveButton.addListener(new ClickListener() {
+
+        waveButton = createImageButton("icons/start-button.png", "icons/start-button_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                waveManager.startNextWave(); // 웨이브 시작
-                waveButton.setDisabled(true); // 버튼 비활성화
+            	waveManager.startNextWave(); // 웨이브 시작
             }
         });
+        
 
-        // Spawn Tower 버튼 생성
-        spawnButton = new ImageButton(skin);
-        spawnButton.addListener(new ClickListener() {
+        spawnButton = createImageButton("icons/recruitment.png", "icons/recruitment_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 spawnTower();
             }
         });
+        
+        
         Stack stack = new Stack();
         // Life Label과 하트 이미지 생성
         Texture heartTexture = new Texture(Gdx.files.internal("icons/heart.png"));
@@ -181,7 +208,8 @@ public abstract class StageParent extends Stage{
         uiTable.bottom(); // 하단에 배치
 
         // Start Wave 버튼을 하단 오른쪽에 배치
-        uiTable.add(waveButton).width(200).height(60).pad(10).right(); // Wave 시작 버튼 배치
+        uiTable.add().expandX();
+        uiTable.add(waveButton).width(60).height(60).pad(10).right(); // Wave 시작 버튼 배치
         
         uiTable.row(); // 새로운 행 추가
         uiTable.add(stack).width(30).height(30).pad(10).left(); // Life 텍스트
@@ -189,7 +217,7 @@ public abstract class StageParent extends Stage{
         
         // Spawn Tower 버튼을 하단 왼쪽에 배치
         uiTable.row(); // 새로운 행 추가
-        uiTable.add(spawnButton).width(200).height(60).pad(10); // Spawn 버튼 배치
+        uiTable.add(spawnButton).width(60).height(60).pad(10).colspan(2); // Spawn 버튼 배치
 
         // UI 테이블을 Stage에 추가
         this.addActor(uiTable);
