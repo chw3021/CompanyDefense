@@ -19,8 +19,7 @@ public class WaveManager {
     private Array<Wave> waves;
     private Stage uiStage;
     private int currentWaveIndex;
-    private float timeBetweenWaves = 30.0f;
-    private float waveTransitionTimer;
+    private boolean waveInProgress = false; // 현재 웨이브 진행 상태
     private boolean gameOver;
     private boolean gameWon;
     private Game game;
@@ -28,7 +27,6 @@ public class WaveManager {
     public WaveManager(Stage uiStage, Game game) {
         waves = new Array<>();
         currentWaveIndex = 0;
-        waveTransitionTimer = 0;
         this.uiStage = uiStage;
         this.game = game;
     }
@@ -37,31 +35,32 @@ public class WaveManager {
         waves.add(wave);
     }
 
+    public void startNextWave() {
+        if (!waveInProgress && currentWaveIndex < waves.size) {
+            waveInProgress = true; // 웨이브 시작
+            Gdx.app.log("WaveManager", "Starting wave: " + currentWaveIndex);
+        }
+    }
+
     public void update(float delta, StageParent stage) {
         if (gameOver || gameWon) return;
 
-        if (currentWaveIndex < waves.size) {
+        if (waveInProgress && currentWaveIndex < waves.size) {
             Wave currentWave = waves.get(currentWaveIndex);
 
             if (!currentWave.isComplete()) {
                 currentWave.execute(delta, stage.getActiveEnemies(), stage);
             } else {
-                waveTransitionTimer += delta;
+                waveInProgress = false; // 웨이브 종료
+                currentWaveIndex++;
 
-                // Check if transition time is over
-                if (waveTransitionTimer >= timeBetweenWaves) {
-                    currentWaveIndex++;
-                    waveTransitionTimer = 0;
-
-                    // Check if this was the last wave
-                    if (currentWaveIndex >= waves.size) {
-                        checkGameVictory(stage);
-                    }
+                // 마지막 웨이브 체크
+                if (currentWaveIndex >= waves.size) {
+                    checkGameVictory(stage);
                 }
             }
         }
     }
-
     public void checkGameVictory(StageParent stage) {
         if (gameWon || gameOver) return;
         if (stage.getActiveEnemies().isEmpty()) {

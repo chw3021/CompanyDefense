@@ -107,7 +107,7 @@ public class Stage1 extends StageParent {
 
 
         availableTowers = new Array<>();
-        availableTowers.add(new Tower(0, 0, 100, 100, 1, gridSize, "tower/class1/man1.png", "man", "closest"));
+        availableTowers.add(new Tower(0, 0, 100, 100, 1, gridSize*2, "tower/class1/man1.png", "man", "closest"));
 
         Wave wave1 = createFirstWave();
         
