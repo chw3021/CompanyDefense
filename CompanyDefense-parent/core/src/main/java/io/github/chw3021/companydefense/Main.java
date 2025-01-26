@@ -4,23 +4,35 @@ import com.badlogic.gdx.Game;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
+import io.github.chw3021.companydefense.firebase.FirebaseService;
 import io.github.chw3021.companydefense.menu.MainMenuScreen;
-import io.github.chw3021.companydefense.menu.StageSelectionScreen;
 
-/** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends Game {
     private OrthographicCamera camera;
+
+    private FirebaseService firebaseService;
 
     private static Main instance;
 
     public static Main getInstance() {
         if (instance == null) {
-            instance = new Main();
+            throw new IllegalStateException("Main instance is not initialized yet.");
         }
         return instance;
     }
-    
-    
+
+    // 기본 생성자 (필요한 경우 사용)
+    public Main() {}
+
+    public Main(FirebaseService firebaseService) {
+        this.firebaseService = firebaseService;
+        instance = this;
+    }
+
+    public FirebaseService getFirebaseService() {
+        return firebaseService;
+    }
+
     @Override
     public void create() {
         new SpriteBatch();
@@ -31,6 +43,4 @@ public class Main extends Game {
         new GameEngine();
         setScreen(new MainMenuScreen(this));
     }
-    
-
 }
