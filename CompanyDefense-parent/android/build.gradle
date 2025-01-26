@@ -5,9 +5,19 @@ buildscript {
     google()
   }
 }
+
+plugins {
+  id 'com.android.application'
+
+  // Add the Google services Gradle plugin
+  id 'com.google.gms.google-services'
+
+
+}
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-//apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.gms.google-services'
 
 android {
   namespace "io.github.chw3021.companydefense"
@@ -64,14 +74,15 @@ repositories {
 configurations { natives }
 
 dependencies {
-  coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+  coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
   implementation "com.badlogicgames.gdx:gdx-backend-android:$gdxVersion"
   implementation "com.crashinvaders.lml:gdx-autumn-android:$lmlVersion"
 
 
-//  	implementation platform('com.google.firebase:firebase-bom:33.6.0')
-//	implementation 'com.google.firebase:firebase-auth'
-//	implementation 'com.google.firebase:firebase-database'
+  implementation platform('com.google.firebase:firebase-bom:33.8.0')
+  implementation 'com.google.firebase:firebase-auth'
+  implementation 'com.google.firebase:firebase-analytics'
+  implementation 'com.google.firebase:firebase-database'
 
   implementation project(':core')
 
