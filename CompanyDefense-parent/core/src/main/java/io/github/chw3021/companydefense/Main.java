@@ -5,7 +5,8 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 import io.github.chw3021.companydefense.firebase.FirebaseService;
-import io.github.chw3021.companydefense.menu.MainMenuScreen;
+import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
+import io.github.chw3021.companydefense.menu.LoginScreen;
 
 public class Main extends Game {
     private OrthographicCamera camera;
@@ -41,6 +42,7 @@ public class Main extends Game {
         camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0);
 
         new GameEngine();
-        setScreen(new MainMenuScreen(this));
+        firebaseService = new FirebaseServiceImpl(); // FirebaseServiceImpl 초기화
+        setScreen(new LoginScreen(this));
     }
 }

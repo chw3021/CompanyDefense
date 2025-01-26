@@ -7,7 +7,7 @@ import com.google.gson.Gson;
 import okhttp3.*;
 
 public class FirebaseServiceImpl implements FirebaseService {
-    private static final String FIREBASE_DATABASE_URL = "https://company-defense.firebaseapp.com/";
+    private static final String FIREBASE_DATABASE_URL = "https://company-defense-default-rtdb.firebaseio.com/";
     //private static final String FIREBASE_AUTH_URL = "https://company-defense.firebaseapp.com";
     private static final String API_KEY = "AIzaSyBR1kQXuUPKbRROAN8u-EHDOFcPna0ZM0E"; // Firebase Web API Key
 
@@ -62,6 +62,7 @@ public class FirebaseServiceImpl implements FirebaseService {
             }
         });
     }
+    
     @Override
     public void login(String email, String password, FirebaseCallback<Void> callback) {
         String url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + API_KEY;
