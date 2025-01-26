@@ -1,5 +1,6 @@
 buildscript {
   repositories {
+  	google()
     mavenCentral()
   }
   dependencies {
@@ -31,5 +32,10 @@ dependencies {
   implementation "com.crashinvaders.basisu:basisu-wrapper:$gdxBasisUniversalVersion:natives-ios"
   implementation "com.mobidevelop.robovm:robovm-cocoatouch:$robovmVersion"
   implementation "com.mobidevelop.robovm:robovm-rt:$robovmVersion"
+  
+  implementation platform('com.google.firebase:firebase-bom:33.6.0')
+	implementation 'com.google.firebase:firebase-auth'
+	implementation 'com.google.firebase:firebase-database'
+  
   implementation project(':core')
 }

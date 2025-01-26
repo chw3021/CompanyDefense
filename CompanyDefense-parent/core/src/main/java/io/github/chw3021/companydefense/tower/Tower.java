@@ -17,8 +17,10 @@ import io.github.chw3021.companydefense.enemy.Enemy;
 public class Tower extends Entity {
     private Texture texture;
     private TransformComponent transform;
+    private int level;
+    private String id;
     
-    // 새로운 속성들
+    
     private String name;
     private float physicalAttack;
     private float magicAttack;
