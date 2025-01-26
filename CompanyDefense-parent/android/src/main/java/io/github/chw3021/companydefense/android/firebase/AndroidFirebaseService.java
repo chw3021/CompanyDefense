@@ -40,6 +40,22 @@
 //    }
 //
 //    @Override
+//    public void loginWithProvider(String provider, String token, FirebaseCallback<Void> callback) {
+//        AuthCredential credential = null;
+//        if (provider.equals("google")) {
+//            credential = GoogleAuthProvider.getCredential(token, null);
+//        }
+//        FirebaseAuth.getInstance().signInWithCredential(credential)
+//            .addOnCompleteListener(task -> {
+//                if (task.isSuccessful()) {
+//                    callback.onSuccess(null);
+//                } else {
+//                    callback.onFailure(task.getException());
+//                }
+//            });
+//    }
+
+//    @Override
 //    public void logout() {
 //        auth.signOut();
 //    }

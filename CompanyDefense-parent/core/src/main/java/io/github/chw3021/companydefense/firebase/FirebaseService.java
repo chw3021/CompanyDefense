@@ -13,6 +13,12 @@ public interface FirebaseService {
     // Firebase Authentication: 사용자 로그아웃
     void logout();
 
+    // 외부 로그인 (Google, Kakao 등)
+    void loginWithProvider(String provider, String token, FirebaseCallback<Void> callback);
+    
+    
     // Firebase Authentication: 현재 로그인된 사용자 정보 가져오기
     String getCurrentUserId();
+    
+
 }

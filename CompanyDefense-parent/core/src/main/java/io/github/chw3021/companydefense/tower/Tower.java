@@ -17,8 +17,6 @@ import io.github.chw3021.companydefense.enemy.Enemy;
 public class Tower extends Entity {
     private Texture texture;
     private TransformComponent transform;
-    private int level;
-    private String id;
     
     
     private String name;
