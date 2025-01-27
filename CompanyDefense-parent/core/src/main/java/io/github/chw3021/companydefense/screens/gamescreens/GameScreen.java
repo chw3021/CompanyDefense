@@ -1,4 +1,4 @@
-package io.github.chw3021.companydefense.stage;
+package io.github.chw3021.companydefense.screens.gamescreens;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
+import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage1.Stage1;
 
 public class GameScreen implements Screen {

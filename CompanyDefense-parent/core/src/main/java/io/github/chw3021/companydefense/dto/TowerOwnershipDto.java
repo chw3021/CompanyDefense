@@ -4,7 +4,17 @@ public class TowerOwnershipDto {
     private String towerId;   // 타워의 ID
     private int towerLevel;   // 타워의 레벨
 
-    public String getTowerId() {
+    
+
+	public TowerOwnershipDto() {
+	}
+
+	public TowerOwnershipDto(String towerId, int towerLevel) {
+		this.towerId = towerId;
+		this.towerLevel = towerLevel;
+	}
+
+	public String getTowerId() {
         return towerId;
     }
 

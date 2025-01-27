@@ -1,4 +1,4 @@
-package io.github.chw3021.companydefense.menu;
+package io.github.chw3021.companydefense.screens.menu;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
@@ -8,56 +8,80 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-public class MainMenuScreen implements Screen {
-    private SpriteBatch batch;
+
+import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreen;
+
+public class MenuScreen implements Screen {
+	private SpriteBatch batch;
     private Stage stage;
     private Skin skin;
     private OrthographicCamera camera;
 
     private Game game;
-    private TextButton createButton(String text, Skin skin, Runnable onClick) {
-        TextButton button = new TextButton(text, skin);
-        button.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                onClick.run();
-            }
-        });
-        return button;
-    }
 
-    private void addButtonToTable(Table table, TextButton button) {
-        table.add(button).fillX().uniformX().pad(10);
-        table.row().pad(10, 0, 10, 0);
-    }
+	public void initializeButtons(Skin skin, Stage stage) {
+	    // 화면 크기 가져오기
+	    float screenWidth = Gdx.graphics.getWidth();
+	    float screenHeight = Gdx.graphics.getHeight();
+	
+	    // Table 초기화
+	    Table table = new Table();
+	    table.setFillParent(true); // 화면 중앙에 Table을 채움
+	    stage.addActor(table);
+	
+	    // 버튼 추가
+	    addButtonToTable(table, createButton("설정", skin, () -> {
+	        game.setScreen(new MenuScreen(game));
+	    }), screenWidth, screenHeight);
+	
+	    addButtonToTable(table, createButton("공지사항", skin, () -> {
+	        game.setScreen(new StageSelectionScreen(game));
+	    }), screenWidth, screenHeight);
+	
+	    addButtonToTable(table, createButton("랭킹", skin, () -> {
+	        // 자동 사냥 화면으로 이동
+	    }), screenWidth, screenHeight);
+	
+	    addButtonToTable(table, createButton("우편함", skin, () -> {
+	        // 캐릭터/유물 정보 화면으로 이동
+	    }), screenWidth, screenHeight);
+	
+	    addButtonToTable(table, createButton("커뮤니티", skin, () -> {
+	        // 뽑기 상점 화면으로 이동
+	    }), screenWidth, screenHeight);
+	}
 
-    // 버튼 및 테이블 초기화
-    public void initializeButtons(Skin skin, Table table) {
-        addButtonToTable(table, createButton("메뉴", skin, () -> {
-            // 메뉴 화면으로 이동 (구현 필요)
-        }));
-        addButtonToTable(table, createButton("게임 준비", skin, () -> {
-            game.setScreen(new StageSelectionScreen(game));
-        }));
-        addButtonToTable(table, createButton("자동 사냥", skin, () -> {
-            // 자동 사냥 화면으로 이동
-        }));
-        addButtonToTable(table, createButton("캐릭터/유물 정보", skin, () -> {
-            // 캐릭터/유물 정보 화면으로 이동
-        }));
-        addButtonToTable(table, createButton("뽑기 상점", skin, () -> {
-            // 뽑기 상점 화면으로 이동
-        }));
-    }
-
+	
+	// 버튼 추가 메서드
+	private void addButtonToTable(Table table, TextButton button, float screenWidth, float screenHeight) {
+	    // 버튼 높이와 여백 설정
+	    float buttonHeight = screenHeight * 0.1f; // 화면 높이의 10%
+	    float buttonWidth = screenWidth * 0.8f;  // 화면 너비의 80%
+	
+	    // Table에 버튼 추가
+	    table.add(button).width(buttonWidth).height(buttonHeight).pad(10);
+	    table.row().pad(10, 0, 10, 0); // 버튼 간격 설정
+	}
+	
+	// 버튼 생성 메서드
+	private TextButton createButton(String text, Skin skin, Runnable action) {
+	    TextButton button = new TextButton(text, skin);
+	    button.addListener(new ClickListener() {
+	        @Override
+	        public void clicked(InputEvent event, float x, float y) {
+	            action.run();
+	        }
+	    });
+	    return button;
+	}
     
     
-    public MainMenuScreen(Game game) {
+    public MenuScreen(Game game) {
         this.game = game;
         batch = new SpriteBatch();
 
@@ -90,14 +114,7 @@ public class MainMenuScreen implements Screen {
          */
         
         
-        Table table = new Table();
-        table.top().center();
-        table.setFillParent(true);
-        
-        initializeButtons(skin, table);
-
-        // 테이블을 Stage에 추가
-        stage.addActor(table);
+        initializeButtons(skin, stage);
     }
 
     @Override

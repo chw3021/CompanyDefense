@@ -1,5 +1,7 @@
 package io.github.chw3021.companydefense.firebase;
 
+import java.lang.reflect.Type;
+
 public interface FirebaseService {
     // Firebase 데이터베이스에서 데이터를 읽어오기
     <T> void fetchData(String path, Class<T> type, FirebaseCallback<T> callback);
@@ -19,6 +21,8 @@ public interface FirebaseService {
     
     // Firebase Authentication: 현재 로그인된 사용자 정보 가져오기
     String getCurrentUserId();
+
+	<T> void fetchData(String path, Type type, FirebaseCallback<T> callback);
     
 
 }
