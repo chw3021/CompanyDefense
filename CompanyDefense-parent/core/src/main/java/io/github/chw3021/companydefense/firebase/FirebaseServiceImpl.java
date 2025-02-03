@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.badlogic.gdx.Gdx;
 import com.google.gson.Gson;
@@ -19,22 +20,28 @@ public class FirebaseServiceImpl implements FirebaseService {
 	protected String currentUserId;
 
     private List<LoadingListener> loadingListeners = new ArrayList<>();
+    private AtomicInteger loadingCounter = new AtomicInteger(0); // 로딩 카운터
 
     public void addLoadingListener(LoadingListener listener) {
         loadingListeners.add(listener);
     }
 
     private void notifyLoadingStart() {
-        for (LoadingListener listener : loadingListeners) {
-            listener.onLoadingStart();
+        if (loadingCounter.getAndIncrement() == 0) { // 처음 시작될 때만 실행
+            for (LoadingListener listener : loadingListeners) {
+                listener.onLoadingStart();
+            }
         }
     }
 
     private void notifyLoadingEnd() {
-        for (LoadingListener listener : loadingListeners) {
-            listener.onLoadingEnd();
+        if (loadingCounter.decrementAndGet() == 0) { // 모든 로딩이 끝나면 실행
+            for (LoadingListener listener : loadingListeners) {
+                listener.onLoadingEnd();
+            }
         }
     }
+
 	
 	
 	

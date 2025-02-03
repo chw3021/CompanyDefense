@@ -1,4 +1,4 @@
-package io.github.chw3021.companydefense.screens;
+package io.github.chw3021.companydefense.screens.imagetools;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -10,13 +10,18 @@ public class RotatingImage extends Image {
 
     public RotatingImage(Texture texture, float rotationSpeed) {
         super(new TextureRegionDrawable(new TextureRegion(texture)));
-        this.rotationSpeed = rotationSpeed; // 회전 속도 (도/초)
+        this.rotationSpeed = rotationSpeed;
+
+        // 크기를 Texture 크기와 동일하게 설정 (혹은 비율에 맞게 조정)
+        setSize(texture.getWidth(), texture.getHeight());
+
+        // 중심축을 정확하게 설정
+        setOrigin(getWidth() / 2f, getHeight() / 2f);
     }
 
     @Override
     public void act(float delta) {
         super.act(delta);
-        // 현재 회전 값에 속도를 더함
         setRotation(getRotation() + rotationSpeed * delta);
     }
 }

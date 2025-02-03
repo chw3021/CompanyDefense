@@ -38,7 +38,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 public class TowerScreen implements Screen, LoadingListener {
-    private SpriteBatch batch;
     private Stage stage;
     private Skin skin;
     private Table table;
@@ -65,24 +64,21 @@ public class TowerScreen implements Screen, LoadingListener {
     public TowerScreen(Game game) {
         this.game = game;
         this.firebaseService = (FirebaseServiceImpl) Main.getInstance().getFirebaseService();
-        firebaseService.addLoadingListener(this);
-        batch = new SpriteBatch();
-        stage = new Stage(new ScreenViewport(), batch);
 
         // 카메라 초기화
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 480, 800);
-        camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0);
-        
+
+        stage = new Stage(new ScreenViewport(camera));
+        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        Gdx.input.setInputProcessor(stage);
+
+        firebaseService.addLoadingListener(this);
         this.loadingScreenManager = new LoadingScreenManager(stage);
     }
 
     @Override
     public void show() {
-        // Stage 초기화
-        stage = new Stage(new ScreenViewport(), batch);
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
-        Gdx.input.setInputProcessor(stage);
 
         // Firebase에서 데이터 로드
         loadAllTowers(new FirebaseCallback<List<TowerDto>>() {
@@ -281,6 +277,7 @@ public class TowerScreen implements Screen, LoadingListener {
 
     @Override
     public void dispose() {
-        batch.dispose();
+        stage.dispose();
+        skin.dispose();
     }
 }

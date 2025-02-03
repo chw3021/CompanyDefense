@@ -31,7 +31,7 @@ public class LoginScreen implements Screen, LoadingListener {
 
     @Override
     public void onLoadingStart() {
-        Gdx.app.postRunnable(() -> loadingScreenManager.testLoadingScreen());
+        Gdx.app.postRunnable(() -> loadingScreenManager.showLoadingScreen());
     }
 
     @Override

@@ -1,62 +1,56 @@
 package io.github.chw3021.companydefense.screens;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
+
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.utils.Align;
-import com.badlogic.gdx.utils.Timer;
+import io.github.chw3021.companydefense.screens.imagetools.PngAnimation;
+
 public class LoadingScreenManager {
     private Stage stage;
-    private Table loadingTable;
+    private PngAnimation loadingImage; // PNG 애니메이션
 
     public LoadingScreenManager(Stage stage) {
         this.stage = stage;
+        preloadLoadingElements();
     }
-    public void testLoadingScreen() {
-        showLoadingScreen();
-        Label debugLabel = new Label("Loading...", new Label.LabelStyle(new BitmapFont(), Color.WHITE));
-        loadingTable.add(debugLabel).center();
-        stage.act(Gdx.graphics.getDeltaTime());
-        stage.draw();
-        System.out.println("arfdasf");
 
-        Timer.schedule(new Timer.Task() {
-            @Override
-            public void run() {
-                System.out.println("555");
-                Gdx.app.postRunnable(() -> hideLoadingScreen());
+    private void preloadLoadingElements() {
+        Gdx.app.postRunnable(() -> {
+            try {
+                float imageSize = Gdx.graphics.getWidth() * 0.1f;
+                
+                // 스프라이트 시트 사용 (3200x6400에서 5개의 프레임 추출)
+                String spriteSheetPath = "icons/loading.png";
+                int frameWidth = 640;  // 640px
+                int frameHeight = 640;  // 6400px (하나의 줄에 5개 프레임)
+
+                loadingImage = new PngAnimation(0.1f, spriteSheetPath, frameWidth, frameHeight, true);
+                loadingImage.setSize(imageSize, imageSize);
+
+                // 화면 중앙 배치
+                float centerX = (Gdx.graphics.getWidth() - loadingImage.getWidth()) / 2;
+                float centerY = (Gdx.graphics.getHeight() - loadingImage.getHeight()) / 2;
+                loadingImage.setPosition(centerX, centerY);
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        }, 3); // 3초 후 hideLoadingScreen 실행
+        });
     }
-    // 로딩 화면 보여주기
+
     public void showLoadingScreen() {
-        loadingTable = new Table();
-        loadingTable.setFillParent(true);
-        stage.addActor(loadingTable);
-
-        try {
-            Texture loadingTexture = new Texture(Gdx.files.internal("icons/loading.png"));
-            Image rotatingImage = new Image(loadingTexture);
-            rotatingImage.setOrigin(Align.center);
-            loadingTable.add(rotatingImage).center().size(100, 100); // 크기 조정
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        Gdx.app.postRunnable(() -> {
+            if (loadingImage != null && !loadingImage.hasParent()) {
+                stage.addActor(loadingImage);
+            }
+        });
     }
 
-    // 로딩 화면 숨기기
     public void hideLoadingScreen() {
-        if (loadingTable != null) {
-            loadingTable.remove();
-        }
-
-        // 원래 화면 색상 복구
-        stage.getBatch().setColor(1f, 1f, 1f, 1f); // 색상 복구
+        Gdx.app.postRunnable(() -> {
+            if (loadingImage != null) {
+                loadingImage.remove();
+            }
+        });
     }
 }
