@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.badlogic.gdx.Gdx;
@@ -197,5 +199,46 @@ public class FirebaseServiceImpl implements FirebaseService {
     public String getCurrentUserId() {
         return currentUserId; // 현재 사용자 ID 반환
     }
+    @Override
+    public void updateData(Map<String, Object> updates, FirebaseCallback<Void> callback) {
+        notifyLoadingStart();
+        String url = FIREBASE_DATABASE_URL + ".json"; // Firebase Root 경로
+
+        // 🔹 Null 값 제거 (Firebase에서 Null 값을 허용하지 않기 때문)
+        updates.values().removeIf(Objects::isNull);
+
+        if (updates.isEmpty()) {
+            callback.onFailure(new Exception("업데이트할 데이터가 없습니다."));
+            return;
+        }
+
+        String jsonData = new Gson().toJson(updates);
+        RequestBody body = RequestBody.create(jsonData, MediaType.get("application/json"));
+
+        Request request = new Request.Builder()
+                .url(url)
+                .patch(body) // 🔹 여러 값을 업데이트할 때 PATCH 사용
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) {
+                if (response.isSuccessful()) {
+                    callback.onSuccess(null);
+                } else {
+                    callback.onFailure(new Exception("업데이트 실패: " + response.message()));
+                }
+                notifyLoadingEnd();
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                callback.onFailure(e);
+                notifyLoadingEnd();
+            }
+        });
+    }
+
+
 
 }

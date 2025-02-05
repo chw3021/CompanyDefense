@@ -1,6 +1,7 @@
 package io.github.chw3021.companydefense.firebase;
 
 import java.lang.reflect.Type;
+import java.util.Map;
 
 public interface FirebaseService {
     // Firebase 데이터베이스에서 데이터를 읽어오기
@@ -24,5 +25,6 @@ public interface FirebaseService {
 
 	<T> void fetchData(String path, Type type, FirebaseCallback<T> callback);
     
+    void updateData(Map<String, Object> updates, FirebaseCallback<Void> callback);
 
 }

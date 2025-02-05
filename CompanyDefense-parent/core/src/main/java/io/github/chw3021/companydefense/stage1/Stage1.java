@@ -9,8 +9,10 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 
 import io.github.chw3021.companydefense.enemy.Enemy;
+import io.github.chw3021.companydefense.firebase.LoadingListener;
 import io.github.chw3021.companydefense.obstacle.Obstacle;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
+import io.github.chw3021.companydefense.screens.LoadingScreenManager;
 import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage.Wave;
 import io.github.chw3021.companydefense.tower.Tower;
@@ -19,7 +21,6 @@ public class Stage1 extends StageParent {
     private float startY;
     private float endX;
     private float endY;
-    
     public Stage1(Game game) {
         super();
         super.game = game;
@@ -105,9 +106,6 @@ public class Stage1 extends StageParent {
             }
         }
 
-
-        availableTowers = new Array<>();
-        availableTowers.add(new Tower(0, 0, 100, 100, 1, gridSize*2, "tower/class1/man1.png", "man", "closest"));
 
         Wave wave1 = createFirstWave();
         

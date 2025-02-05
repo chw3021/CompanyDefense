@@ -9,6 +9,7 @@ public class TowerDto {
     private float towerMagicAttack;
     private float towerAttackSpeed;
     private float towerAttackRange;
+    private float towerAttackMult=0.1f;
 	private String towerImagePath;
     private String attackType = "closest";
     
@@ -71,6 +72,12 @@ public class TowerDto {
 	}
 	public void setAttackType(String attackType) {
 		this.attackType = attackType;
+	}
+	public float getTowerAttackMult() {
+		return towerAttackMult;
+	}
+	public void setTowerAttackMult(float towerAttackMult) {
+		this.towerAttackMult = towerAttackMult;
 	}
     
     

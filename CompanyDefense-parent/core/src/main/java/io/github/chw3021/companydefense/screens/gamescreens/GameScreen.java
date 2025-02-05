@@ -8,19 +8,38 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
+import io.github.chw3021.companydefense.Main;
+import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
+import io.github.chw3021.companydefense.firebase.LoadingListener;
+import io.github.chw3021.companydefense.screens.LoadingScreenManager;
 import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage1.Stage1;
 
-public class GameScreen implements Screen {
+public class GameScreen implements Screen, LoadingListener {
     private Game game;
     private SpriteBatch batch;
     private Texture background;
     private StageParent currentStage;  // 현재 스테이지를 관리하는 객체
+    private FirebaseServiceImpl firebaseService; // Firebase 연동
 
+
+    private LoadingScreenManager loadingScreenManager;
+
+    @Override
+    public void onLoadingStart() {
+        Gdx.app.postRunnable(() -> loadingScreenManager.showLoadingScreen());
+    }
+
+    @Override
+    public void onLoadingEnd() {
+        Gdx.app.postRunnable(() -> loadingScreenManager.hideLoadingScreen());
+    }
+    
 
     public GameScreen(Game game, int stageId) {
         this.game = game;
         this.batch = new SpriteBatch();
+        this.firebaseService = (FirebaseServiceImpl) Main.getInstance().getFirebaseService();
         // 스테이지에 따라 적, 타워, 경로 등을 설정
         if (stageId == 1) {
         	currentStage = new Stage1(game);
@@ -30,6 +49,8 @@ public class GameScreen implements Screen {
         else {
         	currentStage = new Stage1(game);
         }
+        firebaseService.addLoadingListener(this);
+        this.loadingScreenManager = new LoadingScreenManager(currentStage);
     }
 
     @Override
