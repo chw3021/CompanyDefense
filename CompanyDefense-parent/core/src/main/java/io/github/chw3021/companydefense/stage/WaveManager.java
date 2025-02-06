@@ -96,7 +96,6 @@ public class WaveManager {
         button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                Gdx.app.log("Button Click", "Main Menu button clicked");
                 game.setScreen(new StageSelectionScreen(game));
                 stage.dispose();
             }
@@ -107,7 +106,6 @@ public class WaveManager {
         dialog.setVisible(true);
         dialog.setZIndex(Integer.MAX_VALUE);
         dialog.show(uiStage);
-        Gdx.app.log("DEBUG", "Dialog is shown");
     }
 
     

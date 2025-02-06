@@ -2,6 +2,7 @@ package io.github.chw3021.companydefense.screens.gamescreens;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
@@ -56,8 +57,11 @@ public class GameScreen implements Screen, LoadingListener {
 
     @Override
     public void show() {
-        currentStage.initialize();  // 선택된 스테이지 초기화
 
+        // InputMultiplexer 설정
+        InputMultiplexer inputMultiplexer = new InputMultiplexer();
+        inputMultiplexer.addProcessor(currentStage); // StageParent 자체를 InputProcessor로 설정
+        Gdx.input.setInputProcessor(inputMultiplexer);
     }
 
     @Override

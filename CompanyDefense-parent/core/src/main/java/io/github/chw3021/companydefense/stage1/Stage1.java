@@ -23,8 +23,7 @@ public class Stage1 extends StageParent {
     private float endX;
     private float endY;
     public Stage1(Game game) {
-        super();
-        super.game = game;
+        super(game);
         initialize();
     }
 
@@ -57,7 +56,6 @@ public class Stage1 extends StageParent {
 	}
     @Override
     public void initialize() {
-    	super.initialize();
     	map = new float[][] {
     	    { 2.0f, 1.0f, 1.0f, 2.1f, 0.0f, 0.0f, 1.6f, 1.0f, 1.0f, 1.7f },
     	    { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f },
@@ -78,6 +76,8 @@ public class Stage1 extends StageParent {
         // 배경 텍스처 로드
         backgroundTexture = new Texture(Gdx.files.internal("background/stage1.jpg"));
 
+    	
+    	
         //<a href="https://kr.freepik.com/free-vector/realistic-office-design-flat-lay_24007772.htm">작가 pikisuperstar 출처 Freepik</a>
         // 텍스처 로드
         Pixmap obstaclePixmap = new Pixmap(Gdx.files.internal("constructure/obstacle/obstacle.jpg"));
@@ -111,7 +111,8 @@ public class Stage1 extends StageParent {
         Wave wave1 = createFirstWave();
         
         waveManager.addWave(wave1);
-        
+
+    	super.initialize();
     }
 
     @Override
