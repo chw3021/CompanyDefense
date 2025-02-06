@@ -136,6 +136,7 @@ public class LoginScreen implements Screen, LoadingListener {
         // Kakao 로그인 처리 로직 (테스트 중에는 빈 구현)
         Gdx.app.log("Login", "Kakao Login selected");
     }
+    
     private void loginAsGuest() {
         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
         String existingUserId = prefs.getString("userId", null);
