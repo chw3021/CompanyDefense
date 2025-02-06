@@ -17,6 +17,7 @@ import io.github.chw3021.companydefense.dto.UserDto;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.firebase.LoadingListener;
+import io.github.chw3021.companydefense.platform.GoogleSignInHandler;
 
 public class LoginScreen implements Screen, LoadingListener {
     private final Main game;
@@ -28,6 +29,8 @@ public class LoginScreen implements Screen, LoadingListener {
 
 
     private LoadingScreenManager loadingScreenManager;
+    
+    private GoogleSignInHandler googleSignInHandler;
 
     @Override
     public void onLoadingStart() {
@@ -41,9 +44,11 @@ public class LoginScreen implements Screen, LoadingListener {
     
     
     
-    public LoginScreen(Main game) {
+    public LoginScreen(Main game, GoogleSignInHandler googleSignInHandler) {
         this.game = game;
-        this.firebaseService = (FirebaseServiceImpl) game.getFirebaseService();        
+        this.firebaseService = (FirebaseServiceImpl) game.getFirebaseService();
+        this.googleSignInHandler = googleSignInHandler; // 전달된 googleSignInHandler 사용
+
         firebaseService.addLoadingListener(this);
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 480, 800);
@@ -57,18 +62,10 @@ public class LoginScreen implements Screen, LoadingListener {
         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
         String loginProvider = prefs.getString("loginProvider", null);
         if (loginProvider != null) {
-            // 로그인 상태가 존재할 경우 바로 메인 메뉴로 이동
             if (loginProvider.equals("guest")) {
-            	loginAsGuest();
-            }
-            else if (loginProvider.equals("google")) {
-            	loginAsGuest();
-            }
-            else if (loginProvider.equals("ios")) {
-            	loginAsGuest();
-            }
-            else if (loginProvider.equals("kakao")) {
-            	loginAsGuest();
+                loginAsGuest();
+            } else {
+                loginWithGooglePlay(); // 구글 로그인으로 이동
             }
             return;
         }
@@ -123,8 +120,28 @@ public class LoginScreen implements Screen, LoadingListener {
     }
 
     private void loginWithGooglePlay() {
-        // Google Play 로그인 처리 로직 (테스트 중에는 빈 구현)
-        Gdx.app.log("Login", "Google Play Store Login selected");
+        if (googleSignInHandler != null) {
+            googleSignInHandler.signIn(new FirebaseCallback<UserDto>() {
+                @Override
+                public void onSuccess(UserDto user) {
+                    Gdx.app.log("Login", "Google Login Success: " + user.getUserId());
+                    game.setScreen(new MainViewScreen(game));
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    Gdx.app.error("Login", "Google Login Failed", e);
+                }
+            });
+        } else {
+            // googleSignInHandler가 null일 때 새 Google 사용자 생성
+            UserDto googleUser = new UserDto();
+            googleUser.setUserId("google_" + System.currentTimeMillis());  // Google 로그인시 고유한 ID 설정
+            googleUser.setUserName("Google User");  // 구글 사용자 이름 설정
+
+            // Google 사용자를 생성하는 메서드 호출
+            createNewGoogleUser(googleUser);
+        }
     }
 
     private void loginWithIOS() {
@@ -157,7 +174,7 @@ public class LoginScreen implements Screen, LoadingListener {
             });
         } else {
             // 기존 유저 ID가 없으면 새로운 게스트 생성
-            createNewGuest();
+        	createNewGuest();
         }
     }
 
@@ -187,6 +204,35 @@ public class LoginScreen implements Screen, LoadingListener {
             }
         });
     }
+    
+    private void createNewGoogleUser(UserDto googleUser) {
+        googleUser.setLoginProvider("google");  // 로그인 제공자로 Google 설정
+
+        firebaseService.saveData("users/" + googleUser.getUserId(), googleUser, new FirebaseCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                Gdx.app.log("Login", "Google login successful: " + googleUser.getUserId());
+
+                // Google 사용자 정보를 Preferences에 저장
+                Preferences prefs = Gdx.app.getPreferences("GamePreferences");
+                prefs.putString("loginProvider", "google");
+                prefs.putString("userId", googleUser.getUserId());
+                prefs.putString("userName", googleUser.getUserName());
+                prefs.flush();
+
+                // 메인 화면으로 이동
+                Gdx.app.postRunnable(() -> {
+                    game.setScreen(new MainViewScreen(game)); // 메인 메뉴로 이동
+                });
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                Gdx.app.error("Login", "Google login failed", e);
+            }
+        });
+    }
+    
 
 
     @Override
