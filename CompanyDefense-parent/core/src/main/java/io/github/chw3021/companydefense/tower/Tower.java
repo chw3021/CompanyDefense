@@ -43,8 +43,8 @@ public class Tower extends Actor {
     private String team;
 
     public Tower(TowerDto towerDto, int towerLevel, int gridSize, StageParent stage) {
-        this.physicalAttack = towerDto.getTowerPhysicalAttack()*(1+towerDto.getTowerAttackMult()*towerLevel);
-        this.magicAttack = towerDto.getTowerMagicAttack()*(1+towerDto.getTowerAttackMult()*towerLevel);
+        this.physicalAttack = towerDto.getTowerPhysicalAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
+        this.magicAttack = towerDto.getTowerMagicAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
         this.attackSpeed = towerDto.getTowerAttackSpeed();
         this.attackRange = towerDto.getTowerAttackRange()*gridSize;
         this.attackType = towerDto.getAttackType();
@@ -92,6 +92,7 @@ public class Tower extends Actor {
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
             	((Tower)event.getTarget()).isDragging = true;
             	((Tower)event.getTarget()).dragStartPos = new Vector2(getX(), getY());
+                stage.onTowerClicked(Tower.this); 
             	return true;
             }
 
@@ -104,7 +105,6 @@ public class Tower extends Actor {
             @Override
             public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
             	((Tower)event.getTarget()).isDragging = false; // 드래그 종료
-                stage.onTowerClicked(Tower.this); 
             }
         });
     }

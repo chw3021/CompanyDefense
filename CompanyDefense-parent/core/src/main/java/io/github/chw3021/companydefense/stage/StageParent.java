@@ -13,6 +13,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
@@ -68,15 +69,13 @@ public abstract class StageParent extends Stage{
     protected Texture pathTexture;
     protected Texture backgroundTexture;
 
-    private ImageButton spawnButton;
     private Skin skin;
     private Label lifeLabel; // Life를 표시하는 Label
-    private ImageButton waveButton; // 웨이브 시작 버튼
     private Table uiTable; // UI 구성
     private Label coinLabel;
     private int currency = 1000; // 초기 재화 값 (필요시 업데이트)
     private Table towerInfoTable;
-    private Label towerNameLabel, attackPowerLabel, attackSpeedLabel, towerLevelLabel, towerPriceLabel;
+    private Label towerNameLabel, attackPowerLabel, towerPriceLabel;
     private Tower selectedTower = null;
     private StageParent stage = this;
     
@@ -191,12 +190,6 @@ public abstract class StageParent extends Stage{
         style.up = upDrawable;
         style.down = downDrawable;
 
-        // 클릭된 상태를 처리하기 위해 checked 상태 추가
-        style.over = downDrawable;
-        style.focused = downDrawable;
-        style.checkedDown = downDrawable;
-        style.checked = downDrawable;  // 다운 상태와 클릭된 상태를 동일하게 설정
-        style.imageDown = downDrawable;
 
         // ImageButton 생성
         ImageButton button = new ImageButton(style);
@@ -206,125 +199,137 @@ public abstract class StageParent extends Stage{
     }
 
     
-    
     public void initialize() {
         waveManager = new WaveManager(this, game);
 
-
-        waveButton = createImageButton("icons/start-button.png", "icons/start-button_down.png", new ClickListener() {
+        ImageButton waveButton = createImageButton("icons/start-button.png", "icons/start-button_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-            	waveManager.startNextWave(); // 웨이브 시작
+                waveManager.startNextWave();
             }
         });
-        
 
-        spawnButton = createImageButton("icons/recruitment.png", "icons/recruitment_down.png", new ClickListener() {
+        ImageButton spawnButton = createImageButton("icons/recruitment.png", "icons/recruitment_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 spawnTower();
             }
         });
 
-        
-        Stack stack = new Stack();
+        float screenWidth = Gdx.graphics.getWidth();
+        float screenHeight = Gdx.graphics.getHeight();
+        float uiTableElsize = screenWidth * 0.1f; // 버튼 크기 축소
+
+        coinLabel = new Label(null, skin);
+        coinLabel.setFontScale(uiTableElsize*0.02f); // 폰트 크기 축소
+
+        Stack coinStack = new Stack();
+        coinStack.add(new Image(new Texture(Gdx.files.internal("icons/coin.png"))));
+        coinStack.add(coinLabel);
+
+        Stack lifeStack = new Stack();
         // Life Label과 하트 이미지 생성
         Texture heartTexture = new Texture(Gdx.files.internal("icons/heart.png"));
         Image heartImage = new Image(heartTexture);
         lifeLabel = new Label(null, skin);
-        lifeLabel.setFontScale(1.5f); // 텍스트 크기 조정
-        stack.add(heartImage);
-        stack.add(lifeLabel);
-        float screenWidth = Gdx.graphics.getWidth();
-        float screenHeight = Gdx.graphics.getHeight();
-        float buttonSize = screenWidth * 0.06f;
-        // UI 테이블 설정
+        lifeLabel.setFontScale(uiTableElsize*0.02f); // 텍스트 크기 조정
+        lifeStack.add(heartImage);
+        lifeStack.add(lifeLabel);
+        
         uiTable = new Table();
         uiTable.setFillParent(true);
-        uiTable.bottom(); // 하단에 배치
-
-        // Start Wave 버튼을 하단 오른쪽에 배치
-        uiTable.add().expandX();
-        uiTable.add(waveButton).width(buttonSize).height(buttonSize).pad(10).right();
-        
-        uiTable.row(); // 새로운 행 추가
-        uiTable.add(stack).width(buttonSize).height(buttonSize).pad(10).left(); // Life 텍스트
-        uiTable.add().expandX();
-        
-        // Spawn Tower 버튼을 하단 왼쪽에 배치
-        uiTable.row(); // 새로운 행 추가
-        uiTable.add(spawnButton).width(buttonSize).height(buttonSize).pad(10).colspan(2);
-
-        coinLabel = new Label(null, skin);
-        coinLabel.setFontScale(1.5f);
-
-        Stack coinStack = new Stack();
-        coinStack.add(new Image(new Texture(Gdx.files.internal("icons/coin.png")))); // 동전 이미지
-        coinStack.add(coinLabel);
-
+        uiTable.bottom().center(); // 화면 중앙 정렬
+        uiTable.add(spawnButton).width(uiTableElsize).height(uiTableElsize).expandX();
         uiTable.row();
-        uiTable.add(coinStack).width(buttonSize).height(buttonSize).pad(10).right(); // 재화 표시
+        uiTable.add().expandX();
+        uiTable.add(waveButton).width(uiTableElsize).height(uiTableElsize).right().expandX();
+        uiTable.row();
+        uiTable.add(lifeStack).width(uiTableElsize).height(uiTableElsize).left().expandX();
+        uiTable.add(coinStack).width(uiTableElsize).height(uiTableElsize).right().expandX();
+        uiTable.add().expandX();
 
-        towerInfoTable = new Table();
-        towerInfoTable.top().left();
-        towerInfoTable.setFillParent(true);
-        towerInfoTable.padTop(50); // 화면 상단 여백
+        float towerInfoElsize = screenWidth * 0.08f; // 버튼 크기 조정
         
+        towerInfoTable = new Table();
+        towerInfoTable.setVisible(false); // 기본적으로 숨김
+        towerInfoTable.bottom().left();
+        towerInfoTable.setFillParent(true);
+        towerInfoTable.padBottom(screenHeight*0.33f); // 패딩 조정
+
         towerNameLabel = new Label("", skin);
         attackPowerLabel = new Label("", skin);
-        attackSpeedLabel = new Label("", skin);
-        towerLevelLabel = new Label("", skin);
         towerPriceLabel = new Label("", skin);
-        
-        towerInfoTable.add(towerNameLabel).colspan(2).fillX().padBottom(5);
+
+        towerNameLabel.setFontScale(towerInfoElsize*0.02f); 
+        attackPowerLabel.setFontScale(towerInfoElsize*0.02f);
+        towerPriceLabel.setFontScale(towerInfoElsize*0.02f);
+
+        towerInfoTable.add(towerNameLabel).colspan(2).fillX().padBottom(3);
         towerInfoTable.row();
-        towerInfoTable.add(attackPowerLabel).colspan(2).fillX().padBottom(5);
+        towerInfoTable.add(attackPowerLabel).colspan(2).fillX().padBottom(3);
         towerInfoTable.row();
-        towerInfoTable.add(attackSpeedLabel).colspan(2).fillX().padBottom(5);
-        towerInfoTable.row();
-        towerInfoTable.add(towerLevelLabel).colspan(2).fillX().padBottom(5);
-        towerInfoTable.row();
-        towerInfoTable.add(towerPriceLabel).colspan(2).fillX().padBottom(5);
-        
+        towerInfoTable.add(towerPriceLabel).colspan(2).fillX().padBottom(3);
+
         ImageButton upgradeButton = createImageButton("icons/upgrade.png", "icons/upgrade_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                upgradeTower(selectedTower); // 타워 진급 로직
+                if (selectedTower != null) {
+                    upgradeTower(selectedTower);
+                }
             }
         });
 
         ImageButton sellButton = createImageButton("icons/walk-out.png", "icons/money.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                sellTower(selectedTower); // 타워 판매 로직
+                if (selectedTower != null) {
+                    sellTower(selectedTower);
+                }
             }
         });
-        towerInfoTable.add(upgradeButton);
-        towerInfoTable.add(sellButton);
 
-        uiTable.add(towerInfoTable).left().padRight(20); 
-        uiTable.debug(); 
-        // UI 테이블을 Stage에 추가
-        this.addActor(uiTable);
-
+        towerInfoTable.add(upgradeButton).width(towerInfoElsize).height(towerInfoElsize);
+        towerInfoTable.add(sellButton).width(towerInfoElsize).height(towerInfoElsize);
+        
+        uiTable.setBackground(new TextureRegionDrawable(new TextureRegion(new Texture(Gdx.files.internal("background/uiTable.jpg")))));
+        towerInfoTable.setBackground(new TextureRegionDrawable(new TextureRegion(new Texture(Gdx.files.internal("background/towerInfo.jpg")))));
+        
+        if (uiTable.getStage() == null) {
+            this.addActor(uiTable);
+        }
+        if (towerInfoTable.getParent() == null) {
+            this.addActor(towerInfoTable);
+        }
         availableTowers = new Array<>();
         initializeSpawnablePositions();
-
         // InputMultiplexer 설정
         InputMultiplexer inputMultiplexer = new InputMultiplexer();
         inputMultiplexer.addProcessor(this); // StageParent 자체를 InputProcessor로 설정
         Gdx.input.setInputProcessor(inputMultiplexer);
         
+        this.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                Actor target = event.getTarget();
+                
+                // 타워를 클릭했거나, towerInfoTable 내부를 클릭하면 UI 유지
+                if (towerInfoTable.isAscendantOf(target) || target instanceof Tower) {
+                    return;
+                }
+                
+                // 타워 외부를 클릭하면 UI 닫기
+                deselectTower();
+            }
+        });
+
         loadUserTowers();
     }
-    
     
     public void upgradeTower(Tower tower) {
         // 상위 등급 타워로 승급
         if(!tower.upgrade(availableTowers)) {
             // 타워 제거
             towers.removeValue(tower, true);
-            tower.dispose(); // 타워 리소스 해제
             // 선택된 타워가 팔린 타워라면 선택 해제
             if (selectedTower == tower) {
                 deselectTower();
@@ -339,7 +344,6 @@ public abstract class StageParent extends Stage{
 
         // 타워 제거
         towers.removeValue(tower, true);
-        tower.dispose(); // 타워 리소스 해제
         // 선택된 타워가 팔린 타워라면 선택 해제
         if (selectedTower == tower) {
             deselectTower();
@@ -362,45 +366,33 @@ public abstract class StageParent extends Stage{
         isAttackRangeVisible = false;
     }
 
-	 // 타워 선택 시 타워 정보 업데이트
+	 // 타워 선택
 	 public void selectTower(Tower tower) {
 	     selectedTower = tower;
-	     
-	     // 타워 정보 표시
-	     towerNameLabel.setText("Name: " + tower.getName());
-	     attackPowerLabel.setText("Attack: " + tower.getPhysicalAttack());
-	     attackSpeedLabel.setText("Speed: " + tower.getAttackSpeed());
-	     towerLevelLabel.setText("Price: " + tower.getGrade()*30);
+	     towerNameLabel.setText(tower.getName());
+	     attackPowerLabel.setText(tower.getPhysicalAttack()+" / " + tower.getMagicAttack() 
+	     +" / "+tower.getAttackSpeed());
+	     towerPriceLabel.setText("Price: " + (tower.getGrade() * 30));
 	
-	     // 타워 정보 UI 활성화
-	     towerInfoTable.setVisible(true);
-	
-	     // 타워 사거리 표시
+	     towerInfoTable.setVisible(true); // 선택 시 표시
 	     showAttackRange(tower);
 	 }
 	
 	 // 타워 선택 해제
 	 public void deselectTower() {
 	     selectedTower = null;
-	     
-	     // 타워 정보 UI 비활성화
-	     towerInfoTable.setVisible(false);
-	     
-	     // 타워 사거리 표시 비활성화
+	     towerInfoTable.setVisible(false); // 선택 해제 시 숨김
 	     hideAttackRange();
 	 }
 	
-	 // 타워 클릭 시
+	 // 타워 클릭 시 선택/해제
 	 public void onTowerClicked(Tower tower) {
 	     if (selectedTower != tower) {
-	         // 새로운 타워를 선택한 경우
 	         selectTower(tower);
 	     } else {
-	         // 이미 선택된 타워라면 선택 해제
 	         deselectTower();
 	     }
 	 }
-
     private void loadUserTowers() {
         FirebaseTowerService.loadUserData(new FirebaseCallback<UserDto>() {
             @Override
