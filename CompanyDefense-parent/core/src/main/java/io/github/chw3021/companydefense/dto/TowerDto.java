@@ -12,6 +12,7 @@ public class TowerDto {
     private float towerAttackMult=0.1f;
 	private String towerImagePath;
     private String attackType = "closest";
+    private String team;
     
 	public String getTowerId() {
 		return towerId;
@@ -78,6 +79,12 @@ public class TowerDto {
 	}
 	public void setTowerAttackMult(float towerAttackMult) {
 		this.towerAttackMult = towerAttackMult;
+	}
+	public String getTeam() {
+		return team;
+	}
+	public void setTeam(String team) {
+		this.team = team;
 	}
     
     

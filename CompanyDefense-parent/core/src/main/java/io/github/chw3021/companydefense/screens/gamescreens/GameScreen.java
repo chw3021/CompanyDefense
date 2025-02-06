@@ -21,7 +21,7 @@ public class GameScreen implements Screen, LoadingListener {
     private Texture background;
     private StageParent currentStage;  // 현재 스테이지를 관리하는 객체
     private FirebaseServiceImpl firebaseService; // Firebase 연동
-
+    private ShapeRenderer shapeRenderer;
 
     private LoadingScreenManager loadingScreenManager;
 
@@ -39,6 +39,7 @@ public class GameScreen implements Screen, LoadingListener {
     public GameScreen(Game game, int stageId) {
         this.game = game;
         this.batch = new SpriteBatch();
+        this.shapeRenderer = new ShapeRenderer();
         this.firebaseService = (FirebaseServiceImpl) Main.getInstance().getFirebaseService();
         // 스테이지에 따라 적, 타워, 경로 등을 설정
         if (stageId == 1) {
@@ -67,7 +68,7 @@ public class GameScreen implements Screen, LoadingListener {
 //        batch.begin();
 //        batch.draw(background, 0, 0); // 배경 그리기
 //        batch.end();
-        currentStage.render(batch);  // 선택된 스테이지 렌더링
+        currentStage.render(batch, shapeRenderer);  // 선택된 스테이지 렌더링
     }
 
     @Override

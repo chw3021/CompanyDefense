@@ -1,11 +1,21 @@
 package io.github.chw3021.companydefense.tower;
 
+import java.util.List;
+
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Array;
 
 import io.github.chw3021.companydefense.component.DamageComponent;
@@ -13,11 +23,11 @@ import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.enemy.Enemy;
+import io.github.chw3021.companydefense.stage.StageParent;
 
 
-public class Tower extends Entity {
+public class Tower extends Actor {
     private Texture texture;
-    private TransformComponent transform;
     
     
     private String name;
@@ -25,48 +35,24 @@ public class Tower extends Entity {
     private float magicAttack;
     private float attackSpeed;
     private float attackRange;
+	private int towerGrade=1;
 	private float attackCooldown; // 다음 공격까지 남은 시간
     private String attackType = "closest";
     private DamageComponent damageComponent;
-//
-//    public Tower(float physicalAttack, float magicAttack, float attackSpeed, 
-//                 float attackRange, String path, String name, String attackType) {
-//    	// TransformComponent 사용
-//        transform = new TransformComponent();
-//        
-//        // 기본 공격력과 공격 속도 설정
-//        this.physicalAttack = physicalAttack;
-//        this.magicAttack = magicAttack;
-//        this.attackSpeed = attackSpeed;
-//        this.attackRange = attackRange;
-//        this.attackCooldown = 0; // 초기화
-//        this.name = name; // 초기화
-//        damageComponent = new DamageComponent(physicalAttack, magicAttack);
-//        
-//        // 텍스처 로드
-//        Pixmap originalPixmap = new Pixmap(Gdx.files.internal(path));
-//        
-//        // 새 크기 설정 (예: 50x50)
-//        Pixmap resizedPixmap = new Pixmap(50, 50, originalPixmap.getFormat());
-//        resizedPixmap.drawPixmap(originalPixmap,
-//                                 0, 0, originalPixmap.getWidth(), originalPixmap.getHeight(),
-//                                 0, 0, resizedPixmap.getWidth(), resizedPixmap.getHeight());
-//        
-//        texture = new Texture(resizedPixmap); 
-//        
-//        this.add(transform);
-//    }
+    private StageParent stage;
+    private String team;
 
-    public Tower(TowerDto towerDto, int towerLevel, int gridSize) {
-        transform = new TransformComponent();
+    public Tower(TowerDto towerDto, int towerLevel, int gridSize, StageParent stage) {
         this.physicalAttack = towerDto.getTowerPhysicalAttack()*(1+towerDto.getTowerAttackMult()*towerLevel);
         this.magicAttack = towerDto.getTowerMagicAttack()*(1+towerDto.getTowerAttackMult()*towerLevel);
         this.attackSpeed = towerDto.getTowerAttackSpeed();
         this.attackRange = towerDto.getTowerAttackRange()*gridSize;
         this.attackType = towerDto.getAttackType();
-        this.name = towerDto.getTowerName(); // 초기화
+        this.name = towerDto.getTowerName();
+        this.towerGrade = towerDto.getTowerGrade();
+        this.team = towerDto.getTeam();
         damageComponent = new DamageComponent(physicalAttack, magicAttack);
-
+        
         Gdx.app.postRunnable(() -> {  // 메인 스레드에서 실행
             Pixmap originalPixmap = new Pixmap(Gdx.files.internal(towerDto.getTowerImagePath()));
 
@@ -76,15 +62,15 @@ public class Tower extends Entity {
                                      0, 0, resizedPixmap.getWidth(), resizedPixmap.getHeight());
 
             texture = new Texture(resizedPixmap);  // OpenGL 컨텍스트 내에서 실행
+        	this.setTouchable(Touchable.enabled);
+        	this.setSize(gridSize * 0.8f, gridSize * 0.8f);
         });
-        this.add(transform);
+        this.stage = stage;
 	}
 
 
 
     public Tower(Tower other) {
-    	this.transform = new TransformComponent();
-        this.transform.position.set(other.transform.position);
         this.physicalAttack = other.physicalAttack;
         this.magicAttack = other.magicAttack;
         this.attackSpeed = other.attackSpeed;
@@ -93,8 +79,34 @@ public class Tower extends Entity {
         this.damageComponent = other.damageComponent;
         this.name = other.name;
         this.texture = other.texture;
-        this.add(transform);
+        this.towerGrade = other.towerGrade;
+        this.stage = other.stage;
+        this.team = other.team;
+        setPosition(other.getX(), other.getY());
         // 필요한 필드를 추가적으로 복사
+
+        addListener(new InputListener() {
+        	
+        	
+            @Override
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+            	((Tower)event.getTarget()).isDragging = true;
+            	((Tower)event.getTarget()).dragStartPos = new Vector2(getX(), getY());
+            	return true;
+            }
+
+            @Override
+            public void touchDragged(InputEvent event, float x, float y, int pointer) {
+                // 가이드 원 위치 갱신
+            	((Tower)event.getTarget()).dragStartPos.set(getX() + x, getY() + y);
+            }
+
+            @Override
+            public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
+            	((Tower)event.getTarget()).isDragging = false; // 드래그 종료
+                stage.onTowerClicked(Tower.this); 
+            }
+        });
     }
 	// 적에게 피해를 주는 attack 메서드
     public void attack(Enemy target) {
@@ -123,8 +135,9 @@ public class Tower extends Entity {
 
         for (Enemy enemy : enemies) {
             Vector2 enemyPos = enemy.getPosition();
-            float distance = transform.position.dst(enemyPos);
-
+            float distance = Vector2.dst(getX(), getY(), enemyPos.x, enemyPos.y);
+            
+            
             // 타워 범위 내에 있는 적만 고려
             if (distance <= attackRange) {
                 if (attackType.equals("closest")) {
@@ -150,31 +163,61 @@ public class Tower extends Entity {
         return bestTarget;
     }
 
-    public void render(SpriteBatch batch) {
-        float textureX = transform.position.x + texture.getWidth() * 0.2f; // 텍스처 중심으로 x 조정
-        float textureY = transform.position.y + texture.getHeight() * 0.2f; // 텍스처 중심으로 y 조정
-        batch.draw(texture, textureX, textureY); // 조정된 좌표로 그리기
+    public boolean upgrade(Array<Tower> availableTowers) {
+        if (Math.random() < 0.2) { // 20% 확률 성공
+            for (Tower newTower : availableTowers) {
+                if (newTower.towerGrade == this.towerGrade + 1) {
+                    this.physicalAttack = newTower.physicalAttack;
+                    this.magicAttack = newTower.magicAttack;
+                    this.attackSpeed = newTower.attackSpeed;
+                    this.attackRange = newTower.attackRange;
+                    this.towerGrade = newTower.towerGrade;
+                    this.texture = newTower.texture; // 새로운 타워 텍스처 적용
+                    return true;
+                }
+            }
+        } else {
+        	System.out.println("gory");
+        	remove(); // 타워 삭제
+        }
+		return false;
     }
-
     
+    private boolean isDragging = false;
+    private Vector2 dragStartPos;
+    
+    public void renderGuide(ShapeRenderer shapeRenderer) {
+        if (isDragging) {
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(Color.RED);
+            shapeRenderer.circle(dragStartPos.x, dragStartPos.y, attackRange);
+            shapeRenderer.end();
+        }
+    }
+    public void render(SpriteBatch batch) {
+        float textureX = getX() + texture.getWidth() * 0.2f; // 텍스처 중심으로 x 조정
+        float textureY = getY() + texture.getHeight() * 0.2f; // 텍스처 중심으로 y 조정
+        batch.draw(texture, textureX, textureY); // 조정된 좌표로 그리기
+      
+    }
+    @Override
+    public void draw(Batch batch, float parentAlpha) {
+        if (texture != null) {
+            float textureX = getX() + texture.getWidth() * 0.2f; // 텍스처 중심으로 x 조정
+            float textureY = getY() + texture.getHeight() * 0.2f; // 텍스처 중심으로 y 조정
+            batch.draw(texture, textureX, textureY, getWidth(), getHeight());
+        }
+    }
     public void dispose() {
         texture.dispose();
     }
 
     public void setPosition(Vector2 position) {
-        this.transform.position.set(position);
+        setPosition(position.x, position.y);
     }
 
     public Vector2 getPosition() {
-        return transform.position;
-    }
-
-    public void setVelocity(Vector2 velocity) {
-        this.transform.velocity.set(velocity);
-    }
-
-    public Vector2 getVelocity() {
-        return transform.velocity;
+        return new Vector2(this.getX(), this.getY());
     }
     // 추가적인 getter와 setter
     public float getPhysicalAttack() {
@@ -206,6 +249,13 @@ public class Tower extends Entity {
 
 	public void setAttackRange(float attackRange) {
 		this.attackRange = attackRange;
+	}
+	public String getName() {
+	    return name;
+	}
+
+	public int getGrade() {
+	    return towerGrade;
 	}
 
 }

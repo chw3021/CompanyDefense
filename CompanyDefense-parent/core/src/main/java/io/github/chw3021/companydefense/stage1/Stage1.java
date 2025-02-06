@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 
@@ -114,30 +115,8 @@ public class Stage1 extends StageParent {
     }
 
     @Override
-    public void render(SpriteBatch batch) {
-    	batch.begin();
-        // 배경
-        float backgroundHeight = mapHeight * gridSize;
-        batch.draw(backgroundTexture, 0, offsetY, Gdx.graphics.getWidth(), backgroundHeight);
-
-        // 경로 및 장애물
-        for (Obstacle path : pathVisuals) {
-            path.render(batch);
-        }
-        for (Obstacle obstacle : obstacles) {
-            obstacle.render(batch);
-        }
-
-        // 타워 및 적
-        for (Tower tower : towers) {
-            tower.render(batch);
-        }
-        for (Enemy enemy : activeEnemies) {
-            enemy.render(batch);
-        }
-        batch.end();
-        super.render(batch);
-        
+    public void render(SpriteBatch batch, ShapeRenderer shapeRenderer) {
+        super.render(batch, shapeRenderer);
     }
     @Override
     public void dispose() {
