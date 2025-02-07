@@ -1,26 +1,21 @@
 package io.github.chw3021.companydefense.tower;
 
-import java.util.List;
-
-import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Array;
 
 import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.component.HealthComponent;
-import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.stage.StageParent;
@@ -41,8 +36,10 @@ public class Tower extends Actor {
     private DamageComponent damageComponent;
     private StageParent stage;
     private String team;
+    
+    private Boolean isMergable = false;
 
-    public Tower(TowerDto towerDto, int towerLevel, int gridSize, StageParent stage) {
+	public Tower(TowerDto towerDto, int towerLevel, int gridSize, StageParent stage) {
         this.physicalAttack = towerDto.getTowerPhysicalAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
         this.magicAttack = towerDto.getTowerMagicAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
         this.attackSpeed = towerDto.getTowerAttackSpeed();
@@ -95,19 +92,85 @@ public class Tower extends Actor {
                 stage.onTowerClicked(Tower.this); 
             	return true;
             }
-
             @Override
             public void touchDragged(InputEvent event, float x, float y, int pointer) {
-                // 가이드 원 위치 갱신
-            	((Tower)event.getTarget()).dragStartPos.set(getX() + x, getY() + y);
-            }
+                Tower thisTower = (Tower) event.getTarget();
+                thisTower.dragStartPos.set(getX() + x, getY() + y); // 커서 위치로 이동
 
+                // 현재 커서 위치에 있는 타워 확인 (자기 자신 제외)
+                Tower targetTower = findTowerAtPosition(getX() + x, getY() + y);
+
+                if (targetTower != null && targetTower != thisTower 
+                    && targetTower.name.equals(thisTower.name) 
+                    && targetTower.towerGrade == thisTower.towerGrade) {
+                    isMergable = true;
+                } else {
+                    isMergable = false;
+                }
+            }
+            
             @Override
             public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
-            	((Tower)event.getTarget()).isDragging = false; // 드래그 종료
+                Tower thisTower = (Tower) event.getTarget();
+                thisTower.isDragging = false; // 드래그 종료
+
+                // 놓은 위치에 있는 타워 찾기 (자기 자신 제외)
+                Tower targetTower = findTowerAtPosition(getX() + x, getY() + y);
+
+                if (targetTower != null && targetTower != thisTower // 자기 자신 제외
+                    && targetTower.name.equals(thisTower.name) 
+                    && targetTower.towerGrade == thisTower.towerGrade) {
+                    
+                    // 두 타워를 합쳐서 상위 등급 타워로 변경
+                    Tower mergedTower = mergeTowers(targetTower);
+                    
+                    if (mergedTower != null) {
+                        targetTower.remove(); // 기존 타워 삭제
+                        thisTower.remove(); // 현재 타워 삭제
+                    }
+                }
             }
         });
     }
+    
+    private Tower findTowerAtPosition(float x, float y) {
+        for (Actor actor : getStage().getActors()) {
+            if (actor instanceof Tower) {
+                Tower tower = (Tower) actor;
+                if (tower.getBoundingRectangle().contains(x, y)) {
+                    return tower;
+                }
+            }
+        }
+        return null;
+    }
+    
+    public Rectangle getBoundingRectangle() {
+        return new Rectangle(getX(), getY(), getWidth(), getHeight());
+    }
+    
+    private Tower mergeTowers(Tower baseTower) {
+        Array<Tower> possibleUpgrades = stage.availableTowers;
+        possibleUpgrades.shuffle();
+        for (Tower newTower : possibleUpgrades) {
+            if (newTower.towerGrade == baseTower.towerGrade + 1) {
+                // 새 타워를 생성하여 기존 타워 위치에 소환
+                Tower upgradedTower = new Tower(newTower);
+                upgradedTower.setPosition(baseTower.getX(), baseTower.getY());
+                upgradedTower.setTouchable(Touchable.enabled);
+                upgradedTower.setSize(baseTower.getWidth(), baseTower.getHeight());
+                
+                getStage().addActor(upgradedTower); // 스테이지에 추가
+                stage.towers.add(upgradedTower); // 타워 리스트에 추가
+                stage.towers.removeValue(baseTower, true);
+                stage.towers.removeValue(this, true);
+                
+                return upgradedTower;
+            }
+        }
+        return null;
+    }
+    
 	// 적에게 피해를 주는 attack 메서드
     public void attack(Enemy target) {
         target.addDamage(damageComponent); // 적에게 데미지를 추가
@@ -177,7 +240,6 @@ public class Tower extends Actor {
                 }
             }
         } else {
-        	System.out.println("gory");
         	remove(); // 타워 삭제
         }
 		return false;
@@ -186,14 +248,21 @@ public class Tower extends Actor {
     private boolean isDragging = false;
     private Vector2 dragStartPos;
     
-    public void renderGuide(ShapeRenderer shapeRenderer) {
+    public void renderGuide(SpriteBatch batch
+    		, Texture guideTexture, Texture guideTexture2) {
         if (isDragging) {
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-            shapeRenderer.setColor(Color.RED);
-            shapeRenderer.circle(dragStartPos.x, dragStartPos.y, attackRange);
-            shapeRenderer.end();
+        	if(isMergable) {
+                batch.draw(guideTexture2, dragStartPos.x,
+                		dragStartPos.y);
+        	}
+        	else {
+                batch.draw(guideTexture, dragStartPos.x,
+                		dragStartPos.y);
+        	}
         }
     }
+
+    
     public void render(SpriteBatch batch) {
         float textureX = getX() + texture.getWidth() * 0.2f; // 텍스처 중심으로 x 조정
         float textureY = getY() + texture.getHeight() * 0.2f; // 텍스처 중심으로 y 조정
@@ -257,5 +326,15 @@ public class Tower extends Actor {
 	public int getGrade() {
 	    return towerGrade;
 	}
+
+
+    public String getTeam() {
+		return team;
+	}
+
+	public void setTeam(String team) {
+		this.team = team;
+	}
+
 
 }

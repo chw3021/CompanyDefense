@@ -74,7 +74,7 @@ public class Stage1 extends StageParent {
         gridSize = Gdx.graphics.getWidth() / mapWidth; // 화면 너비에 맞게 그리드 크기 설정
 
         // 배경 텍스처 로드
-        backgroundTexture = new Texture(Gdx.files.internal("background/stage1.jpg"));
+        backgroundTexture = new Texture(Gdx.files.internal("background/stage1.png"));
 
     	
     	
