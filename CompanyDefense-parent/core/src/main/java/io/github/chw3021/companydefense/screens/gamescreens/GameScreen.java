@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.scenes.scene2d.Stage;
 
 import io.github.chw3021.companydefense.Main;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
@@ -16,7 +17,7 @@ import io.github.chw3021.companydefense.screens.LoadingScreenManager;
 import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage1.Stage1;
 
-public class GameScreen implements Screen, LoadingListener {
+public class GameScreen extends Stage implements Screen, LoadingListener {
     private Game game;
     private SpriteBatch batch;
     private Texture background;
@@ -52,7 +53,7 @@ public class GameScreen implements Screen, LoadingListener {
         	currentStage = new Stage1(game);
         }
         firebaseService.addLoadingListener(this);
-        this.loadingScreenManager = new LoadingScreenManager(currentStage);
+        this.loadingScreenManager = new LoadingScreenManager(this);
     }
 
     @Override
@@ -66,8 +67,6 @@ public class GameScreen implements Screen, LoadingListener {
 
     @Override
     public void render(float delta) {
-        Gdx.gl.glClearColor(0, 0, 0, 1); // 화면 클리어
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
 //        batch.begin();
 //        batch.draw(background, 0, 0); // 배경 그리기

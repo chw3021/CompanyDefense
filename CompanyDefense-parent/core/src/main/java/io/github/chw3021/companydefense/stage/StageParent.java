@@ -6,6 +6,7 @@ import java.util.List;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
@@ -48,6 +49,10 @@ public abstract class StageParent extends Stage{
 	protected Game game;
     
 	protected float[][] map; // 맵 데이터 (0: 장애물)
+	protected float startX;
+	protected float startY;
+	protected float endX;
+	protected float endY;
     protected WaveManager waveManager;
     protected Array<Enemy> activeEnemies;
     public Array<Tower> towers;
@@ -58,7 +63,7 @@ public abstract class StageParent extends Stage{
     protected Array<Obstacle> pathVisuals;
     protected float offsetY = 0;
     protected AStarPathfinding aStar;  // AStar 경로 탐색
-    protected int life = 1;  // 초기 Life 설정
+    protected int life = 8;  // 초기 Life 설정
 
     // 맵의 크기 (gridWidth, gridHeight)
     public int mapWidth;  // 예시: 맵의 가로 크기
@@ -78,9 +83,12 @@ public abstract class StageParent extends Stage{
     private Table uiTable; // UI 구성
     private Label coinLabel;
     private int currency = 100000; // 초기 재화 값 (필요시 업데이트)
-    private Table towerInfoTable;
+    public Table towerInfoTable;
+
+	private Table towerImageTable;
     private Label towerNameLabel, attackPowerLabel, towerPriceLabel, hrLabel, dvLabel, slLabel;
     private Label hrUpgradeCost,dvUpgradeCost,slUpgradeCost;
+    private Image towerImage;
     private Tower selectedTower = null;
     private StageParent stage = this;
     
@@ -131,6 +139,18 @@ public abstract class StageParent extends Stage{
         }
     }
 
+	public Enemy generateEnemy(float health, float physicalDefense, 
+			float magicDefense, float moveSpeed, String type, String path) {
+		return new Enemy(startX* gridSize, startY* gridSize+offsetY,  // start position
+			health, physicalDefense, magicDefense,        // health, physical/magic defense 
+			moveSpeed*gridSize,              // move speed
+			type,         // type
+			path, 
+			new Vector2(endX * gridSize, (endY * gridSize)+offsetY),
+			this,
+			map
+	    );
+	}
 
 	private void initializeSpawnablePositions() {
 	    spawnablePositions = new Array<>();
@@ -156,10 +176,14 @@ public abstract class StageParent extends Stage{
         availableTowers = new Array<>();
         
     }
+    @Override
+    public void draw() {
+    	super.draw();
+    }
     
     @Override
     public void act(float delta) {
-    	this.setDebugAll(true);
+        super.act(delta);
         if (waveManager.isGameOver() || waveManager.isGameWon()) {
             // 게임이 종료되었으면 더 이상 업데이트하지 않음
             return;
@@ -182,6 +206,7 @@ public abstract class StageParent extends Stage{
         // Update wave management
         waveManager.update(delta, this);
         waveManager.checkGameOver(this);
+        
     }
 
     public Array<Enemy> getActiveEnemies() {
@@ -279,14 +304,14 @@ public abstract class StageParent extends Stage{
 
 	    // Table을 사용하여 Label과 Button을 나란히 배치
 	    Table table = new Table();
-	    table.add(label).left().expand().padLeft(1);  // 라벨을 왼쪽에 배치, 오른쪽 여백 추가
+	    table.add(label).left().padLeft(10);  // 라벨을 왼쪽에 배치, 오른쪽 여백 추가
 	    table.add(button).width(uiTableElsize).height(uiTableElsize).right().padRight(5); // 버튼 크기 지정
 
 	    return table;
 	}
 
     private void upgradeTeamTowers(String teamName) {
-        int cost = 50*teamLevel.computeIfPresent(teamName, (k,v) -> v=v+1); // 업그레이드 비용 (원하는 값으로 설정)
+        int cost = 50*teamLevel.get(teamName); // 업그레이드 비용 (원하는 값으로 설정)
 	     if (teamName.equals("hr")) hrUpgradeCost.setText(cost);
 	     if (teamName.equals("dv")) dvUpgradeCost.setText(cost);
 	     if (teamName.equals("sl")) slUpgradeCost.setText(cost);
@@ -295,8 +320,8 @@ public abstract class StageParent extends Stage{
             System.out.println("재화 부족!");
             return;
         }
-
         currency -= cost; // 재화 차감
+        teamLevel.computeIfPresent(teamName, (k,v) -> v=v+1);
 
         for (Tower tower : towers) {
             if (tower.getTeam().equals(teamName)) {
@@ -321,6 +346,12 @@ public abstract class StageParent extends Stage{
 	     if (teamName.equals("sl")) slLabel.setText(newText);
 	 }
     
+	 private Table createCostTable(Label label) {
+		    Table table = new Table();
+		    table.add(new Image(new Texture(Gdx.files.internal("icons/coin.png")))).width(uiTableElsize*0.5f).height(uiTableElsize*0.5f); // 버튼 크기 지정
+		    table.add(label).padLeft(5);
+		    return table;
+	 }
 
 	 
     public void initialize() {
@@ -343,9 +374,11 @@ public abstract class StageParent extends Stage{
         float screenHeight = Gdx.graphics.getHeight();
         uiTableElsize = screenWidth * 0.1f; // 버튼 크기 축소
         
+        
         coinLabel = new Label(null, skin);
         coinLabel.setStyle(createLabelStyleWithBackground(coinLabel));
         coinLabel.setFontScale(uiTableElsize*0.02f); // 폰트 크기 축소
+        coinLabel.setColor(Color.GOLD);
 
 		// 버튼 생성
 		Table hrUpgrade = createUpgradeButton("인사", "icons/hrup.png", "icons/hrup_down.png", "hr");
@@ -370,13 +403,22 @@ public abstract class StageParent extends Stage{
         uiTable.setWidth(screenWidth);
         uiTable.setHeight(screenHeight-mapHeight*gridSize);
 
+        Label spawnCostLabel = new Label("100", skin);
+        spawnCostLabel.setStyle(createLabelStyleWithBackground(spawnCostLabel));
+        spawnCostLabel.setFontScale(uiTableElsize*0.015f); // 텍스트 크기 조정
+        spawnCostLabel.setColor(Color.GOLD);
+	    Table spawnButtonTable = new Table();
+	    spawnButtonTable.add(new Image(new Texture(Gdx.files.internal("icons/coin.png")))).width(uiTableElsize*0.75f).height(uiTableElsize*0.75f); // 버튼 크기 지정
+	    spawnButtonTable.add(spawnCostLabel).pad(5);
+	    spawnButtonTable.add(spawnButton).width(uiTableElsize).height(uiTableElsize).pad(5);
+	    
         uiTable.add(waveButton).width(uiTableElsize).height(uiTableElsize).right().padRight(15).colspan(3);
         uiTable.row();
-        uiTable.add(spawnButton).width(uiTableElsize).height(uiTableElsize).right().expandY().padRight(15).colspan(3);
+        uiTable.add(spawnButtonTable).right().expandY().padRight(15).colspan(3);
         uiTable.row();
-        uiTable.add(hrUpgradeCost).center().width(screenWidth/3);
-        uiTable.add(dvUpgradeCost).center().width(screenWidth/3);
-        uiTable.add(slUpgradeCost).center().width(screenWidth/3);
+        uiTable.add(createCostTable(hrUpgradeCost)).center().width(screenWidth/3);
+        uiTable.add(createCostTable(dvUpgradeCost)).center().width(screenWidth/3);
+        uiTable.add(createCostTable(slUpgradeCost)).center().width(screenWidth/3);
         uiTable.row();
         uiTable.add(hrUpgrade).center().width(screenWidth/3).pad(1);
         uiTable.add(dvUpgrade).center().width(screenWidth/3).pad(1);
@@ -386,41 +428,7 @@ public abstract class StageParent extends Stage{
         uiTable.add(coinStack).width(uiTableElsize).height(uiTableElsize).left().pad(6).expandX().colspan(2);
 
         float towerInfoElsize = screenWidth * 0.08f; // 버튼 크기 조정
-        
-        towerInfoTable = new Table();
-        towerInfoTable.setVisible(false);
-        towerInfoTable.setPosition(0, (uiTable.getHeight())*0.56f);
-        towerInfoTable.setWidth(screenWidth*0.6f);
-        towerInfoTable.setHeight((uiTable.getHeight())*0.44f);
 
-        towerNameLabel = new Label("", skin);
-        attackPowerLabel = new Label("", skin);
-        towerPriceLabel = new Label("", skin);
-
-        towerNameLabel.setFontScale(towerInfoElsize*0.02f); 
-        towerNameLabel.setStyle(createLabelStyleWithBackground(towerNameLabel));
-        
-        attackPowerLabel.setFontScale(towerInfoElsize*0.02f);
-        attackPowerLabel.setStyle(createLabelStyleWithBackground(attackPowerLabel));
-        
-        towerPriceLabel.setFontScale(towerInfoElsize*0.02f);
-        towerPriceLabel.setStyle(createLabelStyleWithBackground(towerPriceLabel));
-        
-
-        towerInfoTable.add(towerNameLabel).colspan(2).expand().pad(2);
-        towerInfoTable.row();
-        towerInfoTable.add(attackPowerLabel).colspan(2).expand().pad(2);
-        towerInfoTable.row();
-        towerInfoTable.add(towerPriceLabel).colspan(2).expand().pad(2);
-
-        ImageButton upgradeButton = createImageButton("icons/negociation.png", "icons/negociation_down.png", new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                if (selectedTower != null) {
-                    upgradeTower(selectedTower);
-                }
-            }
-        });
 
         ImageButton sellButton = createImageButton("icons/walk_out.png", "icons/money.png", new ClickListener() {
             @Override
@@ -430,9 +438,73 @@ public abstract class StageParent extends Stage{
                 }
             }
         });
+        towerInfoTable = new Table();
+        towerInfoTable.setVisible(false);
+        towerInfoTable.setPosition(0, (uiTable.getHeight())*0.56f);
+        towerInfoTable.setWidth(screenWidth*0.6f);
+        towerInfoTable.setHeight((uiTable.getHeight())*0.44f);
         
-        towerInfoTable.add(upgradeButton).width(towerInfoElsize).height(towerInfoElsize);
-        towerInfoTable.add(sellButton).width(towerInfoElsize).height(towerInfoElsize);
+        Table towerInfoTextTable = new Table();
+        Table towerPriceTable = new Table();
+        towerInfoTextTable.setWidth(screenWidth*0.3f);
+        towerInfoTextTable.setHeight((uiTable.getHeight())*0.44f);
+        towerInfoTextTable.setPosition(0, (uiTable.getHeight())*0.56f);
+        towerNameLabel = new Label("", skin);
+        attackPowerLabel = new Label("", skin);
+        towerPriceLabel = new Label("", skin);
+
+        towerNameLabel.setFontScale(towerInfoElsize*0.015f); 
+        towerNameLabel.setStyle(createLabelStyleWithBackground(towerNameLabel));
+        towerNameLabel.setColor(Color.DARK_GRAY);
+        
+        attackPowerLabel.setFontScale(towerInfoElsize*0.015f);
+        attackPowerLabel.setStyle(createLabelStyleWithBackground(attackPowerLabel));
+        attackPowerLabel.setColor(Color.DARK_GRAY);
+        
+        towerPriceLabel.setFontScale(towerInfoElsize*0.013f);
+        towerPriceLabel.setStyle(createLabelStyleWithBackground(towerPriceLabel));
+        towerPriceLabel.setColor(Color.DARK_GRAY);
+
+        towerPriceTable.add(new Image(new Texture(Gdx.files.internal("icons/coin.png")))).width(uiTableElsize*0.5f).height(uiTableElsize*0.5f); // 버튼 크기 지정
+        towerPriceTable.add(towerPriceLabel).pad(5);
+        towerPriceTable.add(sellButton).width(towerInfoElsize*0.6f).height(towerInfoElsize*0.6f).pad(5);
+
+        towerInfoTextTable.add(towerNameLabel).expand().pad(2);
+        towerInfoTextTable.row();
+        towerInfoTextTable.add(attackPowerLabel).expand().pad(2);
+        towerInfoTextTable.row();
+        towerInfoTextTable.add(towerPriceTable).expand();
+
+        ImageButton upgradeButton = createImageButton("icons/negociation.png", "icons/negociation_down.png", new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (selectedTower != null) {
+                    upgradeTower(selectedTower);
+                }
+            }
+        });
+        
+
+        towerImageTable = new Table();
+        towerImageTable.setSize(screenWidth*0.3f, towerInfoTable.getHeight());
+        towerImage = new Image();
+        towerImage.setSize(screenWidth*0.3f, towerInfoTable.getHeight()*0.66f);
+        Table towerUpgradeTable = new Table();
+        Label upgradeLabel = new Label("250 30%", skin);
+        upgradeLabel.setFontScale(towerInfoElsize*0.015f);
+        upgradeLabel.setColor(Color.DARK_GRAY);
+
+        towerUpgradeTable.add(new Image(new Texture(Gdx.files.internal("icons/coin.png")))).width(uiTableElsize*0.25f).height(uiTableElsize*0.25f); // 버튼 크기 지정
+        towerUpgradeTable.add(upgradeLabel).pad(5);
+        towerUpgradeTable.add(upgradeButton).width(towerInfoElsize*0.75f).height(towerInfoElsize*0.75f).pad(5);
+
+        towerImageTable.add(towerImage).colspan(2).expand().pad(2);
+        towerImageTable.row();
+        towerImageTable.add(towerUpgradeTable);
+        
+        towerInfoTable.add(towerInfoTextTable).expand();
+        towerInfoTable.add(towerImageTable);
+        
         // UI 테이블 배경 적용
         TextureRegionDrawable uiTableBackground = new TextureRegionDrawable(new TextureRegion(new Texture(Gdx.files.internal("background/ui_bg.jpg"))));
         uiTableBackground.setMinWidth(uiTable.getWidth());
@@ -492,6 +564,7 @@ public abstract class StageParent extends Stage{
         if(!tower.upgrade(availableTowers)) {
             // 타워 제거
             towers.removeValue(tower, true);
+            towerInfoTable.setVisible(false);
             // 선택된 타워가 팔린 타워라면 선택 해제
             if (selectedTower == tower) {
                 deselectTower();
@@ -529,19 +602,36 @@ public abstract class StageParent extends Stage{
     public void hideAttackRange() {
         isAttackRangeVisible = false;
     }
+ // 타워 선택
+    public void selectTower(Tower tower) {
+        selectedTower = tower;
+        String text = tower.getTeam().equals("hr") ? "인사" : tower.getTeam().equals("dv") ? "개발" : "영업";
+        towerNameLabel.setText(tower.getName() + " " + text);
 
-	 // 타워 선택
-	 public void selectTower(Tower tower) {
-	     selectedTower = tower;
-	     towerNameLabel.setText(tower.getName());
-	     attackPowerLabel.setText(tower.getPhysicalAttack()+" / " + tower.getMagicAttack() 
-	     +" / "+tower.getAttackSpeed());
-	     towerPriceLabel.setText("Sell Price: " + (tower.getGrade() * 30));
-	
-	     towerInfoTable.setVisible(true); // 선택 시 표시
-	     showAttackRange(tower);
-	 }
-	
+        String attackInfo = String.format("%.1f %.1f %.1f", 
+            tower.getPhysicalAttack(), 
+            tower.getMagicAttack(), 
+            tower.getAttackSpeed()
+        );
+        attackPowerLabel.setText(attackInfo);
+        towerPriceLabel.setText(String.valueOf(tower.getGrade() * 30));
+
+        // 새로운 TextureRegionDrawable을 생성 후 적용
+        Texture newTexture = new Texture(Gdx.files.internal(tower.getImagePath()));
+        TextureRegionDrawable newDrawable = new TextureRegionDrawable(new TextureRegion(newTexture));
+        newDrawable.setMinSize(towerInfoTable.getWidth() * 0.5f, towerInfoTable.getHeight() * 0.66f);
+        towerImage.setDrawable(newDrawable);
+
+        // 크기 재조정
+        towerImage.setSize(towerInfoTable.getWidth() * 0.5f, towerInfoTable.getHeight() * 0.66f);
+
+        // UI 갱신
+        towerInfoTable.setVisible(true);
+        towerImageTable.invalidateHierarchy();  // 부모 Table 강제 갱신
+        towerImageTable.layout();               // 레이아웃 강제 적용
+        showAttackRange(tower);
+    }
+
 	 // 타워 선택 해제
 	 public void deselectTower() {
 	     selectedTower = null;
@@ -593,7 +683,6 @@ public abstract class StageParent extends Stage{
     }
     
     public void render(SpriteBatch batch, ShapeRenderer shapeRenderer) {
-
     	batch.begin();
         // 배경
         float backgroundHeight = mapHeight * gridSize;
@@ -606,21 +695,16 @@ public abstract class StageParent extends Stage{
         for (Obstacle obstacle : obstacles) {
             obstacle.render(batch);
         }
-        // 타워 및 적
-        for (Tower tower : towers) {
-            tower.render(batch);
-        }
         for (Enemy enemy : activeEnemies) {
             enemy.render(batch);
         }
-        batch2.begin();
+
         for (Tower tower : towers) {
-            tower.renderGuide(batch2, focusTexture, focusTexture2);
+            tower.render(batch, focusTexture, focusTexture2);
         }
-        batch2.end();
+    	batch.end();
         if (isAttackRangeVisible && selectedTower != null) {
             float attackRange = selectedTower.getAttackRange();
-            float diameter = attackRange * 2; // 원의 크기 = 직경
 
             circleTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
             
@@ -634,7 +718,10 @@ public abstract class StageParent extends Stage{
             shapeRenderer.circle(circle.x, circle.y, circle.radius);
             shapeRenderer.end();
         }
-    	batch.end();
+        for (Enemy enemy : activeEnemies) {
+            enemy.renderHealthBar(shapeRenderer);
+        }
+
         act(Gdx.graphics.getDeltaTime());
         draw();
     }

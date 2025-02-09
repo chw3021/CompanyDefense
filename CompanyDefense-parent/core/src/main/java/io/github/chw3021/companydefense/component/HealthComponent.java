@@ -6,8 +6,10 @@ public class HealthComponent implements Component {
     public float health;
     public float physicalDefense;
     public float magicDefense;
+	public float maxHealth;
 
     public HealthComponent(float health, float physicalDefense, float magicDefense) {
+        this.maxHealth = health;
         this.health = health;
         this.physicalDefense = physicalDefense;
         this.magicDefense = magicDefense;

@@ -11,6 +11,8 @@ public class TowerDto {
     private float towerAttackRange;
     private float towerAttackMult=0.1f;
 	private String towerImagePath;
+	private String towerAttackImagePath;
+	private String towerPortraitPath;
     private String attackType = "closest";
     private String team;
     
@@ -85,6 +87,18 @@ public class TowerDto {
 	}
 	public void setTeam(String team) {
 		this.team = team;
+	}
+	public String getTowerAttackImagePath() {
+		return towerAttackImagePath;
+	}
+	public void setTowerAttackImagePath(String towerAttackImagePath) {
+		this.towerAttackImagePath = towerAttackImagePath;
+	}
+	public String getTowerPortraitPath() {
+		return towerPortraitPath;
+	}
+	public void setTowerPortraitPath(String towerPortraitPath) {
+		this.towerPortraitPath = towerPortraitPath;
 	}
     
     
