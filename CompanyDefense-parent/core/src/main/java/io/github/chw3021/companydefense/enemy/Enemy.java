@@ -5,9 +5,11 @@ import java.util.List;
 
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 
@@ -19,6 +21,8 @@ import io.github.chw3021.companydefense.component.TransformComponent;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage.Wave;
+
+
 public class Enemy extends Entity {
     private AStarPathfinding aStarPathfinding; // A* 경로 탐색
     private List<Vector2> path; // 적의 경로
@@ -27,12 +31,14 @@ public class Enemy extends Entity {
     private TransformComponent transform; // 위치 및 이동 속도 관리
     private HealthComponent healthComponent;
     private PathfindingComponent pathfinding;
-    private EnemyComponent enemyComponent;
+    private String type;
     private Wave wave;
     private StageParent stage;
     private int size;
     private float[][] map;
-    
+
+    private static final float HEALTH_BAR_HEIGHT = 5f; // 체력바 높이
+    private static final float HEALTH_BAR_MARGIN = 3f; // 적과 체력바 간 거리
     
     public Enemy(float startX, float startY, float health, float physicalDefense, float magicDefense, float moveSpeed,
                  String type, String image, Vector2 target, StageParent stage, float[][] map) {
@@ -44,8 +50,7 @@ public class Enemy extends Entity {
         // HealthComponent 추가
         healthComponent = new HealthComponent(health, physicalDefense, magicDefense);
 
-        // EnemyComponent 추가
-        enemyComponent = new EnemyComponent(type);
+        this.type = type;
 
         // PathfindingComponent 추가
         pathfinding = new PathfindingComponent();
@@ -54,7 +59,6 @@ public class Enemy extends Entity {
 
         this.add(transform);
         this.add(healthComponent);
-        this.add(enemyComponent);
         this.add(pathfinding);
         this.stage = stage;
 
@@ -108,7 +112,12 @@ public class Enemy extends Entity {
             if (currentPathIndex >= path.size()) {
                 currentPathIndex = path.size() - 1; // 마지막 경로에 도달하면 멈춤
             	dispose();
-            	stage.setLife(stage.getLife()-1);
+            	if(type.equals("boss")) {
+                	stage.setLife(0);
+            	}
+            	else {
+                	stage.setLife(stage.getLife()-1);
+            	}
             }
         } else {
             // 목표 지점으로 이동
@@ -128,6 +137,27 @@ public class Enemy extends Entity {
 
     public boolean isAtTarget(Vector2 target) {
         return transform.position.dst(target) < 5.0f;  // 목표 지점에 가까워지면 true
+    }
+
+    public void renderHealthBar(ShapeRenderer shapeRenderer) {
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        float barWidth = texture.getWidth(); // 체력바 길이
+        float barX = transform.position.x; // 체력바 x 위치
+        float barY = transform.position.y + texture.getHeight() + HEALTH_BAR_MARGIN; // 적 위에 배치
+
+        float healthRatio = healthComponent.health / healthComponent.maxHealth;
+        float redBarWidth = barWidth * healthRatio; // 남은 체력 비율만큼 빨간색으로 표시
+
+        // 검은색 배경
+        shapeRenderer.setColor(Color.BLACK);
+        shapeRenderer.rect(barX, barY, barWidth, HEALTH_BAR_HEIGHT);
+
+        // 빨간색 체력 부분
+        shapeRenderer.setColor(Color.RED);
+        shapeRenderer.rect(barX, barY, redBarWidth, HEALTH_BAR_HEIGHT);
+
+        shapeRenderer.end();
     }
 
     // 화면에 적을 그리기 위한 렌더링 메서드
