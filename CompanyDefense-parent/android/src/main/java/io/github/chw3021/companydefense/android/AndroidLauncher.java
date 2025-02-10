@@ -27,9 +27,10 @@ import io.github.chw3021.companydefense.firebase.FirebaseService;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.platform.GoogleSignInHandler;
 
-/** Launches the Android application. */
 public class AndroidLauncher extends AndroidApplication implements GoogleSignInHandler {
+    private GoogleSignInClient googleSignInClient;
     private FirebaseAuth firebaseAuth;
+    private static final int RC_SIGN_IN = 9001;
     private FirebaseCallback<UserDto> currentCallback; // 로그인 결과 전달용 콜백
 
     @Override
@@ -41,60 +42,51 @@ public class AndroidLauncher extends AndroidApplication implements GoogleSignInH
         firebaseAuth = FirebaseAuth.getInstance();
         FirebaseService firebaseService = new FirebaseServiceImpl();
 
+        // Google Sign-In 옵션 설정 (Play Games가 아닌 기본 로그인으로 설정)
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id)) // Firebase 연동을 위한 ID 토큰 요청
+            .requestEmail()
+            .build();
+        googleSignInClient = GoogleSignIn.getClient(this, gso);
+
         // Android 애플리케이션 초기화
         AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
         initialize(new Main(firebaseService, this), config);
-
-        // 자동 로그인 시도
-        autoSignIn();
-    }
-
-    private void autoSignIn() {
-        PlayGames.getGamesSignInClient(this).signIn()
-            .addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    // 로그인 성공 시 Firebase 연동
-                    getPlayerInfo();
-                } else {
-                    Log.e("GPGS", "자동 로그인 실패");
-                }
-            });
     }
 
     @Override
     public void signIn(FirebaseCallback<UserDto> callback) {
         this.currentCallback = callback;
-        PlayGames.getGamesSignInClient(this).signIn()
-            .addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    getPlayerInfo();
-                } else {
-                    if (currentCallback != null) {
-                        currentCallback.onFailure(new Exception("Google Play Games 로그인 실패"));
-                    }
-                }
-            });
+
+        // 이미 로그인된 구글 계정이 있으면 바로 처리
+        GoogleSignInAccount lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(this);
+        if (lastSignedInAccount != null) {
+            firebaseAuthWithGoogle(lastSignedInAccount.getIdToken());
+        } else {
+            // 로그인된 계정이 없으면 로그인 창을 띄움
+            Intent signInIntent = googleSignInClient.getSignInIntent();
+            startActivityForResult(signInIntent, RC_SIGN_IN);
+        }
     }
 
-    private void getPlayerInfo() {
-        PlayGames.getPlayersClient(this).getCurrentPlayer()
-            .addOnSuccessListener(player -> {
-                String playerId = player.getPlayerId();
-                String displayName = player.getDisplayName();
-
-                // Firebase 인증 처리
-                firebaseAuthWithPlayGames(playerId, displayName);
-            })
-            .addOnFailureListener(e -> {
-                Log.e("GPGS", "플레이어 정보 가져오기 실패", e);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RC_SIGN_IN) {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            try {
+                GoogleSignInAccount account = task.getResult(ApiException.class);
+                firebaseAuthWithGoogle(account.getIdToken());
+            } catch (ApiException e) {
                 if (currentCallback != null) {
                     currentCallback.onFailure(e);
                 }
-            });
+            }
+        }
     }
 
-    private void firebaseAuthWithPlayGames(String playerId, String displayName) {
-        AuthCredential credential = PlayGamesAuthProvider.getCredential(playerId);
+    private void firebaseAuthWithGoogle(String idToken) {
+        AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         firebaseAuth.signInWithCredential(credential)
             .addOnCompleteListener(this, task -> {
                 if (task.isSuccessful()) {
@@ -102,18 +94,22 @@ public class AndroidLauncher extends AndroidApplication implements GoogleSignInH
                     if (user != null) {
                         UserDto userDto = new UserDto();
                         userDto.setUserId(user.getUid());
-                        userDto.setUserName(displayName);
-                        userDto.setLoginProvider("google_play_games");
+                        userDto.setUserName(user.getDisplayName() != null ? user.getDisplayName() : "Unknown User");
+                        userDto.setLoginProvider("google");
 
-                        // 로그인 정보 저장
+                        // 로그인 성공 시 SharedPreferences 저장
                         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
-                        prefs.putString("loginProvider", "google_play_games");
+                        prefs.putString("loginProvider", "google");
                         prefs.putString("userId", user.getUid());
                         prefs.putString("userName", userDto.getUserName());
                         prefs.flush();
 
                         if (currentCallback != null) {
                             currentCallback.onSuccess(userDto);
+                        }
+                    } else {
+                        if (currentCallback != null) {
+                            currentCallback.onFailure(new Exception("Firebase user is null after sign-in"));
                         }
                     }
                 } else {
@@ -124,4 +120,3 @@ public class AndroidLauncher extends AndroidApplication implements GoogleSignInH
             });
     }
 }
-

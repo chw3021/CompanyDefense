@@ -29,7 +29,7 @@ public class LoginScreen implements Screen, LoadingListener {
 
 
     private LoadingScreenManager loadingScreenManager;
-    
+
     private GoogleSignInHandler googleSignInHandler;
 
     @Override
@@ -41,9 +41,9 @@ public class LoginScreen implements Screen, LoadingListener {
     public void onLoadingEnd() {
         Gdx.app.postRunnable(() -> loadingScreenManager.hideLoadingScreen());
     }
-    
-    
-    
+
+
+
     public LoginScreen(Main game, GoogleSignInHandler googleSignInHandler) {
         this.game = game;
         this.firebaseService = (FirebaseServiceImpl) game.getFirebaseService();
@@ -54,7 +54,7 @@ public class LoginScreen implements Screen, LoadingListener {
         camera.setToOrtho(false, 480, 800);
 
         stage = new Stage(new ScreenViewport(camera));
-        skin = new Skin(Gdx.files.internal("uiskin.json")); // UI 스킨 파일 (uiskin.json 필요)
+        skin = new Skin(Gdx.files.internal("ui/uiskin.json")); // UI 스킨 파일 (uiskin.json 필요)
         Gdx.input.setInputProcessor(stage);
 
         this.loadingScreenManager = new LoadingScreenManager(stage);
@@ -64,8 +64,11 @@ public class LoginScreen implements Screen, LoadingListener {
         if (loginProvider != null) {
             if (loginProvider.equals("guest")) {
                 loginAsGuest();
-            } else {
-                loginWithGooglePlay(); // 구글 로그인으로 이동
+            } else if (loginProvider.equals("google")) {
+                loginAsGuest();
+            }
+            else{
+                Gdx.app.log("Login", "Unknown login provider: " + loginProvider);
             }
             return;
         }
@@ -128,7 +131,7 @@ public class LoginScreen implements Screen, LoadingListener {
         // Kakao 로그인 처리 로직 (테스트 중에는 빈 구현)
         Gdx.app.log("Login", "Kakao Login selected");
     }
-    
+
     private void loginAsGuest() {
         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
         String existingUserId = prefs.getString("userId", null);
@@ -182,33 +185,47 @@ public class LoginScreen implements Screen, LoadingListener {
     }
 
     private void loginWithGooglePlay() {
-        if (googleSignInHandler != null) {
-            googleSignInHandler.signIn(new FirebaseCallback<UserDto>() {
+        Preferences prefs = Gdx.app.getPreferences("GamePreferences");
+        String existingUserId = prefs.getString("userId", null);
+
+        if (existingUserId != null) {
+            // 기존 유저 ID가 존재하면 데이터를 불러오기
+            firebaseService.fetchData("users/" + existingUserId, UserDto.class, new FirebaseCallback<UserDto>() {
                 @Override
                 public void onSuccess(UserDto user) {
-                    Gdx.app.log("Login", "Google Login Success: " + user.getUserId());
-                    game.setScreen(new MainViewScreen(game));
+                    Gdx.app.log("Login", "Existing google user loaded: " + user.getUserId());
+                    Gdx.app.postRunnable(() -> {
+                        game.setScreen(new MainViewScreen(game)); // 메인 메뉴로 이동
+                    });
                 }
 
                 @Override
                 public void onFailure(Exception e) {
-                    Gdx.app.error("Login", "Google Login Failed", e);
+                    Gdx.app.error("Login", "Failed to load existing google user", e);
                 }
             });
         } else {
-            // googleSignInHandler가 null일 때 새 Google 사용자 생성
-            UserDto googleUser = new UserDto();
-            googleUser.setUserId("google_" + System.currentTimeMillis());  // Google 로그인시 고유한 ID 설정
-            googleUser.setUserName("Google User");  // 구글 사용자 이름 설정
 
-            // Google 사용자를 생성하는 메서드 호출
-            createNewGoogleUser(googleUser);
+            if (googleSignInHandler != null) {
+                googleSignInHandler.signIn(new FirebaseCallback<UserDto>() {
+                    @Override
+                    public void onSuccess(UserDto user) {
+                        Gdx.app.log("Login", "Google Login Success: " + user.getUserId());
+                        saveNewGoogleUser(user);
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        Gdx.app.error("Login", "Google Login Failed", e);
+                    }
+                });
+            }
         }
     }
 
-    
-    
-    private void createNewGoogleUser(UserDto googleUser) {
+
+
+    private void saveNewGoogleUser(UserDto googleUser) {
         googleUser.setLoginProvider("google");  // 로그인 제공자로 Google 설정
 
         firebaseService.saveData("users/" + googleUser.getUserId(), googleUser, new FirebaseCallback<Void>() {
@@ -235,7 +252,7 @@ public class LoginScreen implements Screen, LoadingListener {
             }
         });
     }
-    
+
 
 
     @Override
@@ -269,5 +286,5 @@ public class LoginScreen implements Screen, LoadingListener {
         stage.dispose();
         skin.dispose();
     }
-    
+
 }
