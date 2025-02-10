@@ -66,6 +66,7 @@ public class Projectile extends Actor {
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
+    	batch.setColor(1, 1, 1, 1);
         batch.draw(texture, getX(), getY(), size, size);
     }
 }

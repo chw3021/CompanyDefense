@@ -6,11 +6,9 @@ import java.util.List;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -35,17 +33,21 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
 
+import io.github.chw3021.companydefense.Main;
 import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.dto.TowerOwnershipDto;
 import io.github.chw3021.companydefense.dto.UserDto;
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
+import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.firebase.FirebaseTowerService;
+import io.github.chw3021.companydefense.firebase.LoadingListener;
 import io.github.chw3021.companydefense.obstacle.Obstacle;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
+import io.github.chw3021.companydefense.screens.LoadingScreenManager;
 import io.github.chw3021.companydefense.tower.Tower;
 
-public abstract class StageParent extends Stage{
+public abstract class StageParent extends Stage implements LoadingListener{
 	protected Game game;
     
 	protected float[][] map; // 맵 데이터 (0: 장애물)
@@ -97,6 +99,8 @@ public abstract class StageParent extends Stage{
 	private float uiTableElsize;
 
 	private SpriteBatch batch2;
+	
+    private LoadingScreenManager loadingScreenManager;
     
     // 소환 가능한 타워의 영역을 확인
     protected boolean canSpawnTowerAt(float x, float y) {
@@ -166,6 +170,11 @@ public abstract class StageParent extends Stage{
 	
     public StageParent(Game game) {
         super();
+        
+        this.loadingScreenManager = new LoadingScreenManager(this);
+        FirebaseServiceImpl firebaseService = (FirebaseServiceImpl) Main.getInstance().getFirebaseService();
+        firebaseService.addLoadingListener(this);
+        
         pathVisuals = new Array<>();
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
         towers = new Array<>();
@@ -176,6 +185,18 @@ public abstract class StageParent extends Stage{
         availableTowers = new Array<>();
         
     }
+    
+
+    @Override
+    public void onLoadingStart() {
+        Gdx.app.postRunnable(() -> loadingScreenManager.showLoadingScreen());
+    }
+
+    @Override
+    public void onLoadingEnd() {
+        Gdx.app.postRunnable(() -> loadingScreenManager.hideLoadingScreen());
+    }
+    
     @Override
     public void draw() {
     	super.draw();
@@ -683,7 +704,7 @@ public abstract class StageParent extends Stage{
     }
     
     public void render(SpriteBatch batch, ShapeRenderer shapeRenderer) {
-    	batch.begin();
+        batch.begin();
         // 배경
         float backgroundHeight = mapHeight * gridSize;
         batch.draw(backgroundTexture, 0, offsetY, Gdx.graphics.getWidth(), backgroundHeight);
@@ -702,7 +723,8 @@ public abstract class StageParent extends Stage{
         for (Tower tower : towers) {
             tower.render(batch, focusTexture, focusTexture2);
         }
-    	batch.end();
+        batch.end();
+    	
         if (isAttackRangeVisible && selectedTower != null) {
             float attackRange = selectedTower.getAttackRange();
 
@@ -716,11 +738,16 @@ public abstract class StageParent extends Stage{
             shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
             shapeRenderer.setColor(Color.NAVY);
             shapeRenderer.circle(circle.x, circle.y, circle.radius);
+            shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
             shapeRenderer.end();
         }
         for (Enemy enemy : activeEnemies) {
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
             enemy.renderHealthBar(shapeRenderer);
+            shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+            shapeRenderer.end();
         }
+        batch.setColor(1, 1, 1, 1);
 
         act(Gdx.graphics.getDeltaTime());
         draw();

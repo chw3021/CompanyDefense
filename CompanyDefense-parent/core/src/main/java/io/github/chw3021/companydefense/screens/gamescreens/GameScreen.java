@@ -11,13 +11,14 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 
 import io.github.chw3021.companydefense.Main;
+import io.github.chw3021.companydefense.firebase.FirebaseCallback;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.firebase.LoadingListener;
 import io.github.chw3021.companydefense.screens.LoadingScreenManager;
 import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.stage1.Stage1;
 
-public class GameScreen extends Stage implements Screen, LoadingListener {
+public class GameScreen extends Stage implements Screen {
     private Game game;
     private SpriteBatch batch;
     private Texture background;
@@ -25,18 +26,6 @@ public class GameScreen extends Stage implements Screen, LoadingListener {
     private FirebaseServiceImpl firebaseService; // Firebase 연동
     private ShapeRenderer shapeRenderer;
 
-    private LoadingScreenManager loadingScreenManager;
-
-    @Override
-    public void onLoadingStart() {
-        Gdx.app.postRunnable(() -> loadingScreenManager.showLoadingScreen());
-    }
-
-    @Override
-    public void onLoadingEnd() {
-        Gdx.app.postRunnable(() -> loadingScreenManager.hideLoadingScreen());
-    }
-    
 
     public GameScreen(Game game, int stageId) {
         this.game = game;
@@ -52,10 +41,10 @@ public class GameScreen extends Stage implements Screen, LoadingListener {
         else {
         	currentStage = new Stage1(game);
         }
-        firebaseService.addLoadingListener(this);
-        this.loadingScreenManager = new LoadingScreenManager(this);
     }
 
+    
+    
     @Override
     public void show() {
 
@@ -64,14 +53,10 @@ public class GameScreen extends Stage implements Screen, LoadingListener {
         inputMultiplexer.addProcessor(currentStage); // StageParent 자체를 InputProcessor로 설정
         Gdx.input.setInputProcessor(inputMultiplexer);
     }
-
     @Override
     public void render(float delta) {
-
-//        batch.begin();
-//        batch.draw(background, 0, 0); // 배경 그리기
-//        batch.end();
-        currentStage.render(batch, shapeRenderer);  // 선택된 스테이지 렌더링
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT); 
+        currentStage.render(batch, shapeRenderer);
     }
 
     @Override

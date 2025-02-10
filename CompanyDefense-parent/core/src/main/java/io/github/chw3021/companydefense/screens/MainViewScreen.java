@@ -5,152 +5,192 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.ui.Container;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
-import io.github.chw3021.companydefense.screens.equipmentscreens.SelectionScreen;
-import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreen;
-import io.github.chw3021.companydefense.screens.menu.MenuScreen;
-
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-public class MainViewScreen implements Screen {
+import io.github.chw3021.companydefense.firebase.LoadingListener;
+import io.github.chw3021.companydefense.screens.equipmentscreens.TowerScreenView;
+import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreenView;
+import io.github.chw3021.companydefense.screens.menu.MenuScreenPopup;
+public class MainViewScreen implements Screen, LoadingListener {
     private SpriteBatch batch;
     private Stage stage;
     private Skin skin;
     private OrthographicCamera camera;
 
     private Game game;
+
+    private Container<Actor> contentContainer; // 상단 컨텐츠 교체용 컨테이너
+    private ImageButton btnStage, btnAuto, btnInfo, btnShop; // 네비게이션 버튼
+    private ImageButton btnMenu; // 메뉴 버튼
+
+    private LoadingScreenManager loadingScreenManager;
     
-	
-	public void initializeButtons(Skin skin, Stage stage) {
-	    // 화면 크기 가져오기
-	    float screenWidth = Gdx.graphics.getWidth();
-	    float screenHeight = Gdx.graphics.getHeight();
-	
-	    // Table 초기화
-	    Table table = new Table();
-	    table.setFillParent(true); // 화면 중앙에 Table을 채움
-	    stage.addActor(table);
-	
-	    // 버튼 추가
-	    addButtonToTable(table, createButton("메뉴", skin, () -> {
-	        game.setScreen(new MenuScreen(game));
-	    }), screenWidth, screenHeight);
-	
-	    addButtonToTable(table, createButton("게임 준비", skin, () -> {
-	        game.setScreen(new StageSelectionScreen(game));
-	    }), screenWidth, screenHeight);
-	
-	    addButtonToTable(table, createButton("자동 사냥", skin, () -> {
-	        // 자동 사냥 화면으로 이동
-	    }), screenWidth, screenHeight);
-	
-	    addButtonToTable(table, createButton("캐릭터/유물 정보", skin, () -> {
-	        game.setScreen(new SelectionScreen(game));
-	    }), screenWidth, screenHeight);
-	
-	    addButtonToTable(table, createButton("뽑기 상점", skin, () -> {
-	        // 뽑기 상점 화면으로 이동
-	    }), screenWidth, screenHeight);
-	}
-	
-	// 버튼 추가 메서드
-	private void addButtonToTable(Table table, TextButton button, float screenWidth, float screenHeight) {
-	    // 버튼 높이와 여백 설정
-	    float buttonHeight = screenHeight * 0.1f; // 화면 높이의 10%
-	    float buttonWidth = screenWidth * 0.8f;  // 화면 너비의 80%
-	
-	    // Table에 버튼 추가
-	    table.add(button).width(buttonWidth).height(buttonHeight).pad(10);
-	    table.row().pad(10, 0, 10, 0); // 버튼 간격 설정
-	}
-	
-	// 버튼 생성 메서드
-	private TextButton createButton(String text, Skin skin, Runnable action) {
-	    TextButton button = new TextButton(text, skin);
-	    button.addListener(new ClickListener() {
-	        @Override
-	        public void clicked(InputEvent event, float x, float y) {
-	            action.run();
-	        }
-	    });
-	    return button;
-	}
+    private Texture backgroundTexture;
+    private Sprite backgroundSprite;
     
+    private float screenWidth = Gdx.graphics.getWidth();
+    private float screenHeight = Gdx.graphics.getHeight();
+
+    @Override
+    public void onLoadingStart() {
+        Gdx.app.postRunnable(() -> loadingScreenManager.showLoadingScreen());
+    }
+
+    @Override
+    public void onLoadingEnd() {
+        Gdx.app.postRunnable(() -> loadingScreenManager.hideLoadingScreen());
+    }
+
     public MainViewScreen(Game game) {
         this.game = game;
         batch = new SpriteBatch();
 
-        // 카메라 초기화
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 480, 800);
-        camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0); // 카메라 초기 위치 설정
+
+        stage = new Stage(new ScreenViewport(), batch);
+        Gdx.input.setInputProcessor(stage);
+
+        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        this.loadingScreenManager = new LoadingScreenManager(stage);
+
+        loadBackgroundImage(); // 배경 이미지 로딩
+
+        createUI(); // UI 요소 생성
+        switchScreen(new StageSelectionScreenView(game)); // 처음에는 StageSelectionScreenView 표시
     }
 
-    @Override
-    public void show() {
-        // Stage 초기화
-        stage = new Stage(new ScreenViewport(), batch);
+    /** 배경 이미지 로드 및 설정 */
+    private void loadBackgroundImage() {
+        backgroundTexture = new Texture(Gdx.files.internal("menu/menu_background.jpg")); // 배경 이미지 경로
+        backgroundSprite = new Sprite(backgroundTexture);
+        backgroundSprite.setSize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()); // 화면 크기에 맞게 배경 사이즈 조정
+    }
+    private void createUI() {
+        Table root = new Table();
+        root.setFillParent(true);
+        stage.addActor(root);
 
-        // Skin과 스타일을 설정
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
-        Gdx.input.setInputProcessor(stage);  // Stage의 입력 처리기 설정
-
-        /*
-      		ImageButton menuButton = new ImageButton(style);
-			
-			// 클릭 이벤트 설정
-			menuButton.addListener(new ClickListener() {
-			    @Override
-			    public void clicked(InputEvent event, float x, float y) {
-			        // 메뉴 화면으로 이동
-			    }
-			});
-
-         */
+        // 💡 상단 컨텐츠를 담을 컨테이너 (페이지 전환 시 내용 변경)
+        contentContainer = new Container<>();
+        contentContainer.fill();
         
-        
-        initializeButtons(skin, stage);
+        // 여기에 ScrollPane을 추가하여 내용이 화면을 벗어날 경우 스크롤 가능하도록 설정
+        ScrollPane scrollPane = new ScrollPane(contentContainer, skin);
+        scrollPane.setFillParent(true); // ScrollPane이 부모 크기만큼 꽉 차도록 설정
+        root.add(scrollPane).expand().fill().row();
 
+        // 💡 네비게이션 바 생성
+        Table navBar = new Table();
+        navBar.bottom().setBackground(skin.getDrawable("black"));
+        navBar.defaults().pad(10);
+
+        btnStage = createNavButton("menu/stage.png", () -> switchScreen(new StageSelectionScreenView(game)));
+        btnAuto = createNavButton("menu/auto.png", () -> System.out.println("auto"));
+        btnInfo = createNavButton("menu/human.png", () -> {
+            Gdx.app.postRunnable(() -> {
+                switchScreen(new TowerScreenView(game));
+            });
+        });
+        btnShop = createNavButton("menu/hobbies.png", () -> System.out.println("slotmachine"));
+
+        navBar.add(btnStage).size(screenWidth * 0.15f);
+        navBar.add(btnAuto).size(screenWidth * 0.15f);
+        navBar.add(btnInfo).size(screenWidth * 0.15f);
+        navBar.add(btnShop).size(screenWidth * 0.15f);
+
+        root.add(navBar).fillX().height(screenWidth * 0.2f);
+
+        // 💡 우측 상단 메뉴 버튼 추가
+        btnMenu = createNavButton("menu/menu.png", this::showMenuPopup);
+        btnMenu.setSize(screenWidth * 0.05f, screenWidth * 0.05f);
+        btnMenu.setPosition(Gdx.graphics.getWidth() - screenWidth * 0.05f, Gdx.graphics.getHeight() - screenHeight * 0.05f);
+        stage.addActor(btnMenu);
+    }
+
+
+    /** 네비게이션 버튼 생성 */
+    private ImageButton createNavButton(String iconPath, Runnable onClick) {
+        Texture texture = new Texture(Gdx.files.internal(iconPath));
+        ImageButton button = new ImageButton(new TextureRegionDrawable(new TextureRegion(texture)));
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                onClick.run();
+            }
+        });
+        return button;
+    }
+
+    /** 💡 컨텐츠 변경 (네비게이션 화면 전환) */
+    private void switchScreen(Actor newScreen) {
+        // UI 요소를 비동기적으로 처리
+        Gdx.app.postRunnable(() -> {
+            contentContainer.setActor(newScreen);
+        });
+    }
+
+    /** 💡 메뉴 팝업 띄우기 */
+    private void showMenuPopup() {
+        MenuScreenPopup popup = new MenuScreenPopup(skin);
+        stage.addActor(popup);
     }
 
     @Override
     public void render(float delta) {
-        // 화면 지우기
+    	stage.setDebugAll(true);
+    	
         Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // 카메라 업데이트
-        camera.update();
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
 
-        // Stage 업데이트 및 그리기
-        stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));  // Stage의 액션 업데이트
-        stage.draw();  // UI 요소 그리기
+        // 배경을 화면에 맞게 그리기
+        backgroundSprite.draw(batch);
+
+        batch.end();
+
+        stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
+        stage.draw();
     }
 
     @Override
     public void resize(int width, int height) {
-        stage.getViewport().update(width, height, true);  // 화면 크기 변경 시 Stage 뷰포트 업데이트
+        stage.getViewport().update(width, height, true);
     }
 
     @Override
-    public void hide() {
-        stage.dispose();  // Stage 자원 해제
+    public void dispose() {
+        batch.dispose();
+        stage.dispose();
+        skin.dispose();
+        backgroundTexture.dispose(); // 배경 이미지 리소스 해제
     }
+
+    @Override
+    public void show() {}
+
+    @Override
+    public void hide() {}
 
     @Override
     public void pause() {}
 
     @Override
     public void resume() {}
-
-    @Override
-    public void dispose() {
-        batch.dispose();  // SpriteBatch 자원 해제
-    }
 }

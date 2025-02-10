@@ -140,7 +140,6 @@ public class Enemy extends Entity {
     }
 
     public void renderHealthBar(ShapeRenderer shapeRenderer) {
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         float barWidth = texture.getWidth(); // 체력바 길이
         float barX = transform.position.x; // 체력바 x 위치
@@ -157,7 +156,6 @@ public class Enemy extends Entity {
         shapeRenderer.setColor(Color.RED);
         shapeRenderer.rect(barX, barY, redBarWidth, HEALTH_BAR_HEIGHT);
 
-        shapeRenderer.end();
     }
 
     // 화면에 적을 그리기 위한 렌더링 메서드

@@ -22,9 +22,13 @@ public class PngAnimation extends Actor {
         TextureRegion[][] tmpFrames = TextureRegion.split(sheet, frameWidth, frameHeight);
         Array<TextureRegion> frames = new Array<>();
 
-        // 첫 번째 행의 5개 프레임만 가져옴
-        for (int i = 0; i < 5; i++) {
-            frames.add(tmpFrames[0][i]);
+        int rows = tmpFrames.length;    // 스프라이트 시트의 행 개수
+        int cols = tmpFrames[0].length; // 각 행의 열 개수 (기본적으로 5)
+
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                frames.add(tmpFrames[row][col]); // 모든 행과 열을 추가
+            }
         }
 
         animation = new Animation<>(frameDuration, frames);
@@ -39,6 +43,7 @@ public class PngAnimation extends Actor {
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
+    	batch.setColor(1, 1, 1, 1);
         batch.draw(animation.getKeyFrame(elapsedTime), getX(), getY(), getWidth(), getHeight());
     }
 }

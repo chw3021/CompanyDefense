@@ -80,7 +80,7 @@ public class LoginScreen implements Screen, LoadingListener {
         float buttonHeight = Gdx.graphics.getHeight() * 0.1f;
         float centerX = Gdx.graphics.getWidth() / 2f - buttonWidth / 2f;
 
-        TextButton googleButton = new TextButton("Google Play Store Login", skin);
+        TextButton googleButton = new TextButton("Google Login", skin);
         googleButton.setBounds(centerX, Gdx.graphics.getHeight() * 0.6f, buttonWidth, buttonHeight);
         googleButton.addListener(new ClickListener() {
             @Override
