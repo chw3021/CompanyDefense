@@ -31,15 +31,22 @@ dependencies {
   api "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
 	implementation "com.squareup.okhttp3:okhttp:4.11.0"
     implementation "com.google.code.gson:gson:2.8.9"
+    
+    implementation 'com.google.firebase:firebase-auth:22.1.1'
+    implementation 'com.google.firebase:firebase-firestore:24.8.1'
 
   if(enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
 	// Google API 클라이언트
 	implementation 'com.google.apis:google-api-services-drive:v3-rev20230818-2.0.0'
 	
+	   implementation 'com.google.firebase:firebase-auth:22.1.1'
+    implementation 'com.google.firebase:firebase-firestore:24.8.1'
+	
 	implementation 'com.google.api-client:google-api-client:2.7.2'
     implementation 'com.google.oauth-client:google-oauth-client-jetty:1.34.1' // OAuth 추가
     implementation 'com.google.http-client:google-http-client-gson:1.41.0' // JSON 파싱 지원
+    implementation 'com.google.firebase:firebase-firestore:24.8.1'
 	
 	
   }

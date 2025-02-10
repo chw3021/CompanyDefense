@@ -11,6 +11,8 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.DocumentSnapshot;
 
 import io.github.chw3021.companydefense.Main;
 import io.github.chw3021.companydefense.dto.UserDto;
@@ -265,5 +267,46 @@ public class LoginScreen implements Screen, LoadingListener {
     public void dispose() {
         stage.dispose();
         skin.dispose();
+    }
+    
+    
+    private void getUserDataFromFirestore(String userId, FirebaseCallback<UserDto> callback) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("users").document(userId).get()
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot document = task.getResult();
+                    if (document.exists()) {
+                        UserDto userDto = new UserDto();
+                        userDto.setUserId(userId);
+                        userDto.setUserName(document.getString("userName"));
+                        userDto.setEmail(document.getString("email"));
+                        callback.onSuccess(userDto);
+                    } else {
+                        callback.onFailure(new Exception("사용자 정보 없음"));
+                    }
+                } else {
+                    callback.onFailure(task.getException());
+                }
+            });
+    }
+    
+
+    private void firebaseAuthWithGoogle(String idToken, FirebaseCallback<UserDto> callback) {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener(this, task -> {
+                if (task.isSuccessful()) {
+                    FirebaseUser user = auth.getCurrentUser();
+                    if (user != null) {
+                        getUserDataFromFirestore(user.getUid(), callback);
+                    } else {
+                        callback.onFailure(new Exception("Firebase user is null after sign-in"));
+                    }
+                } else {
+                    callback.onFailure(task.getException());
+                }
+            });
     }
 }
