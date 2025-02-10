@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_name">CompanyDefense</string>
+    <string name="app_name">CompanyDefense</string>
+    <string name="default_web_client_id">913294875186-ed3ttog6487hbj8uepcs5mp13jchdbqn.apps.googleusercontent.com</string>
+    <string name="app_id">companyDefense</string>
 </resources>
