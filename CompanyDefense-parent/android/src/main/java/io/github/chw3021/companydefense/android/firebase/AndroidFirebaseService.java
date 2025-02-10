@@ -6,6 +6,9 @@ import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
+import java.lang.reflect.Type;
+import java.util.Map;
+
 import io.github.chw3021.companydefense.firebase.FirebaseService;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
 
@@ -69,5 +72,15 @@ public class AndroidFirebaseService implements FirebaseService {
             return auth.getCurrentUser().getUid();
         }
         return null;
+    }
+
+    @Override
+    public <T> void fetchData(String path, Type type, FirebaseCallback<T> callback) {
+
+    }
+
+    @Override
+    public void updateData(Map<String, Object> updates, FirebaseCallback<Void> callback) {
+
     }
 }

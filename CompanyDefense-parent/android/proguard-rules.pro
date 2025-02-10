@@ -45,6 +45,9 @@
 -keep public class com.badlogic.gdx.graphics.g2d.BitmapFont { *; }
 # You will probably need this line in most cases:
 -keep public class com.badlogic.gdx.graphics.Color { *; }
+# Google Play Games Services 예외 처리
+-keep class com.google.android.gms.games.** { *; }
+-keep class com.google.android.play.core.integrity.** { *; }
 
 # These two lines are used with mapping files; see https://developer.android.com/build/shrink-code#retracing
 -keepattributes LineNumberTable,SourceFile

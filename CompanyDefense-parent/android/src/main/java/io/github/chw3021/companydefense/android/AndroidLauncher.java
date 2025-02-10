@@ -3,27 +3,34 @@ package io.github.chw3021.companydefense.android;
 import android.content.Intent;
 import android.os.Bundle;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.backends.android.AndroidApplication;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
-import com.google.firebase.auth.GoogleSignInAccount;
-import com.google.firebase.auth.GoogleSignInClient;
-import com.google.firebase.auth.Task;
 
 import io.github.chw3021.companydefense.Main;
-import io.github.chw3021.companydefense.firebase.FirebaseService;
-import io.github.chw3021.companydefense.platform.GoogleSignInHandler;
-import io.github.chw3021.companydefense.firebase.FirebaseCallback;
+import io.github.chw3021.companydefense.R;
 import io.github.chw3021.companydefense.dto.UserDto;
+import io.github.chw3021.companydefense.firebase.FirebaseCallback;
+import io.github.chw3021.companydefense.firebase.FirebaseService;
+import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
+import io.github.chw3021.companydefense.platform.GoogleSignInHandler;
 
 /** Launches the Android application. */
 public class AndroidLauncher extends AndroidApplication implements GoogleSignInHandler {
-    private GoogleSignInClient googleSignInClient;
-    private static final int RC_SIGN_IN = 9001;
+    private FirebaseAuth firebaseAuth;
+    private FirebaseCallback<UserDto> currentCallback; // 로그인 결과 전달용 콜백
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,64 +38,90 @@ public class AndroidLauncher extends AndroidApplication implements GoogleSignInH
 
         // Firebase 초기화
         FirebaseApp.initializeApp(this);
-        FirebaseService firebaseService = new AndroidFirebaseService();
-
-        // Google Sign-In 클라이언트 설정
-        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id)) // Firebase Web Client ID 필요
-                .requestEmail()
-                .build();
-        googleSignInClient = GoogleSignIn.getClient(this, gso);
+        firebaseAuth = FirebaseAuth.getInstance();
+        FirebaseService firebaseService = new FirebaseServiceImpl();
 
         // Android 애플리케이션 초기화
-        AndroidApplicationConfiguration configuration = new AndroidApplicationConfiguration();
-        configuration.useImmersiveMode = true;
-        initialize(new Main(firebaseService, this), configuration);  // FirebaseService와 GoogleSignInHandler 전달
+        AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
+        initialize(new Main(firebaseService, this), config);
 
-        // LoginScreen에 GoogleSignInHandler 전달
-        setScreen(new LoginScreen(game, this)); // GoogleSignInHandler 전달
+        // 자동 로그인 시도
+        autoSignIn();
+    }
+
+    private void autoSignIn() {
+        PlayGames.getGamesSignInClient(this).signIn()
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    // 로그인 성공 시 Firebase 연동
+                    getPlayerInfo();
+                } else {
+                    Log.e("GPGS", "자동 로그인 실패");
+                }
+            });
     }
 
     @Override
     public void signIn(FirebaseCallback<UserDto> callback) {
-        Intent signInIntent = googleSignInClient.getSignInIntent();
-        startActivityForResult(signInIntent, RC_SIGN_IN);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == RC_SIGN_IN) {
-            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
-            try {
-                GoogleSignInAccount account = task.getResult(ApiException.class);
-                firebaseAuthWithGoogle(account.getIdToken(), callback);
-            } catch (ApiException e) {
-                callback.onFailure(e);
-            }
-        }
-    }
-
-    private void firebaseAuthWithGoogle(String idToken, FirebaseCallback<UserDto> callback) {
-        FirebaseAuth auth = FirebaseAuth.getInstance();
-        AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
-        auth.signInWithCredential(credential)
-                .addOnCompleteListener(this, task -> {
-                    if (task.isSuccessful()) {
-                        FirebaseUser user = auth.getCurrentUser();
-                        if (user != null) {
-                            UserDto userDto = new UserDto();
-                            userDto.setUserId(user.getUid());
-                            userDto.setUserName(user.getDisplayName() != null ? user.getDisplayName() : "Unknown User");
-                            userDto.setLoginProvider("google");
-
-                            callback.onSuccess(userDto);
-                        } else {
-                            callback.onFailure(new Exception("Firebase user is null after sign-in"));
-                        }
-                    } else {
-                        callback.onFailure(task.getException());
+        this.currentCallback = callback;
+        PlayGames.getGamesSignInClient(this).signIn()
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    getPlayerInfo();
+                } else {
+                    if (currentCallback != null) {
+                        currentCallback.onFailure(new Exception("Google Play Games 로그인 실패"));
                     }
-                });
+                }
+            });
+    }
+
+    private void getPlayerInfo() {
+        PlayGames.getPlayersClient(this).getCurrentPlayer()
+            .addOnSuccessListener(player -> {
+                String playerId = player.getPlayerId();
+                String displayName = player.getDisplayName();
+
+                // Firebase 인증 처리
+                firebaseAuthWithPlayGames(playerId, displayName);
+            })
+            .addOnFailureListener(e -> {
+                Log.e("GPGS", "플레이어 정보 가져오기 실패", e);
+                if (currentCallback != null) {
+                    currentCallback.onFailure(e);
+                }
+            });
+    }
+
+    private void firebaseAuthWithPlayGames(String playerId, String displayName) {
+        AuthCredential credential = PlayGamesAuthProvider.getCredential(playerId);
+        firebaseAuth.signInWithCredential(credential)
+            .addOnCompleteListener(this, task -> {
+                if (task.isSuccessful()) {
+                    FirebaseUser user = firebaseAuth.getCurrentUser();
+                    if (user != null) {
+                        UserDto userDto = new UserDto();
+                        userDto.setUserId(user.getUid());
+                        userDto.setUserName(displayName);
+                        userDto.setLoginProvider("google_play_games");
+
+                        // 로그인 정보 저장
+                        Preferences prefs = Gdx.app.getPreferences("GamePreferences");
+                        prefs.putString("loginProvider", "google_play_games");
+                        prefs.putString("userId", user.getUid());
+                        prefs.putString("userName", userDto.getUserName());
+                        prefs.flush();
+
+                        if (currentCallback != null) {
+                            currentCallback.onSuccess(userDto);
+                        }
+                    }
+                } else {
+                    if (currentCallback != null) {
+                        currentCallback.onFailure(task.getException());
+                    }
+                }
+            });
     }
 }
+

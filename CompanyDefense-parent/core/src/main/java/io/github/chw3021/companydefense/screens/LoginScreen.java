@@ -11,8 +11,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.DocumentSnapshot;
 
 import io.github.chw3021.companydefense.Main;
 import io.github.chw3021.companydefense.dto.UserDto;
@@ -121,31 +119,6 @@ public class LoginScreen implements Screen, LoadingListener {
         stage.addActor(guestButton);
     }
 
-    private void loginWithGooglePlay() {
-        if (googleSignInHandler != null) {
-            googleSignInHandler.signIn(new FirebaseCallback<UserDto>() {
-                @Override
-                public void onSuccess(UserDto user) {
-                    Gdx.app.log("Login", "Google Login Success: " + user.getUserId());
-                    game.setScreen(new MainViewScreen(game));
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    Gdx.app.error("Login", "Google Login Failed", e);
-                }
-            });
-        } else {
-            // googleSignInHandler가 null일 때 새 Google 사용자 생성
-            UserDto googleUser = new UserDto();
-            googleUser.setUserId("google_" + System.currentTimeMillis());  // Google 로그인시 고유한 ID 설정
-            googleUser.setUserName("Google User");  // 구글 사용자 이름 설정
-
-            // Google 사용자를 생성하는 메서드 호출
-            createNewGoogleUser(googleUser);
-        }
-    }
-
     private void loginWithIOS() {
         // iOS 로그인 처리 로직 (테스트 중에는 빈 구현)
         Gdx.app.log("Login", "iOS Login selected");
@@ -207,6 +180,33 @@ public class LoginScreen implements Screen, LoadingListener {
             }
         });
     }
+
+    private void loginWithGooglePlay() {
+        if (googleSignInHandler != null) {
+            googleSignInHandler.signIn(new FirebaseCallback<UserDto>() {
+                @Override
+                public void onSuccess(UserDto user) {
+                    Gdx.app.log("Login", "Google Login Success: " + user.getUserId());
+                    game.setScreen(new MainViewScreen(game));
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    Gdx.app.error("Login", "Google Login Failed", e);
+                }
+            });
+        } else {
+            // googleSignInHandler가 null일 때 새 Google 사용자 생성
+            UserDto googleUser = new UserDto();
+            googleUser.setUserId("google_" + System.currentTimeMillis());  // Google 로그인시 고유한 ID 설정
+            googleUser.setUserName("Google User");  // 구글 사용자 이름 설정
+
+            // Google 사용자를 생성하는 메서드 호출
+            createNewGoogleUser(googleUser);
+        }
+    }
+
+    
     
     private void createNewGoogleUser(UserDto googleUser) {
         googleUser.setLoginProvider("google");  // 로그인 제공자로 Google 설정
@@ -270,44 +270,4 @@ public class LoginScreen implements Screen, LoadingListener {
         skin.dispose();
     }
     
-    
-    private void getUserDataFromFirestore(String userId, FirebaseCallback<UserDto> callback) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        db.collection("users").document(userId).get()
-            .addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    DocumentSnapshot document = task.getResult();
-                    if (document.exists()) {
-                        UserDto userDto = new UserDto();
-                        userDto.setUserId(userId);
-                        userDto.setUserName(document.getString("userName"));
-                        userDto.setEmail(document.getString("email"));
-                        callback.onSuccess(userDto);
-                    } else {
-                        callback.onFailure(new Exception("사용자 정보 없음"));
-                    }
-                } else {
-                    callback.onFailure(task.getException());
-                }
-            });
-    }
-    
-
-    private void firebaseAuthWithGoogle(String idToken, FirebaseCallback<UserDto> callback) {
-        FirebaseAuth auth = FirebaseAuth.getInstance();
-        AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
-        auth.signInWithCredential(credential)
-            .addOnCompleteListener(this, task -> {
-                if (task.isSuccessful()) {
-                    FirebaseUser user = auth.getCurrentUser();
-                    if (user != null) {
-                        getUserDataFromFirestore(user.getUid(), callback);
-                    } else {
-                        callback.onFailure(new Exception("Firebase user is null after sign-in"));
-                    }
-                } else {
-                    callback.onFailure(task.getException());
-                }
-            });
-    }
 }

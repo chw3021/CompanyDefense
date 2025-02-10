@@ -11,6 +11,9 @@
       android:label="@string/app_name"
       tools:ignore="UnusedAttribute"
       android:theme="@style/GdxTheme">
+      <meta-data
+          android:name="com.google.android.gms.games.APP_ID"
+          android:value="@string/app_id" />
     <activity
         android:name="io.github.chw3021.companydefense.android.AndroidLauncher"
         android:label="@string/app_name"
