@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -16,6 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Scaling;
 
 import io.github.chw3021.companydefense.Main;
 import io.github.chw3021.companydefense.dto.TowerDto;
@@ -24,6 +26,7 @@ import io.github.chw3021.companydefense.dto.UserDto;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.firebase.FirebaseTowerService;
+import io.github.chw3021.companydefense.screens.MainViewScreen;
 
 public class TowerScreenView extends Table {
     private Game game;
@@ -31,41 +34,104 @@ public class TowerScreenView extends Table {
     private UserDto userDto;
     private List<TowerDto> allTowers;
     private FirebaseServiceImpl firebaseService;
-    private Label playerGoldLabel;
+    private TextureRegionDrawable towerTableBackground;
+    private MainViewScreen mainViewScreen;
+
+    public Table towerGrid;
     
     private float screenWidth = Gdx.graphics.getWidth();
     private float screenHeight = Gdx.graphics.getHeight();
 
-    public TowerScreenView(Game game) {
+    public TowerScreenView(Game game, MainViewScreen mainViewScreen) {
         this.game = game;
-        this.setFillParent(true);
+        this.mainViewScreen = mainViewScreen;
+
         firebaseService = (FirebaseServiceImpl) Main.getInstance().getFirebaseService();
-        loadData();
+        firebaseService.addLoadingListener(mainViewScreen);
+        
 
         Gdx.app.postRunnable(() -> {
-            // 🔹 UI 초기화
-            skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
-            createTopBar();
+            this.towerTableBackground = new TextureRegionDrawable(new TextureRegion(new Texture(Gdx.files.internal("background/card.png"))));
+            setFillParent(true);
+            skin = new Skin(Gdx.files.internal("ui/companyskin.json"));
+            loadData();
         });
     }
 
-    /** 🔹 상단 골드 표시 UI */
-    private void createTopBar() {
-        Table topTable = new Table();
-        topTable.top().left();
-        topTable.setFillParent(true);
 
-        // 🔹 골드 아이콘
-        Texture goldTexture = new Texture(Gdx.files.internal("icons/coin.png"));
-        Image goldIcon = new Image(new TextureRegionDrawable(new TextureRegion(goldTexture)));
-
-        playerGoldLabel = new Label("0", skin);
-
-        topTable.add(goldIcon).size(screenWidth * 0.08f, screenHeight * 0.08f).padLeft(screenWidth * 0.05f);  // 비례적으로 크기 지정
-        topTable.add(playerGoldLabel).padLeft(screenWidth * 0.02f);  // 비례적으로 패딩 지정
+    
+    /** 🔹 UI 초기화 */
+    private void initializeUI() {
+        towerGrid = new Table();
+        towerGrid.top();
 
 
-        this.addActor(topTable);
+        int columnCount = 3; // 한 줄에 3개씩 배치
+        int index = 0;
+
+        for (TowerOwnershipDto towerOwnership : userDto.getUserTowers().values()) {
+            TowerDto tower = findTowerById(towerOwnership.getTowerId());
+            if (tower != null) {
+                towerGrid.add(createTowerCell(tower, towerOwnership)).expandX()
+                         .size(screenWidth * 0.26f, screenHeight * 0.3f).pad(screenWidth * 0.012f); // 💡 크기 조절
+
+                index++;
+                if (index % columnCount == 0) {
+                    towerGrid.row().expand();
+                }
+            }
+        }
+
+        towerGrid.setWidth(this.getWidth());
+        this.add(towerGrid).expandX().row(); // 💡 그리드 크기 맞추기
+    }
+
+    /** 🔹 타워 UI 요소 생성 */
+    private Table createTowerCell(TowerDto tower, TowerOwnershipDto towerOwnership) {
+        Table towerTable = new Table();
+        towerTable.top();
+
+        
+        Image towerImage = new Image(new Texture(Gdx.files.internal(tower.getTowerImagePath())));
+        towerImage.setScaling(Scaling.fit);
+        Label nameLabel = new Label(tower.getTowerName(), skin);
+        Label levelLabel = new Label("레벨: " + towerOwnership.getTowerLevel(), skin);
+        towerImage.setSize(screenWidth * 0.2f, screenHeight * 0.16f);
+        nameLabel.setSize(screenWidth * 0.02f,screenWidth * 0.02f);
+        nameLabel.setFontScale(screenWidth * 0.0015f);
+        nameLabel.setColor(Color.BLACK);
+        levelLabel.setSize(screenWidth * 0.02f,screenWidth * 0.02f);
+        levelLabel.setFontScale(screenWidth * 0.0017f);
+        levelLabel.setColor(Color.BLACK);
+        
+        towerTable.add(towerImage).size(screenWidth * 0.2f, screenHeight * 0.16f).padTop(screenHeight*0.022f).expandX().row();
+        towerTable.add(nameLabel).padTop(screenHeight * 0.035f).row();
+        towerTable.add(levelLabel).padTop(screenHeight * 0.02f);
+
+        // 타워 정보 테이블 배경 적용
+        towerTableBackground.setMinWidth(towerTable.getWidth());
+        towerTableBackground.setMinHeight(towerTable.getHeight());
+        towerTable.setBackground(towerTableBackground);
+        towerTable.setSize(screenWidth * 0.25f, screenHeight * 0.28f); 
+
+        // 💡 타워 클릭 이벤트 추가
+        towerTable.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showTowerDialog(tower, towerOwnership, levelLabel);
+            }
+        });
+        return towerTable;
+    }
+    
+    /** 🔹 ID로 타워 찾기 */
+    private TowerDto findTowerById(String towerId) {
+        for (TowerDto tower : allTowers) {
+            if (tower.getTowerId().equals(towerId)) {
+                return tower;
+            }
+        }
+        return null;
     }
 
     /** 🔹 Firebase에서 데이터 로드 */
@@ -79,7 +145,6 @@ public class TowerScreenView extends Table {
                     public void onSuccess(UserDto user) {
                         userDto = user;
                         Gdx.app.postRunnable(() -> {
-                            updatePlayerGold();
                             initializeUI();
                         });
                     }
@@ -98,60 +163,8 @@ public class TowerScreenView extends Table {
         });
     }
 
-    /** 🔹 플레이어 골드 업데이트 */
-    private void updatePlayerGold() {
-        Gdx.app.postRunnable(() -> playerGoldLabel.setText(" " + userDto.getGold()));
-    }
-
-    /** 🔹 타워 UI 생성 */
-    private void initializeUI() {
-        this.clear(); // 기존 요소 제거
-        createTopBar(); // 다시 추가
-
-        for (TowerOwnershipDto towerOwnership : userDto.getUserTowers().values()) {
-            TowerDto tower = findTowerById(towerOwnership.getTowerId());
-            if (tower != null) {
-                addTowerToGrid(tower, towerOwnership);
-            }
-        }
-    }
-
-    /** 🔹 ID로 타워 찾기 */
-    private TowerDto findTowerById(String towerId) {
-        for (TowerDto tower : allTowers) {
-            if (tower.getTowerId().equals(towerId)) {
-                return tower;
-            }
-        }
-        return null;
-    }
-
-    /** 🔹 타워 UI 추가 */
-    private void addTowerToGrid(TowerDto tower, TowerOwnershipDto towerOwnership) {
-        Gdx.app.postRunnable(() -> {
-            Table towerTable = new Table();
-            Image towerImage = new Image(new Texture(Gdx.files.internal(tower.getTowerImagePath())));
-            Label nameLabel = new Label(tower.getTowerName(), skin);
-            Label levelLabel = new Label("레벨: " + towerOwnership.getTowerLevel(), skin);
-
-            towerTable.add(towerImage).size(screenWidth * 0.2f, screenHeight * 0.2f).row();  // 비례적으로 크기 지정
-            towerTable.add(nameLabel).padTop(screenHeight * 0.02f).row();  // 비례적으로 패딩 지정
-            towerTable.add(levelLabel).padTop(screenHeight * 0.01f);  // 비례적으로 패딩 지정
-            this.add(towerTable).pad(screenWidth * 0.03f).size(screenWidth * 0.3f, screenHeight * 0.4f);  // 비례적으로 크기 지정
-
-            if (this.getChildren().size % 3 == 0) {
-                this.row();
-            }
-
-            towerImage.addListener(new ClickListener() {
-                @Override
-                public void clicked(InputEvent event, float x, float y) {
-                    showTowerDialog(tower, towerOwnership, levelLabel);
-                }
-            });
-        });
-    }
-
+    
+    
     /** 🔹 타워 정보 팝업 */
     private void showTowerDialog(TowerDto tower, TowerOwnershipDto towerOwnership, Label levelLabel) {
         Dialog dialog = new Dialog("", skin);
@@ -197,6 +210,8 @@ public class TowerScreenView extends Table {
 
         dialog.getContentTable().add(contentTable).pad(screenWidth * 0.05f);  // 비례적으로 패딩 지정
         dialog.pack();
+        // 🔹 Stage에 리스너 추가하여 다이얼로그 바깥을 클릭하면 닫히도록 설정
+        mainViewScreen.addDialogListener(dialog);
         dialog.show(this.getStage());
     }
     /** 🔹 타워 업그레이드 */
@@ -222,7 +237,7 @@ public class TowerScreenView extends Table {
                     levelTextLabel.setText("레벨: " + towerOwnership.getTowerLevel());
                     attackLabel.setText("물리 공격력: " + newPhysicalAttack + "\n마법 공격력: " + newMagicAttack);
                     levelLabel.setText("레벨: " + towerOwnership.getTowerLevel());
-                    updatePlayerGold();
+                    mainViewScreen.updatePlayerGold();
                 });
             }
 

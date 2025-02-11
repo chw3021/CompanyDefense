@@ -10,8 +10,9 @@ public class UserDto {
     private Map<String, TowerOwnershipDto> userTowers;  // 타워와 레벨을 매핑
     private List<EquipmentOwnershipDto> userEquipments;  // 장비와 레벨을 매핑
 	private List<MailDto> userMails;
-	private int userHighScore;
-	private int gold;
+	private int userHighScore = 0;
+	private int gold = 1000;
+	private int time = 5;
 
     // 로그인 서비스 관련 필드
     private String loginProvider; // 예: "google", "ios", "guest", "kakao"
@@ -76,6 +77,12 @@ public class UserDto {
 	}
 	public void setGold(int gold) {
 		this.gold = gold;
+	}
+	public int getTime() {
+		return time;
+	}
+	public void setTime(int time) {
+		this.time = time;
 	}
     
     

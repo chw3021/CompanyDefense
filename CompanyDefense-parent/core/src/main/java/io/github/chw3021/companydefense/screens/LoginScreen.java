@@ -4,6 +4,9 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -24,9 +27,12 @@ public class LoginScreen implements Screen, LoadingListener {
     private final FirebaseServiceImpl firebaseService;
 
     private OrthographicCamera camera;
+    private SpriteBatch batch;
     private Stage stage;
     private Skin skin;
 
+    private Texture backgroundTexture;
+    private Sprite backgroundSprite;
 
     private LoadingScreenManager loadingScreenManager;
 
@@ -49,13 +55,17 @@ public class LoginScreen implements Screen, LoadingListener {
         this.firebaseService = (FirebaseServiceImpl) game.getFirebaseService();
         this.googleSignInHandler = googleSignInHandler; // 전달된 googleSignInHandler 사용
 
+        batch = new SpriteBatch();
         firebaseService.addLoadingListener(this);
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 480, 800);
 
         stage = new Stage(new ScreenViewport(camera));
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json")); // UI 스킨 파일 (uiskin.json 필요)
+        skin = new Skin(Gdx.files.internal("ui/companyskin.json")); // UI 스킨 파일 (uiskin.json 필요)
         Gdx.input.setInputProcessor(stage);
+        backgroundTexture = new Texture(Gdx.files.internal("menu/menu_background.jpg")); // 배경 이미지 경로
+        backgroundSprite = new Sprite(backgroundTexture);
+        backgroundSprite.setSize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()); // 화면 크기에 맞게 배경 사이즈 조정
 
         this.loadingScreenManager = new LoadingScreenManager(stage);
 
@@ -263,6 +273,15 @@ public class LoginScreen implements Screen, LoadingListener {
         ScreenUtils.clear(0, 0, 0, 1);
         camera.update();
 
+
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+
+        // 배경을 화면에 맞게 그리기
+        backgroundSprite.draw(batch);
+
+        batch.end();
+        
         stage.act(Gdx.graphics.getDeltaTime());
         stage.draw();
     }

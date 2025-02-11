@@ -45,6 +45,7 @@ import io.github.chw3021.companydefense.firebase.LoadingListener;
 import io.github.chw3021.companydefense.obstacle.Obstacle;
 import io.github.chw3021.companydefense.pathfinding.AStarPathfinding;
 import io.github.chw3021.companydefense.screens.LoadingScreenManager;
+import io.github.chw3021.companydefense.screens.imagetools.Commons;
 import io.github.chw3021.companydefense.tower.Tower;
 
 public abstract class StageParent extends Stage implements LoadingListener{
@@ -98,7 +99,6 @@ public abstract class StageParent extends Stage implements LoadingListener{
 
 	private float uiTableElsize;
 
-	private SpriteBatch batch2;
 	
     private LoadingScreenManager loadingScreenManager;
     
@@ -176,9 +176,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
         firebaseService.addLoadingListener(this);
         
         pathVisuals = new Array<>();
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        skin = new Skin(Gdx.files.internal("ui/companyskin.json"));
         towers = new Array<>();
-        batch2 = new SpriteBatch();
 
         activeEnemies = new Array<>();
         waveManager = new WaveManager(this, game);
@@ -237,57 +236,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
         this.life = life;
     }
     
-    public ImageButton createImageButton(String upImagePath, String downImagePath, ClickListener listener) {
-        // 텍스처 로드
-        Texture upTexture = new Texture(Gdx.files.internal(upImagePath));
-        Texture downTexture = new Texture(Gdx.files.internal(downImagePath));
-
-        // TextureRegionDrawable로 버튼 이미지 설정
-        TextureRegionDrawable upDrawable = new TextureRegionDrawable(new TextureRegion(upTexture));
-        TextureRegionDrawable downDrawable = new TextureRegionDrawable(new TextureRegion(downTexture));
-
-        // ImageButtonStyle 설정
-        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
-        style.up = upDrawable;
-        style.down = downDrawable;
-
-
-        // ImageButton 생성
-        ImageButton button = new ImageButton(style);
-        button.addListener(listener); // 클릭 리스너 추가
-
-        return button;
-    }
-    private LabelStyle createLabelStyleWithBackground(Label label) {
-        LabelStyle labelStyle = new LabelStyle();
-        labelStyle.font = skin.getFont("default");
-        labelStyle.fontColor = Color.WHITE;
-        labelStyle.background = createBackground(label);
-        return labelStyle;
-    }
-
-	private Drawable createBackground(Label label) {
-	    Pixmap labelColor = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-	    Color color = new Color(Color.LIGHT_GRAY);
-	    color.a = 0.35f;
-	    labelColor.setColor(color);
-	    labelColor.fill();
-	
-	    Texture texture = new Texture(labelColor);
-	
-	    return new BaseDrawable() {
-	
-	        @Override
-	        public void draw(Batch batch, float x, float y, float width, float height) {
-	            GlyphLayout layout = label.getGlyphLayout();
-	            x = label.getX();
-	            y = label.getY();
-	            batch.draw(texture, x, y, layout.width, layout.height);
-	        }
-	    };
-	}
 	private Table createUpgradeButton(String labelText, String iconUp, String iconDown, String teamName) {
-	    ImageButton button = createImageButton(iconUp, iconDown, new ClickListener() {
+	    ImageButton button = Commons.createImageButton(iconUp, iconDown, new ClickListener() {
 	        @Override
 	        public void clicked(InputEvent event, float x, float y) {
 	            upgradeTeamTowers(teamName);
@@ -319,7 +269,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
 	    }
     	label.setText(labelText+" Lv."+teamLevel.get(teamName));
 
-	    label.setStyle(createLabelStyleWithBackground(label));
+	    label.setStyle(Commons.createLabelStyleWithBackground(label, skin));
 	    label.setAlignment(Align.left); // 왼쪽 정렬
 	    label.setFontScale(uiTableElsize*0.015f); // 텍스트 크기 조정
 
@@ -377,14 +327,14 @@ public abstract class StageParent extends Stage implements LoadingListener{
 	 
     public void initialize() {
 
-        ImageButton waveButton = createImageButton("icons/start-button.png", "icons/start-button_down.png", new ClickListener() {
+        ImageButton waveButton = Commons.createImageButton("icons/start-button.png", "icons/start-button_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 waveManager.startNextWave();
             }
         });
 
-        ImageButton spawnButton = createImageButton("icons/work.png", "icons/work_down.png", new ClickListener() {
+        ImageButton spawnButton = Commons.createImageButton("icons/work.png", "icons/work_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 spawnTower();
@@ -397,7 +347,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         
         
         coinLabel = new Label(null, skin);
-        coinLabel.setStyle(createLabelStyleWithBackground(coinLabel));
+        coinLabel.setStyle(Commons.createLabelStyleWithBackground(coinLabel, skin));
         coinLabel.setFontScale(uiTableElsize*0.02f); // 폰트 크기 축소
         coinLabel.setColor(Color.GOLD);
 
@@ -415,7 +365,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         Texture heartTexture = new Texture(Gdx.files.internal("icons/heart.png"));
         Image heartImage = new Image(heartTexture);
         lifeLabel = new Label(null, skin);
-        lifeLabel.setStyle(createLabelStyleWithBackground(lifeLabel));
+        lifeLabel.setStyle(Commons.createLabelStyleWithBackground(lifeLabel, skin));
         lifeLabel.setFontScale(uiTableElsize*0.02f); // 텍스트 크기 조정
         lifeStack.add(heartImage);
         lifeStack.add(lifeLabel);
@@ -425,7 +375,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         uiTable.setHeight(screenHeight-mapHeight*gridSize);
 
         Label spawnCostLabel = new Label("100", skin);
-        spawnCostLabel.setStyle(createLabelStyleWithBackground(spawnCostLabel));
+        spawnCostLabel.setStyle(Commons.createLabelStyleWithBackground(spawnCostLabel, skin));
         spawnCostLabel.setFontScale(uiTableElsize*0.015f); // 텍스트 크기 조정
         spawnCostLabel.setColor(Color.GOLD);
 	    Table spawnButtonTable = new Table();
@@ -451,7 +401,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         float towerInfoElsize = screenWidth * 0.08f; // 버튼 크기 조정
 
 
-        ImageButton sellButton = createImageButton("icons/walk_out.png", "icons/money.png", new ClickListener() {
+        ImageButton sellButton = Commons.createImageButton("icons/walk_out.png", "icons/money.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (selectedTower != null) {
@@ -475,15 +425,15 @@ public abstract class StageParent extends Stage implements LoadingListener{
         towerPriceLabel = new Label("", skin);
 
         towerNameLabel.setFontScale(towerInfoElsize*0.015f); 
-        towerNameLabel.setStyle(createLabelStyleWithBackground(towerNameLabel));
+        towerNameLabel.setStyle(Commons.createLabelStyleWithBackground(towerNameLabel, skin));
         towerNameLabel.setColor(Color.DARK_GRAY);
         
         attackPowerLabel.setFontScale(towerInfoElsize*0.015f);
-        attackPowerLabel.setStyle(createLabelStyleWithBackground(attackPowerLabel));
+        attackPowerLabel.setStyle(Commons.createLabelStyleWithBackground(attackPowerLabel, skin));
         attackPowerLabel.setColor(Color.DARK_GRAY);
         
         towerPriceLabel.setFontScale(towerInfoElsize*0.013f);
-        towerPriceLabel.setStyle(createLabelStyleWithBackground(towerPriceLabel));
+        towerPriceLabel.setStyle(Commons.createLabelStyleWithBackground(towerPriceLabel, skin));
         towerPriceLabel.setColor(Color.DARK_GRAY);
 
         towerPriceTable.add(new Image(new Texture(Gdx.files.internal("icons/coin.png")))).width(uiTableElsize*0.5f).height(uiTableElsize*0.5f); // 버튼 크기 지정
@@ -496,7 +446,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         towerInfoTextTable.row();
         towerInfoTextTable.add(towerPriceTable).expand();
 
-        ImageButton upgradeButton = createImageButton("icons/negociation.png", "icons/negociation_down.png", new ClickListener() {
+        ImageButton upgradeButton = Commons.createImageButton("icons/negociation.png", "icons/negociation_down.png", new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (selectedTower != null) {

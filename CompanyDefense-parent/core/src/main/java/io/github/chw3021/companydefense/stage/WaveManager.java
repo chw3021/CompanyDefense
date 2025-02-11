@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Array;
 
+import io.github.chw3021.companydefense.screens.MainViewScreen;
 import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreen;
 
 
@@ -89,14 +90,14 @@ public class WaveManager {
 
         // 팝업창 생성
         Skin skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
-        Dialog dialog = new Dialog(isWin ? "Victory!" : "Defeat", skin);
-        dialog.text(isWin ? "Congratulations! You win!" : "Game Over! You lose.").pad(20);
+        Dialog dialog = new Dialog(isWin ? "승리!" : "패배", skin);
+        dialog.text(isWin ? "승리!" : "패배.").pad(20);
 
-        TextButton button = new TextButton("Main Menu", skin);
+        TextButton button = new TextButton("메인 화면", skin);
         button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.setScreen(new StageSelectionScreen(game));
+                game.setScreen(new MainViewScreen(game));
                 stage.dispose();
             }
         });

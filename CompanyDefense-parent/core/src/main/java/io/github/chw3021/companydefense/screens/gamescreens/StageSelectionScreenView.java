@@ -16,7 +16,7 @@ public class StageSelectionScreenView extends Table {
     public StageSelectionScreenView(Game game) {
         this.game = game;
         this.setFillParent(true);
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        skin = new Skin(Gdx.files.internal("ui/companyskin.json"));
 
         this.top().center(); // 레이아웃 정렬
 

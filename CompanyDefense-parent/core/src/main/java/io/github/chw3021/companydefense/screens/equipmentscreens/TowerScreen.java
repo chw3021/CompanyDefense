@@ -69,7 +69,7 @@ public class TowerScreen implements Screen, LoadingListener {
         camera = new OrthographicCamera();
 
         stage = new Stage(new ScreenViewport(camera));
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        skin = new Skin(Gdx.files.internal("ui/companyskin.json"));
         Gdx.input.setInputProcessor(stage);
 
         firebaseService.addLoadingListener(this);
@@ -146,6 +146,7 @@ public class TowerScreen implements Screen, LoadingListener {
         }
         return null;
     }
+    
     
     
     private void addTowerToGrid(TowerDto tower, TowerOwnershipDto towerOwnership) {
