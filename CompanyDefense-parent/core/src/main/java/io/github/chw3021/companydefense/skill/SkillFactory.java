@@ -8,6 +8,6 @@ public class SkillFactory {
         if (dto.getSkillName().equals("화염 폭발")) {
         	
         }
-        return null; // 다른 스킬 추가 가능
+        return null;
     }
 }

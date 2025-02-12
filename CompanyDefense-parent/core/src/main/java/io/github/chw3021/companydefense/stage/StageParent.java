@@ -2,14 +2,13 @@ package io.github.chw3021.companydefense.stage;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -22,13 +21,9 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
@@ -223,8 +218,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
         for (Tower tower : towers) {
             tower.update(delta, activeEnemies); // 타워가 범위 내 적을 공격
         }
-        lifeLabel.setText("     " + life);
-        coinLabel.setText("     " + currency);
+        lifeLabel.setText(life);
+        coinLabel.setText(currency);
 
         // Update wave management
         waveManager.update(delta, this);
@@ -299,12 +294,16 @@ public abstract class StageParent extends Stage implements LoadingListener{
 
         for (Tower tower : towers) {
             if (tower.getTeam().equals(teamName)) {
-                tower.setPhysicalAttack(tower.getBasePhysicalAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
-                tower.setMagicAttack(tower.getBaseMagicAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
+            	upgradeTowerByTeamLevel(tower, teamName);
             }
         }
 
         updateUpgradeLabel(teamName);
+    }
+    
+    public void upgradeTowerByTeamLevel(Tower tower, String teamName) {
+        tower.setPhysicalAttack(tower.getBasePhysicalAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
+        tower.setMagicAttack(tower.getBaseMagicAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
     }
     
 
@@ -359,11 +358,11 @@ public abstract class StageParent extends Stage implements LoadingListener{
 		Table dvUpgrade = createUpgradeButton("개발", "icons/dvup.png", "icons/dvup_down.png", "dv");
 		Table slUpgrade = createUpgradeButton("영업", "icons/slup.png", "icons/slup_down.png", "sl");
 
-        Stack coinStack = new Stack();
+		Table coinStack = new Table();
         coinStack.add(new Image(new Texture(Gdx.files.internal("icons/coin.png"))));
-        coinStack.add(coinLabel);
+        coinStack.add(coinLabel).pad(uiTableElsize*0.02f);
 
-        Stack lifeStack = new Stack();
+        Table lifeStack = new Table();
         // Life Label과 하트 이미지 생성
         Texture heartTexture = new Texture(Gdx.files.internal("icons/heart.png"));
         Image heartImage = new Image(heartTexture);
@@ -371,7 +370,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         lifeLabel.setStyle(Commons.createLabelStyleWithBackground(lifeLabel, skin));
         lifeLabel.setFontScale(uiTableElsize*0.02f); // 텍스트 크기 조정
         lifeStack.add(heartImage);
-        lifeStack.add(lifeLabel);
+        lifeStack.add(lifeLabel).pad(uiTableElsize*0.02f);
         
         uiTable = new Table();
         uiTable.setWidth(screenWidth);
@@ -530,8 +529,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
                                  0, 0, originalPixmap.getWidth(), originalPixmap.getHeight(),
                                  0, 0, resizedPixmap.getWidth(), resizedPixmap.getHeight());
         focusTexture2 =  new Texture(resizedPixmap);
-        loadTowerSkills();
-        loadUserTowers();
+        loadAllData();
     }
     
     public void upgradeTower(Tower tower) {
@@ -660,34 +658,47 @@ public abstract class StageParent extends Stage implements LoadingListener{
 		        }
 		    });
 		}
+	 private void loadAllData() {
+		    CountDownLatch latch = new CountDownLatch(1); // 1개의 작업이 완료될 때까지 대기
+		    loadTowerSkills(latch);
 
-    private void loadTowerSkills() {
-        FirebaseTowerService.loadAllSkills(new FirebaseCallback<List<SkillDto>>() {
-            @Override
-            public void onSuccess(List<SkillDto> allSkills) {
-                skillMap.clear();
-                for (SkillDto skillDto : allSkills) {
-                    skillMap.put(skillDto.getSkillId(), skillDto); // Tower ID 기반으로 저장
-                }
-            }
+		    new Thread(() -> {
+		        try {
+		            latch.await(); // 스킬 데이터가 모두 로드될 때까지 대기
+		            Gdx.app.postRunnable(() -> loadUserTowers()); // 스킬 로드 완료 후 타워 데이터 로드
+		        } catch (InterruptedException e) {
+		            Gdx.app.error("StageParent", "데이터 로딩 중 인터럽트 발생", e);
+		        }
+		    }).start();
+		}
 
-            @Override
-            public void onFailure(Exception e) {
-                Gdx.app.error("StageParent", "스킬 데이터를 불러오는 중 오류 발생", e);
-            }
-        });
-    }
+		private void loadTowerSkills(CountDownLatch latch) {
+		    skillMap = new HashMap<>();
+		    FirebaseTowerService.loadAllSkills(new FirebaseCallback<List<SkillDto>>() {
+		        @Override
+		        public void onSuccess(List<SkillDto> allSkills) {
+		            skillMap.clear();
+		            for (SkillDto skillDto : allSkills) {
+		                skillMap.put(skillDto.getSkillId(), skillDto);
+		            }
+		            latch.countDown(); // 스킬 데이터 로드 완료 후 카운트 다운
+		        }
+		
+		        @Override
+		        public void onFailure(Exception e) {
+		            Gdx.app.error("StageParent", "스킬 데이터를 불러오는 중 오류 발생", e);
+		            latch.countDown(); // 오류 발생해도 카운트 다운하여 무한 대기 방지
+		        }
+		    });
+		}
 
-    public void render(SpriteBatch batch, ShapeRenderer shapeRenderer) {
+	 public void render(SpriteBatch batch, ShapeRenderer shapeRenderer) {
         batch.begin();
         // 배경
         float backgroundHeight = mapHeight * gridSize;
         batch.draw(backgroundTexture, 0, offsetY, Gdx.graphics.getWidth(), backgroundHeight);
 
         // 경로 및 장애물
-        for (Obstacle path : pathVisuals) {
-            path.render(batch);
-        }
         for (Obstacle obstacle : obstacles) {
             obstacle.render(batch);
         }

@@ -22,7 +22,7 @@ public class OfficeSupportSkill extends SkillParent {
         for (Enemy enemy : enemies) {
             if (tower.getPosition().dst(enemy.getPosition()) <= range) {
                 enemy.reduceDefense(mult, mult, duration);
-                showSkillEffect(stage, enemy.getPosition(), tower.getWidth(), tower.getWidth());
+                showSkillEffect(stage, enemy.getPosition(), tower.getWidth()*0.5f, tower.getWidth()*0.5f);
             }
         }
     }

@@ -52,7 +52,7 @@ public class Tower extends Actor {
     private float elapsedTime = 0;
     private boolean isAttacking = false;
     
-    private Enemy target;
+    public Enemy target;
     
     private Boolean isMergable = false;
     private int gridSize;
@@ -169,48 +169,68 @@ public class Tower extends Actor {
             }
         });
     }
+	// 🔹 공격력 증가 (중첩 가능)
+	private int attackPowerBuffCount = 0;
+	public void increaseAttackPower(float mult, float duration) {
+	    float addedPhysical = basePhysicalAttack * mult;
+	    float addedMagic = baseMagicAttack * mult;
 
+	    physicalAttack += addedPhysical;
+	    magicAttack += addedMagic;
+	    attackPowerBuffCount++; // 버프 스택 증가
 
-    // 🔹 공격력 증가 (지속시간 동안 적용)
-    public void increaseAttackPower(float mult, float duration) {
-        physicalAttack += basePhysicalAttack * mult;
-        magicAttack += baseMagicAttack * mult;
+	    Timer.schedule(new Timer.Task() {
+	        @Override
+	        public void run() {
+	            attackPowerBuffCount--; // 버프 스택 감소
+	            if (attackPowerBuffCount == 0) { // 마지막 버프 해제 시 원래 값으로 복구
+	                stage.upgradeTowerByTeamLevel(Tower.this, team);
+	            }
+	        }
+	    }, duration);
+	}
 
-        Timer.schedule(new Timer.Task() {
-            @Override
-            public void run() {
-                physicalAttack = basePhysicalAttack;
-                magicAttack = baseMagicAttack;
-            }
-        }, duration);
-    }
+	// 🔹 공격 속도 증가 (중첩 가능)
+	private int attackSpeedBuffCount = 0;
+	public void increaseAttackSpeed(float mult, float duration) {
+	    float addedSpeed = baseAttackSpeed * mult;
 
-    // 🔹 공격 속도 증가 (지속시간 동안 적용)
-    public void increaseAttackSpeed(float mult, float duration) {
-        attackSpeed += baseAttackSpeed * mult;
+	    attackSpeed += addedSpeed;
+	    attackSpeedBuffCount++;
 
-        Timer.schedule(new Timer.Task() {
-            @Override
-            public void run() {
-                attackSpeed = baseAttackSpeed;
-            }
-        }, duration);
-    }
+	    Timer.schedule(new Timer.Task() {
+	        @Override
+	        public void run() {
+	            attackSpeedBuffCount--;
+	            if (attackSpeedBuffCount == 0) {
+	                attackSpeed = baseAttackSpeed;
+	            }
+	        }
+	    }, duration);
+	}
 
-    // 🔹 스킬 쿨타임 감소 (지속시간 동안 적용)
-    public void reduceSkillCooldown(float mult, float duration) {
-        if (skill != null) {
-            skill.setCooldown(skill.getCooldown() * (1 - mult));
+	// 🔹 스킬 쿨타임 감소 (중첩 가능)
+	private int cooldownReductionBuffCount = 0;
+	private float cooldownMultiplier = 1.0f; // 현재 적용된 쿨타임 감소 비율
+	public void reduceSkillCooldown(float mult, float duration) {
+	    if (skill != null) {
+	        cooldownMultiplier *= (1 - mult);
+	        skill.setCooldown(skill.getBaseCooldown() * cooldownMultiplier);
+	        cooldownReductionBuffCount++;
 
-            Timer.schedule(new Timer.Task() {
-                @Override
-                public void run() {
-                    skill.setCooldown(skill.getBaseCooldown()); // 기본 쿨타임 복구
-                }
-            }, duration);
-        }
-    }
-	
+	        Timer.schedule(new Timer.Task() {
+	            @Override
+	            public void run() {
+	                cooldownReductionBuffCount--;
+	                if (cooldownReductionBuffCount == 0) {
+	                    skill.setCooldown(skill.getBaseCooldown());
+	                    cooldownMultiplier = 1.0f;
+	                }
+	            }
+	        }, duration);
+	    }
+	}
+
     
     private Tower findTowerAtPosition(float x, float y) {
         for (Actor actor : getStage().getActors()) {

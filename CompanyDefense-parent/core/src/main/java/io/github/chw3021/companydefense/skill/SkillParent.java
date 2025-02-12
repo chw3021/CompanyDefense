@@ -50,7 +50,7 @@ public abstract class SkillParent {
 
     // 🔹 스킬 이펙트 애니메이션 표시
     protected void showSkillEffect(StageParent stage, float x, float y, float width, float height) {
-        PngAnimation effectAnimation = new PngAnimation(0.1f, summoneeImagePath, 64, 64, true);
+        PngAnimation effectAnimation = new PngAnimation(0.02f, summoneeImagePath, 64, 64, true);
         effectAnimation.setSize(width, height);
         effectAnimation.setPosition(x, y);
 
