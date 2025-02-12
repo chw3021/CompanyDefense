@@ -175,7 +175,8 @@ public class MainViewScreen implements Screen, LoadingListener {
         topTable.add(timeTable).left().padLeft(screenWidth * 0.01f).expandX();
 
         // 💡 우측 상단 메뉴 버튼 추가
-        btnMenu = createNavButton("menu/menu.png", this::showMenuPopup);
+    	String downPath = "menu/accept.png";
+        btnMenu = Commons.createImageButton("menu/menu.png", downPath,this::showMenuPopup);
         btnMenu.setSize(screenWidth * 0.05f, screenWidth * 0.05f);
         btnMenu.setPosition(Gdx.graphics.getWidth() - screenWidth * 0.05f, Gdx.graphics.getHeight() - screenHeight * 0.05f);
 

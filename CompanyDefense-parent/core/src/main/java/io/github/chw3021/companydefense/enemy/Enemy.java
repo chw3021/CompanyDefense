@@ -11,10 +11,10 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.utils.TimeUtils;
+import com.badlogic.gdx.utils.Timer;
 
 import io.github.chw3021.companydefense.component.DamageComponent;
-import io.github.chw3021.companydefense.component.EnemyComponent;
 import io.github.chw3021.companydefense.component.HealthComponent;
 import io.github.chw3021.companydefense.component.PathfindingComponent;
 import io.github.chw3021.companydefense.component.TransformComponent;
@@ -101,6 +101,10 @@ public class Enemy extends Entity {
 
     // 적이 경로를 따라 이동하는 메서드
     public void moveAlongPath() {
+    	
+        if (isStunned && !isStunOver()) return; // 기절 중이면 이동 불가
+        isStunned = false; // 기절이 끝났으면 풀기
+        
         if (path.isEmpty()) return;
 
         TransformComponent transform = this.getComponent(TransformComponent.class);
@@ -142,7 +146,7 @@ public class Enemy extends Entity {
     public void renderHealthBar(ShapeRenderer shapeRenderer) {
 
         float barWidth = texture.getWidth(); // 체력바 길이
-        float barX = transform.position.x; // 체력바 x 위치
+        float barX = transform.position.x + texture.getWidth() / 2f; // 체력바 x 위치
         float barY = transform.position.y + texture.getHeight() + HEALTH_BAR_MARGIN; // 적 위에 배치
 
         float healthRatio = healthComponent.health / healthComponent.maxHealth;
@@ -173,12 +177,44 @@ public class Enemy extends Entity {
     	wave.removeEnemy(this);
     	stage.getActiveEnemies().removeValue(this, true);
     }
+    
     public void addDamage(DamageComponent damageComponent) {
         healthComponent.damage(damageComponent);
     	if(getHealth()<=0) {
         	dispose();
         }
     }
+
+    public void reduceDefense(float physicalReduction, float magicReduction, float duration) {
+        healthComponent.physicalDefense -= physicalReduction;
+    	healthComponent.magicDefense -= magicReduction;
+
+        if (healthComponent.physicalDefense < 0) healthComponent.physicalDefense = 0;
+        if (healthComponent.magicDefense < 0) healthComponent.magicDefense = 0;
+
+        // 일정 시간 후 방어력 복구 (스케줄링)
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+            	healthComponent.physicalDefense += physicalReduction;
+            	healthComponent.magicDefense += magicReduction;
+            }
+        }, duration);
+    }
+    private boolean isStunned = false; // 기절 상태 여부
+    private float stunEndTime = 0; // 기절이 끝나는 시간
+
+    public void stun(float duration) {
+        isStunned = true;
+        stunEndTime = TimeUtils.nanoTime() + (long) (duration * 1_000_000_000L);
+    }
+
+    private boolean isStunOver() {
+        return TimeUtils.nanoTime() >= stunEndTime;
+    }
+
+    
+    
     
     public void setWave(Wave wave) {
     	this.wave = wave;

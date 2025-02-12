@@ -1,6 +1,7 @@
 package io.github.chw3021.companydefense.component;
 
 import com.badlogic.ashley.core.Component;
+import com.badlogic.gdx.utils.Timer;
 
 public class HealthComponent implements Component {
     public float health;
@@ -33,4 +34,5 @@ public class HealthComponent implements Component {
             health = 0;
         }
     }
+    
 }

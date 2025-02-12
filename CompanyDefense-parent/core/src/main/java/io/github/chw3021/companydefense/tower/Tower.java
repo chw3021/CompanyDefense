@@ -18,8 +18,11 @@ import com.badlogic.gdx.utils.Timer;
 
 import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.component.HealthComponent;
+import io.github.chw3021.companydefense.dto.SkillDto;
 import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.enemy.Enemy;
+import io.github.chw3021.companydefense.skill.SkillFactory;
+import io.github.chw3021.companydefense.skill.SkillParent;
 import io.github.chw3021.companydefense.stage.StageParent;
 
 
@@ -30,7 +33,10 @@ public class Tower extends Actor {
     private String name;
     private float physicalAttack;
     private float magicAttack;
+    private float basePhysicalAttack;
+    private float baseMagicAttack;
     private float attackSpeed;
+    private float baseAttackSpeed;
     private float attackRange;
 	private int towerGrade=1;
 	private float attackCooldown; // 다음 공격까지 남은 시간
@@ -50,12 +56,16 @@ public class Tower extends Actor {
     
     private Boolean isMergable = false;
     private int gridSize;
+
+    private SkillParent skill;
     
-    
-	public Tower(TowerDto towerDto, int towerLevel, int gridSize, StageParent stage) {
+	public Tower(TowerDto towerDto, int towerLevel, int gridSize, StageParent stage, SkillDto skillDto) {
         this.physicalAttack = towerDto.getTowerPhysicalAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
         this.magicAttack = towerDto.getTowerMagicAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
+        this.basePhysicalAttack = physicalAttack;
+        this.baseMagicAttack = magicAttack;
         this.attackSpeed = towerDto.getTowerAttackSpeed();
+        this.baseAttackSpeed = attackSpeed;
         this.attackRange = towerDto.getTowerAttackRange()*gridSize;
         this.gridSize = gridSize;
         this.attackType = towerDto.getAttackType();
@@ -65,7 +75,8 @@ public class Tower extends Actor {
         this.imagePath = towerDto.getTowerImagePath();
         this.attackImagePath = towerDto.getTowerAttackImagePath();
         this.towerPortraitPath = towerDto.getTowerPortraitPath();
-        
+        this.skill = SkillFactory.createSkill(skillDto, stage); // 스킬 생성
+
         damageComponent = new DamageComponent(physicalAttack, magicAttack);
         
         Gdx.app.postRunnable(() -> {  // 메인 스레드에서 실행
@@ -89,6 +100,8 @@ public class Tower extends Actor {
 	public Tower(Tower other) {
         this.physicalAttack = other.physicalAttack;
         this.magicAttack = other.magicAttack;
+        this.basePhysicalAttack = other.basePhysicalAttack;
+        this.baseMagicAttack = other.baseMagicAttack;
         this.attackSpeed = other.attackSpeed;
         this.attackRange = other.attackRange;
         this.gridSize = other.gridSize;
@@ -156,6 +169,48 @@ public class Tower extends Actor {
             }
         });
     }
+
+
+    // 🔹 공격력 증가 (지속시간 동안 적용)
+    public void increaseAttackPower(float mult, float duration) {
+        physicalAttack += basePhysicalAttack * mult;
+        magicAttack += baseMagicAttack * mult;
+
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+                physicalAttack = basePhysicalAttack;
+                magicAttack = baseMagicAttack;
+            }
+        }, duration);
+    }
+
+    // 🔹 공격 속도 증가 (지속시간 동안 적용)
+    public void increaseAttackSpeed(float mult, float duration) {
+        attackSpeed += baseAttackSpeed * mult;
+
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+                attackSpeed = baseAttackSpeed;
+            }
+        }, duration);
+    }
+
+    // 🔹 스킬 쿨타임 감소 (지속시간 동안 적용)
+    public void reduceSkillCooldown(float mult, float duration) {
+        if (skill != null) {
+            skill.setCooldown(skill.getCooldown() * (1 - mult));
+
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    skill.setCooldown(skill.getBaseCooldown()); // 기본 쿨타임 복구
+                }
+            }, duration);
+        }
+    }
+	
     
     private Tower findTowerAtPosition(float x, float y) {
         for (Actor actor : getStage().getActors()) {
@@ -311,6 +366,7 @@ public class Tower extends Actor {
             if (target != null) {
                 attack(target); // 공격
             }
+            skill.use(this, enemies);
         }
     }
     
@@ -368,6 +424,8 @@ public class Tower extends Actor {
         setPosition(position.x, position.y);
     }
 
+	
+	
     public Vector2 getPosition() {
         return new Vector2(this.getX(), this.getY());
     }
@@ -427,4 +485,26 @@ public class Tower extends Actor {
 		this.imagePath = imagePath;
 	}
 
+
+	public float getBasePhysicalAttack() {
+		return basePhysicalAttack;
+	}
+
+
+	public void setBasePhysicalAttack(float basePhysicalAttack) {
+		this.basePhysicalAttack = basePhysicalAttack;
+	}
+
+
+	public float getBaseMagicAttack() {
+		return baseMagicAttack;
+	}
+
+
+	public void setBaseMagicAttack(float baseMagicAttack) {
+		this.baseMagicAttack = baseMagicAttack;
+	}
+
+
+	
 }

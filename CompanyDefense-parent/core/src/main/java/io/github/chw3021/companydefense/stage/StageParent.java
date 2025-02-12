@@ -34,6 +34,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
 
 import io.github.chw3021.companydefense.Main;
+import io.github.chw3021.companydefense.dto.SkillDto;
 import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.dto.TowerOwnershipDto;
 import io.github.chw3021.companydefense.dto.UserDto;
@@ -134,6 +135,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
             towerToSpawn.setPosition(selectedPosition);
             towerToSpawn.setTouchable(Touchable.enabled);
             towerToSpawn.setSize(gridSize * 0.8f, gridSize * 0.8f);
+            towerToSpawn.setPhysicalAttack(towerToSpawn.getBasePhysicalAttack() * (1.05f + 0.05f*teamLevel.get(towerToSpawn.getTeam())));
+            towerToSpawn.setMagicAttack(towerToSpawn.getBaseMagicAttack() * (1.05f + 0.05f*teamLevel.get(towerToSpawn.getTeam())));
             this.addActor(towerToSpawn);
             towers.add(towerToSpawn);
             currency -= 100;
@@ -296,8 +299,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
 
         for (Tower tower : towers) {
             if (tower.getTeam().equals(teamName)) {
-                tower.setPhysicalAttack(tower.getPhysicalAttack() * 1.05f);
-                tower.setMagicAttack(tower.getMagicAttack() * 1.05f);
+                tower.setPhysicalAttack(tower.getBasePhysicalAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
+                tower.setMagicAttack(tower.getBaseMagicAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
             }
         }
 
@@ -527,6 +530,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
                                  0, 0, originalPixmap.getWidth(), originalPixmap.getHeight(),
                                  0, 0, resizedPixmap.getWidth(), resizedPixmap.getHeight());
         focusTexture2 =  new Texture(resizedPixmap);
+        loadTowerSkills();
         loadUserTowers();
     }
     
@@ -560,6 +564,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
 
     private Texture circleTexture = new Texture(Gdx.files.internal("icons/circle.png"));
     private boolean isAttackRangeVisible = false; // 사거리 표시 여부
+
+	protected HashMap<String, SkillDto> skillMap;
 
 
     // 타워 사거리 표시
@@ -618,41 +624,60 @@ public abstract class StageParent extends Stage implements LoadingListener{
 	         deselectTower();
 	     }
 	 }
-    private void loadUserTowers() {
-        FirebaseTowerService.loadUserData(new FirebaseCallback<UserDto>() {
-            @Override
-            public void onSuccess(UserDto user) {
-                if (user.getUserTowers() != null) {
-                	FirebaseTowerService.loadAllTowers(new FirebaseCallback<List<TowerDto>>() {
-                        @Override
-                        public void onSuccess(List<TowerDto> allTowers) {
-                            availableTowers.clear();
-                            for (TowerOwnershipDto ownership : user.getUserTowers().values()) {
-                                for (TowerDto towerDto : allTowers) {
-                                    if (ownership.getTowerId().equals(towerDto.getTowerId())) {
-                                        Tower tower = new Tower(towerDto, ownership.getTowerLevel(), gridSize, stage);
-                                        availableTowers.add(tower);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
+	 
+	 private void loadUserTowers() {
+		    FirebaseTowerService.loadUserData(new FirebaseCallback<UserDto>() {
+		        @Override
+		        public void onSuccess(UserDto user) {
+		            if (user.getUserTowers() != null) {
+		                FirebaseTowerService.loadAllTowers(new FirebaseCallback<List<TowerDto>>() {
+		                    @Override
+		                    public void onSuccess(List<TowerDto> allTowers) {
+		                        availableTowers.clear();
+		                        for (TowerOwnershipDto ownership : user.getUserTowers().values()) {
+		                            for (TowerDto towerDto : allTowers) {
+		                                if (ownership.getTowerId().equals(towerDto.getTowerId())) {
+		                                    SkillDto skillDto = skillMap.get(towerDto.getTowerId());
+		                                    Tower tower = new Tower(towerDto, ownership.getTowerLevel(), gridSize, stage, skillDto);
+		                                    availableTowers.add(tower);
+		                                    break;
+		                                }
+		                            }
+		                        }
+		                    }
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            Gdx.app.error("StageParent", "타워 데이터를 불러오는 중 오류 발생", e);
-                        }
-                    });
+		                    @Override
+		                    public void onFailure(Exception e) {
+		                        Gdx.app.error("StageParent", "타워 데이터를 불러오는 중 오류 발생", e);
+		                    }
+		                });
+		            }
+		        }
+
+		        @Override
+		        public void onFailure(Exception e) {
+		            Gdx.app.error("StageParent", "사용자 데이터를 불러오는 중 오류 발생", e);
+		        }
+		    });
+		}
+
+    private void loadTowerSkills() {
+        FirebaseTowerService.loadAllSkills(new FirebaseCallback<List<SkillDto>>() {
+            @Override
+            public void onSuccess(List<SkillDto> allSkills) {
+                skillMap.clear();
+                for (SkillDto skillDto : allSkills) {
+                    skillMap.put(skillDto.getSkillId(), skillDto); // Tower ID 기반으로 저장
                 }
             }
 
             @Override
             public void onFailure(Exception e) {
-                Gdx.app.error("StageParent", "사용자 데이터를 불러오는 중 오류 발생", e);
+                Gdx.app.error("StageParent", "스킬 데이터를 불러오는 중 오류 발생", e);
             }
         });
     }
-    
+
     public void render(SpriteBatch batch, ShapeRenderer shapeRenderer) {
         batch.begin();
         // 배경

@@ -7,6 +7,8 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.Button;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -40,7 +42,19 @@ public class Commons {
 
         return button;
     }
-    
+
+    /** 네비게이션 버튼 생성 */
+    public static ImageButton createImageButton(String upImagePath, String downImagePath, Runnable onClick) {
+    	String downPath = "menu/accept.png";
+        ImageButton button = Commons.createImageButton(upImagePath, downImagePath);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                onClick.run();
+            }
+        });
+        return button;
+    }
 
     public static ImageButton createImageButton(String upImagePath, String downImagePath) {
         // 텍스처 로드

@@ -10,6 +10,7 @@ import com.badlogic.gdx.Preferences;
 import com.google.gson.reflect.TypeToken;
 
 import io.github.chw3021.companydefense.Main;
+import io.github.chw3021.companydefense.dto.SkillDto;
 import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.dto.TowerOwnershipDto;
 import io.github.chw3021.companydefense.dto.UserDto;
@@ -20,6 +21,23 @@ public class FirebaseTowerService {
     /**
      * Firebase에서 모든 타워 데이터를 불러옴
      */
+
+    public static void loadAllSkills(FirebaseCallback<List<SkillDto>> callback) {
+        firebaseService.fetchData("skills/", new TypeToken<Map<String, SkillDto>>() {}.getType(), new FirebaseCallback<Map<String, SkillDto>>() {
+            @Override
+            public void onSuccess(Map<String, SkillDto> skillsMap) {
+                List<SkillDto> towersList = new ArrayList<>(skillsMap.values());
+                callback.onSuccess(towersList);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                callback.onFailure(e);
+            }
+        });
+    }
+	
+	
     public static void loadAllTowers(FirebaseCallback<List<TowerDto>> callback) {
         firebaseService.fetchData("towers/", new TypeToken<Map<String, TowerDto>>() {}.getType(), new FirebaseCallback<Map<String, TowerDto>>() {
             @Override
