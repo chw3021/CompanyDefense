@@ -22,6 +22,7 @@ public class WelfareCampaignSkill extends SkillParent {
         for (Tower ally : stage.towers) {
             ally.increaseAttackPower(mult, duration);
             ally.increaseAttackSpeed(mult, duration);
+            showSkillEffect(stage, ally.getPosition(), tower.getWidth(), tower.getWidth());
         }
     }
 }

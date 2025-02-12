@@ -21,11 +21,13 @@ public class IrresistibleGossipSkill extends SkillParent {
 
     @Override
     protected void applyEffect(Tower tower, Array<Enemy> enemies) {
-        for (Enemy enemy : enemies) {
+        Enemy enemy = tower.target;
+        if(enemy != null) {
             if (random.nextFloat() <= mult) { // 확률 체크
                 enemy.stun(duration);
                 showSkillEffect(stage, enemy.getPosition(), tower.getWidth(), tower.getWidth());
             }
         }
+        
     }
 }
