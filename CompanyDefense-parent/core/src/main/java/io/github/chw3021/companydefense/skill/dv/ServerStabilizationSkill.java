@@ -31,5 +31,6 @@ public class ServerStabilizationSkill extends SkillParent {
                 }
             }
         }
+        showSkillEffect(stage, tower.getX()+tower.getWidth()*0.25f, tower.getY()+tower.getHeight()*0.75f, tower.getWidth()*0.5f, tower.getHeight()*0.5f);
     }
 }

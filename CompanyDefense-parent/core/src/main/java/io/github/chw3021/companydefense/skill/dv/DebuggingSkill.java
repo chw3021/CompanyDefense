@@ -22,7 +22,7 @@ public class DebuggingSkill extends SkillParent {
     	Enemy target = tower.target;
         if (target != null) {
         	DamageComponent damage = new DamageComponent(0.0f,(tower.getMagicAttack() * mult));
-    	    shotProjectile(stage, tower.getPosition(), target, damage, tower.getWidth()*0.2f, tower.getWidth()*0.2f);
+    	    shotProjectile(stage, tower.getPosition(), target, damage, tower.getWidth()*0.5f, tower.getWidth()*0.5f);
         }
     }
 }
