@@ -107,7 +107,6 @@ public class Enemy extends Entity {
         
         if (path.isEmpty()) return;
 
-        TransformComponent transform = this.getComponent(TransformComponent.class);
 
         // 현재 경로의 목표 지점까지 이동
         Vector2 target = path.get(currentPathIndex);

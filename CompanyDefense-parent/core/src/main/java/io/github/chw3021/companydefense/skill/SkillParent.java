@@ -74,7 +74,7 @@ public abstract class SkillParent {
             public void run() {
                 effectAnimation.remove();
             }
-        }, 1);
+        }, duration);
     }
 
     // 🔹 스킬 이펙트 애니메이션 표시
@@ -93,7 +93,7 @@ public abstract class SkillParent {
             public void run() {
                 effectAnimation.remove();
             }
-        }, 1);
+        }, duration);
     }
 
 

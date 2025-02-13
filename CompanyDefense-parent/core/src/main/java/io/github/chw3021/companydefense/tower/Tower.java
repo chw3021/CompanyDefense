@@ -13,6 +13,7 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Timer;
 
@@ -28,6 +29,7 @@ import io.github.chw3021.companydefense.stage.StageParent;
 
 public class Tower extends Actor {
     private Texture texture;
+    private Texture originalTexture;
     
     
     private String name;
@@ -59,6 +61,9 @@ public class Tower extends Actor {
 
     private SkillParent skill;
     
+    private TextureRegion currentFrame;  // 🔹 현재 프레임을 저장하는 변수
+    
+    
 	public Tower(TowerDto towerDto, int towerLevel, int gridSize, StageParent stage, SkillDto skillDto) {
         this.physicalAttack = towerDto.getTowerPhysicalAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
         this.magicAttack = towerDto.getTowerMagicAttack()*(1+towerDto.getTowerAttackMult()*(towerLevel-1));
@@ -88,6 +93,7 @@ public class Tower extends Actor {
                                      0, 0, resizedPixmap.getWidth(), resizedPixmap.getHeight());
 
             texture = new Texture(resizedPixmap);  // OpenGL 컨텍스트 내에서 실행
+            originalTexture = texture;
         	this.setTouchable(Touchable.enabled);
         	this.setSize(gridSize, gridSize);
             setAttackAnimation(attackImagePath);
@@ -110,6 +116,7 @@ public class Tower extends Actor {
         this.damageComponent = other.damageComponent;
         this.name = other.name;
         this.texture = other.texture;
+        this.originalTexture = other.originalTexture;
         this.towerGrade = other.towerGrade;
         this.stage = other.stage;
         this.team = other.team;
@@ -380,13 +387,16 @@ public class Tower extends Actor {
         attackAnimation.setPlayMode(Animation.PlayMode.NORMAL);
     }
 
-	// 적에게 피해를 주는 attack 메서드
-    public void attack(Enemy target) {
-        if (isAttacking) return; // 이미 공격 중이면 중복 실행 방지
+	 // 공격 시작 시 texture를 변경
+	 public void attack(Enemy target) {
+	     if (isAttacking) return; // 중복 실행 방지
+	
+	     isAttacking = true;
+	     elapsedTime = 0;
 
-        isAttacking = true;
-        elapsedTime = 0;
-    }
+	     // 🔹 첫 프레임을 저장
+	     currentFrame = attackAnimation.getKeyFrame(0);
+	 }
 
     // 업데이트 메서드 (적을 탐지하고 공격하는 로직 포함)
     public void update(float delta, Array<Enemy> enemies) {
@@ -410,12 +420,13 @@ public class Tower extends Actor {
 
         if (isAttacking) {
             elapsedTime += Gdx.graphics.getDeltaTime();
-            TextureRegion currentFrame = attackAnimation.getKeyFrame(elapsedTime);
-            batch.draw(currentFrame, getX(), getY(), getWidth(), getHeight());
+            currentFrame = attackAnimation.getKeyFrame(elapsedTime);  // 🔹 현재 프레임 업데이트
 
             // 마지막 프레임에 데미지 or 투사체 생성
             if (attackAnimation.isAnimationFinished(elapsedTime)) {
             	if(target==null) {
+                    isAttacking = false;
+                    currentFrame = new TextureRegion(originalTexture); // 🔹 원래 texture로 복귀
             		return;
             	}
                 if (this.attackRange >= 4 * gridSize) {
@@ -430,10 +441,14 @@ public class Tower extends Actor {
                     target.addDamage(damageComponent);
                 }
                 isAttacking = false;
+                currentFrame = new TextureRegion(originalTexture); // 🔹 원래 texture로 복귀
             }
-        } else {
-            batch.draw(texture, getX(), getY(), getWidth(), getHeight());
         }
+        else {
+            currentFrame = new TextureRegion(originalTexture); // 기본 상태
+        }
+        batch.draw(currentFrame, getX(), getY(), getWidth(), getHeight());
+
         if (isDragging) {
         	if(isMergable) {
                 batch.draw(guideTexture2, dragStartPos.x-getWidth()/2,

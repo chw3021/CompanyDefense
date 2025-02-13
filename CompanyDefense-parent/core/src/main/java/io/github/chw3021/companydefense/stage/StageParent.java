@@ -361,7 +361,9 @@ public abstract class StageParent extends Stage implements LoadingListener{
 		Table slUpgrade = createUpgradeButton("영업", "icons/slup.png", "icons/slup_down.png", "sl");
 
 		Table coinStack = new Table();
-        coinStack.add(new Image(new Texture(Gdx.files.internal("icons/coin.png"))));
+        Texture coinTexture = new Texture(Gdx.files.internal("icons/coin.png"));
+        Image coinImage = new Image(coinTexture);
+        coinStack.add(coinImage);
         coinStack.add(coinLabel).pad(uiTableElsize*0.02f);
 
         Table lifeStack = new Table();
@@ -399,8 +401,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
         uiTable.add(dvUpgrade).center().width(screenWidth/3).pad(1);
         uiTable.add(slUpgrade).center().width(screenWidth/3).pad(1);
         uiTable.row();
-        uiTable.add(lifeStack).width(uiTableElsize).height(uiTableElsize).left().pad(6).expandX();
-        uiTable.add(coinStack).width(uiTableElsize).height(uiTableElsize).left().pad(6).expandX().colspan(2);
+        uiTable.add(lifeStack).width(uiTableElsize).height(uiTableElsize).left().pad(6);
+        uiTable.add(coinStack).width(uiTableElsize).height(uiTableElsize).left().pad(6).expandX();
 
         float towerInfoElsize = screenWidth * 0.08f; // 버튼 크기 조정
 
