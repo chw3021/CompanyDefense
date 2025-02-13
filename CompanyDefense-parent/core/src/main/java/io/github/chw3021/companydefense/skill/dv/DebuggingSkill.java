@@ -17,7 +17,7 @@ public class DebuggingSkill extends SkillParent {
     protected void applyEffect(Tower tower, Array<Enemy> enemies) {
         if (enemies != null) {
     	    Enemy target = tower.target;
-    	    target.addDamage(new DamageComponent(0.0f,(tower.getMagicAttack() * mult)));
+    	    target.addDamage(new DamageComponent(0.0f,(tower.getMagicAttack() * mult)));  
         }
     }
 }
