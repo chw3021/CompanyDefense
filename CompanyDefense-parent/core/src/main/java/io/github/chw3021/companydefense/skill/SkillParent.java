@@ -1,13 +1,17 @@
 package io.github.chw3021.companydefense.skill;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Timer;
 
+import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.dto.SkillDto;
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.screens.imagetools.PngAnimation;
 import io.github.chw3021.companydefense.stage.StageParent;
+import io.github.chw3021.companydefense.tower.Projectile;
 import io.github.chw3021.companydefense.tower.Tower;
 
 
@@ -81,6 +85,27 @@ public abstract class SkillParent {
             @Override
             public void run() {
                 effectAnimation.remove();
+            }
+        }, duration);
+    }
+
+
+    // 🔹 스킬 투사체 발사
+    protected void shotProjectile(StageParent stage, Vector2 start, Enemy target, DamageComponent damage, float width, float height) {
+    	if(summoneeImagePath == null) {
+    		return;
+    	}
+
+        Texture projectileTexture = new Texture(Gdx.files.internal(summoneeImagePath));
+        Projectile projectile = new Projectile(projectileTexture, start, target, damage, width, height);
+
+        stage.addActor(projectile); // 스테이지에 애니메이션 추가
+
+        // 지속 시간 후 제거
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+            	projectile.remove();
             }
         }, duration);
     }

@@ -658,7 +658,6 @@ public abstract class StageParent extends Stage implements LoadingListener{
 		        }
 		    });
 		}
-	 
 	 private void loadAllData() {
 		    CountDownLatch latch = new CountDownLatch(1); // 1개의 작업이 완료될 때까지 대기
 		    loadTowerSkills(latch);
