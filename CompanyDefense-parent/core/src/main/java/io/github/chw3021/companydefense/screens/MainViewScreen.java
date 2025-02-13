@@ -186,7 +186,7 @@ public class MainViewScreen implements Screen, LoadingListener {
         btnSetting.setSize(screenWidth * 0.05f, screenWidth * 0.05f);
         btnSetting.setPosition(Gdx.graphics.getWidth() - screenWidth * 0.05f, Gdx.graphics.getHeight() - screenHeight * 0.05f);
 
-        topTable.add(btnMenu).size(screenWidth * 0.05f, screenWidth * 0.05f).expandX().right().pad(screenWidth * 0.005f).row();
+        topTable.add(btnMenu).size(screenWidth * 0.05f, screenWidth * 0.05f).expandX().right().pad(screenWidth * 0.005f);
         
         topTable.add(btnSetting).size(screenWidth * 0.05f, screenWidth * 0.05f).right().pad(screenWidth * 0.005f).row();
         

@@ -46,17 +46,25 @@ public abstract class SkillParent {
             this.projectileTexture = new Texture(Gdx.files.internal(summoneeImagePath));
         });
     }
+    private float elapsedTime = 0; // 🔹 경과 시간 추가
 
-    public boolean canUse(float currentTime) {
-        return (currentTime - lastUsedTime) >= cooldown;
+    public boolean canUse() { // 🔹 currentTime 파라미터 제거
+        return elapsedTime >= cooldown; // 누적된 시간이 쿨타임을 초과했는지 확인
     }
 
     public void use(Tower tower, Array<Enemy> enemies) {
-        if (!canUse(System.currentTimeMillis() / 1000.0f)) return;
+        if (!canUse()) return; // 🔹 currentTime 체크 방식 변경
+        System.out.println(skillId);
         
-        lastUsedTime = System.currentTimeMillis() / 1000.0f;
+        elapsedTime = 0; // 🔹 스킬 사용 후 경과 시간 초기화
         applyEffect(tower, enemies);
     }
+
+    // 🔹 update 메서드 추가 (쿨타임을 경과 시간으로 체크)
+    public void update(float delta) {
+        elapsedTime += delta; // 🔹 매 프레임 경과 시간 누적
+    }
+
 
     // 🔹 스킬 이펙트 애니메이션 표시
     protected void showSkillEffect(StageParent stage, float x, float y, float width, float height) {

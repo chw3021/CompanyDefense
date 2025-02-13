@@ -99,6 +99,19 @@ public class Enemy extends Entity {
         currentPathIndex = 0; // 경로를 다시 시작
     }
 
+    private boolean isStunned = false; // 기절 상태 여부
+    private float stunEndTime = 0; // 기절이 끝나는 시간
+
+    public void stun(float duration) {
+        isStunned = true;
+        stunEndTime = TimeUtils.nanoTime() + (long) (duration * 1_000_000_000L);
+    }
+
+    private boolean isStunOver() {
+        return TimeUtils.nanoTime() >= stunEndTime;
+    }
+
+    
     // 적이 경로를 따라 이동하는 메서드
     public void moveAlongPath() {
     	
@@ -200,19 +213,6 @@ public class Enemy extends Entity {
             }
         }, duration);
     }
-    private boolean isStunned = false; // 기절 상태 여부
-    private float stunEndTime = 0; // 기절이 끝나는 시간
-
-    public void stun(float duration) {
-        isStunned = true;
-        stunEndTime = TimeUtils.nanoTime() + (long) (duration * 1_000_000_000L);
-    }
-
-    private boolean isStunOver() {
-        return TimeUtils.nanoTime() >= stunEndTime;
-    }
-
-    
     
     
     public void setWave(Wave wave) {

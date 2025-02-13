@@ -410,8 +410,11 @@ public class Tower extends Actor {
             this.target = target;
             if (target != null) {
                 attack(target); // 공격
-                skill.use(this, enemies);
             }
+        }
+        if (target != null) {
+            skill.use(this, enemies);
+            skill.update(delta);
         }
     }
     

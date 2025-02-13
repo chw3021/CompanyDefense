@@ -22,7 +22,7 @@ public class CoffeeInfusionSkill extends SkillParent {
     	stage.towers.forEach(targetTower -> {
             if (tower.getPosition().dst(targetTower.getPosition()) <= range) {
             	targetTower.increaseAttackSpeed(mult, duration);
-                showSkillEffect(stage, targetTower.getX(), targetTower.getY()+targetTower.getHeight()*0.2f, targetTower.getWidth()*0.2f, targetTower.getHeight()*0.2f);
+                showSkillEffect(stage, targetTower.getX(), targetTower.getY()+targetTower.getHeight()*0.6f, targetTower.getWidth()*0.5f, targetTower.getHeight()*0.5f);
             }
     	});
     }

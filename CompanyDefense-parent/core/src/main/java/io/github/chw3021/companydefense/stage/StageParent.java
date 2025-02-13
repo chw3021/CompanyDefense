@@ -1,8 +1,12 @@
 package io.github.chw3021.companydefense.stage;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
@@ -179,7 +183,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
 
         activeEnemies = new Array<>();
         waveManager = new WaveManager(this, game);
-        availableTowers = new Array<>();
+        availableTowers = new Array<Tower>();
 	    skillMap = new HashMap<>();
         
     }
@@ -626,55 +630,92 @@ public abstract class StageParent extends Stage implements LoadingListener{
 	         deselectTower();
 	     }
 	 }
-	 
+	 private void loadTowerSkills() {
+		    CompletableFuture<List<SkillDto>> skillFuture = new CompletableFuture<>();
+		    CompletableFuture<UserDto> userFuture = new CompletableFuture<>();
+		    CompletableFuture<List<TowerDto>> towerFuture = new CompletableFuture<>();
 
-		private void loadTowerSkills() {
+		    // 1. 병렬로 Firebase 데이터 요청
 		    FirebaseTowerService.loadAllSkills(new FirebaseCallback<List<SkillDto>>() {
 		        @Override
 		        public void onSuccess(List<SkillDto> allSkills) {
-		            skillMap.clear();
-		            for (SkillDto skillDto : allSkills) {
-		                skillMap.put("tower_"+skillDto.getSkillId(), skillDto);
-		            }
-
-	       		    FirebaseTowerService.loadUserData(new FirebaseCallback<UserDto>() {
-	       		        @Override
-	       		        public void onSuccess(UserDto user) {
-	       		            if (user.getUserTowers() != null) {
-	       		                FirebaseTowerService.loadAllTowers(new FirebaseCallback<List<TowerDto>>() {
-	       		                    @Override
-	       		                    public void onSuccess(List<TowerDto> allTowers) {
-	       		                        availableTowers.clear();
-	       		                        for (TowerOwnershipDto ownership : user.getUserTowers().values()) {
-	       		                            for (TowerDto towerDto : allTowers) {
-	       		                                if (ownership.getTowerId().equals(towerDto.getTowerId())) {
-	       		                                    SkillDto skillDto = skillMap.get(towerDto.getTowerId());
-	       		                                    Tower tower = new Tower(towerDto, ownership.getTowerLevel(), gridSize, stage, skillDto);
-	       		                                    availableTowers.add(tower);
-	       		                                    break;
-	       		                                }
-	       		                            }
-	       		                        }
-	       		                    }
-
-	       		                    @Override
-	       		                    public void onFailure(Exception e) {
-	       		                        Gdx.app.error("StageParent", "타워 데이터를 불러오는 중 오류 발생", e);
-	       		                    }
-	       		                });
-	       		            }
-	       		        }
-
-	       		        @Override
-	       		        public void onFailure(Exception e) {
-	       		            Gdx.app.error("StageParent", "사용자 데이터를 불러오는 중 오류 발생", e);
-	       		        }
-	       		    });
-	       		}
+		            skillFuture.complete(allSkills);
+		        }
 
 		        @Override
 		        public void onFailure(Exception e) {
-		            Gdx.app.error("StageParent", "스킬 데이터를 불러오는 중 오류 발생", e);
+		            skillFuture.completeExceptionally(e);
+		        }
+		    });
+
+		    FirebaseTowerService.loadUserData(new FirebaseCallback<UserDto>() {
+		        @Override
+		        public void onSuccess(UserDto user) {
+		            userFuture.complete(user);
+		        }
+
+		        @Override
+		        public void onFailure(Exception e) {
+		            userFuture.completeExceptionally(e);
+		        }
+		    });
+
+		    FirebaseTowerService.loadAllTowers(new FirebaseCallback<List<TowerDto>>() {
+		        @Override
+		        public void onSuccess(List<TowerDto> allTowers) {
+		            towerFuture.complete(allTowers);
+		        }
+
+		        @Override
+		        public void onFailure(Exception e) {
+		            towerFuture.completeExceptionally(e);
+		        }
+		    });
+
+		    // 2. 모든 데이터 요청이 완료된 후 실행
+		    CompletableFuture.allOf(skillFuture, userFuture, towerFuture).thenAccept(v -> {
+		        try {
+		            List<SkillDto> allSkills = skillFuture.get();
+		            UserDto user = userFuture.get();
+		            List<TowerDto> allTowers = towerFuture.get();
+
+		            // 3. 데이터를 Map으로 변환 (빠른 조회 가능)
+		            Map<String, SkillDto> skillMap = allSkills.stream()
+		                    .collect(Collectors.toMap(SkillDto::getSkillId, skill -> skill));
+
+		            Map<String, TowerDto> towerMap = allTowers.stream()
+		                    .collect(Collectors.toMap(TowerDto::getTowerId, tower -> tower));
+
+		            // LibGDX의 Array<Tower>로 변환할 준비
+		            Array<Tower> newTowers = new Array<>();
+	                System.out.println(allSkills);
+	                System.out.println(skillMap);
+
+		            List<TowerOwnershipDto> towerList = new ArrayList<>(user.getUserTowers().values());
+
+		            for (TowerOwnershipDto ownership : towerList) {
+		                try {
+		                    TowerDto towerDto = towerMap.get(ownership.getTowerId());
+		                    System.out.println("skill existense: " + skillMap.containsKey(towerDto.getTowerId()));
+
+		                    if (towerDto != null) {
+		                        SkillDto skillDto = skillMap.get(towerDto.getTowerId());
+		                        Tower tower = new Tower(towerDto, ownership.getTowerLevel(), gridSize, stage, skillDto);
+		                        newTowers.add(tower); // LibGDX의 Array<Tower>에 추가
+		                    }
+		                } catch (Exception e) {
+		                    e.printStackTrace();
+		                }
+		            }
+
+		            // 4. LibGDX 스레드에서 실행 (UI 갱신)
+		            Gdx.app.postRunnable(() -> {
+		                availableTowers.clear();
+		                availableTowers.addAll(newTowers); // Array<Tower>에 한 번에 추가
+		            });
+
+		        } catch (InterruptedException | ExecutionException e) {
+		            Gdx.app.error("StageParent", "데이터 로딩 중 오류 발생", e);
 		        }
 		    });
 		}

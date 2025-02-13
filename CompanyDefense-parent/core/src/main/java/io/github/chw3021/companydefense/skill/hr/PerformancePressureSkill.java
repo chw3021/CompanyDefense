@@ -24,7 +24,7 @@ public class PerformancePressureSkill extends SkillParent {
             targetTower.increaseAttackSpeed(mult, duration);
             targetTower.reduceSkillCooldown(mult, duration);
             
-            showSkillEffect(stage, targetTower.getPosition(), targetTower.getWidth()*0.2f, targetTower.getHeight()*0.2f);
+            showSkillEffect(stage, targetTower.getX()+targetTower.getWidth()*0.25f, targetTower.getY()+targetTower.getWidth()*0.5f, targetTower.getWidth()*0.5f, targetTower.getHeight()*0.5f);
         }
     }
     

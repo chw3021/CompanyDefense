@@ -82,7 +82,7 @@ public class Main extends Game implements InputProcessor {
         new SpriteBatch();
         Gdx.input.setCatchKey(Input.Keys.BACK, true);
         camera = new OrthographicCamera();
-        camera.setToOrtho(false, 480, 800);
+        camera.setToOrtho(false, 900, 1600);
         camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0);
 
         new GameEngine();
@@ -97,12 +97,6 @@ public class Main extends Game implements InputProcessor {
             Main game = getInstance();
             if (getScreen() instanceof LoginScreen || getScreen() instanceof MainViewScreen) {
                 Gdx.app.exit();
-            }
-            if (getScreen() instanceof MenuScreen) {
-                setScreen(new MainViewScreen(game));
-            }
-            if (getScreen() instanceof StageSelectionScreen) {
-                setScreen(new MenuScreen(game));
             }
             return true;
         }
