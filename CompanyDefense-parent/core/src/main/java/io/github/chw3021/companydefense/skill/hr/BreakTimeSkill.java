@@ -22,6 +22,5 @@ public class BreakTimeSkill extends SkillParent {
                 enemy.stun(duration);
             }
         }
-        showSkillEffect(stage, tower.getPosition(), tower.getWidth(), tower.getWidth());
     }
 }
