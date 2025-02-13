@@ -36,7 +36,7 @@ public class Stage1 extends StageParent {
 	private Wave createSecondWave() {
 	    Wave wave = new Wave(2.0f);
         for(int i = 0; i<1; i++) {
-        	Enemy printer = generateEnemy(1000, 2, 2, 10, "boss", "enemy/printer.png");
+        	Enemy printer = generateEnemy(100000, 2, 2, 1, "boss", "enemy/printer.png");
         	wave.addEnemy(printer);
         	printer.setWave(wave);
         }

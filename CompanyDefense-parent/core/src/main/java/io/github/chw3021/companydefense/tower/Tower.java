@@ -103,6 +103,7 @@ public class Tower extends Actor {
         this.basePhysicalAttack = other.basePhysicalAttack;
         this.baseMagicAttack = other.baseMagicAttack;
         this.attackSpeed = other.attackSpeed;
+        this.baseAttackSpeed = other.baseAttackSpeed;
         this.attackRange = other.attackRange;
         this.gridSize = other.gridSize;
         this.attackCooldown = other.attackCooldown;
@@ -116,6 +117,7 @@ public class Tower extends Actor {
         this.attackImagePath =other.attackImagePath;
         this.towerPortraitPath = other.towerPortraitPath;
         this.attackAnimation = other.attackAnimation;
+        this.skill = other.skill;
         setPosition(other.getX(), other.getY());
         // 필요한 필드를 추가적으로 복사
 
@@ -236,7 +238,7 @@ public class Tower extends Actor {
         for (Actor actor : getStage().getActors()) {
             if (actor instanceof Tower) {
                 Tower tower = (Tower) actor;
-                if (tower.getBoundingRectangle().contains(x, y)) {
+                if (tower.getBoundingRectangle().contains(x-getWidth()/2, y-getHeight()/2)) {
                     return tower;
                 }
             }
@@ -245,7 +247,7 @@ public class Tower extends Actor {
     }
     
     public Rectangle getBoundingRectangle() {
-        return new Rectangle(getX(), getY(), getWidth(), getHeight());
+        return new Rectangle(getX()-getWidth()/2, getY()-getHeight()/2, getWidth(), getHeight());
     }
     
     // 범위 내 타겟을 찾는 메서드
@@ -285,14 +287,27 @@ public class Tower extends Actor {
 
     public boolean upgrade(Array<Tower> availableTowers) {
         if (Math.random() < 0.3) { // 30% 확률 성공
-            for (Tower newTower : availableTowers) {
-                if (newTower.towerGrade == this.towerGrade + 1) {
-                    this.physicalAttack = newTower.physicalAttack;
-                    this.magicAttack = newTower.magicAttack;
-                    this.attackSpeed = newTower.attackSpeed;
-                    this.attackRange = newTower.attackRange;
-                    this.towerGrade = newTower.towerGrade;
-                    this.texture = newTower.texture; // 새로운 타워 텍스처 적용
+            for (Tower other : availableTowers) {
+                if (other.towerGrade == this.towerGrade + 1) {
+                    this.physicalAttack = other.physicalAttack;
+                    this.magicAttack = other.magicAttack;
+                    this.basePhysicalAttack = other.basePhysicalAttack;
+                    this.baseMagicAttack = other.baseMagicAttack;
+                    this.attackSpeed = other.attackSpeed;
+                    this.attackRange = other.attackRange;
+                    this.gridSize = other.gridSize;
+                    this.attackCooldown = other.attackCooldown;
+                    this.damageComponent = other.damageComponent;
+                    this.name = other.name;
+                    this.texture = other.texture;
+                    this.towerGrade = other.towerGrade;
+                    this.stage = other.stage;
+                    this.team = other.team;
+                    this.imagePath = other.imagePath;
+                    this.attackImagePath =other.attackImagePath;
+                    this.towerPortraitPath = other.towerPortraitPath;
+                    this.attackAnimation = other.attackAnimation;
+                    this.skill = other.skill;
                     return true;
                 }
             }
@@ -385,8 +400,8 @@ public class Tower extends Actor {
             this.target = target;
             if (target != null) {
                 attack(target); // 공격
+                skill.use(this, enemies);
             }
-            skill.use(this, enemies);
         }
     }
     
@@ -421,12 +436,12 @@ public class Tower extends Actor {
         }
         if (isDragging) {
         	if(isMergable) {
-                batch.draw(guideTexture2, dragStartPos.x,
-                		dragStartPos.y);
+                batch.draw(guideTexture2, dragStartPos.x-getWidth()/2,
+                		dragStartPos.y-getHeight()/2);
         	}
         	else {
-                batch.draw(guideTexture, dragStartPos.x,
-                		dragStartPos.y);
+                batch.draw(guideTexture, dragStartPos.x-getWidth()/2,
+                		dragStartPos.y-getHeight()/2);
         	}
         }
     }

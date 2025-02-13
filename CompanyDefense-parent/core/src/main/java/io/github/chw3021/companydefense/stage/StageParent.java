@@ -180,6 +180,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         activeEnemies = new Array<>();
         waveManager = new WaveManager(this, game);
         availableTowers = new Array<>();
+	    skillMap = new HashMap<>();
         
     }
     
@@ -215,7 +216,8 @@ public abstract class StageParent extends Stage implements LoadingListener{
             
         }
         // 타워 공격 로직 추가
-        for (Tower tower : towers) {
+        for (int i = 0; i < towers.size; i++) {
+        	Tower tower = towers.get(i);
             tower.update(delta, activeEnemies); // 타워가 범위 내 적을 공격
         }
         lifeLabel.setText(life);
@@ -529,7 +531,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
                                  0, 0, originalPixmap.getWidth(), originalPixmap.getHeight(),
                                  0, 0, resizedPixmap.getWidth(), resizedPixmap.getHeight());
         focusTexture2 =  new Texture(resizedPixmap);
-        loadAllData();
+        loadTowerSkills();
     }
     
     public void upgradeTower(Tower tower) {
@@ -623,80 +625,58 @@ public abstract class StageParent extends Stage implements LoadingListener{
 	     }
 	 }
 	 
-	 private void loadUserTowers() {
-		    FirebaseTowerService.loadUserData(new FirebaseCallback<UserDto>() {
-		        @Override
-		        public void onSuccess(UserDto user) {
-		            if (user.getUserTowers() != null) {
-		                FirebaseTowerService.loadAllTowers(new FirebaseCallback<List<TowerDto>>() {
-		                    @Override
-		                    public void onSuccess(List<TowerDto> allTowers) {
-		                        availableTowers.clear();
-		                        for (TowerOwnershipDto ownership : user.getUserTowers().values()) {
-		                            for (TowerDto towerDto : allTowers) {
-		                                if (ownership.getTowerId().equals(towerDto.getTowerId())) {
-		                                    SkillDto skillDto = skillMap.get(towerDto.getTowerId());
-		                                    Tower tower = new Tower(towerDto, ownership.getTowerLevel(), gridSize, stage, skillDto);
-		                                    availableTowers.add(tower);
-		                                    break;
-		                                }
-		                            }
-		                        }
-		                    }
 
-		                    @Override
-		                    public void onFailure(Exception e) {
-		                        Gdx.app.error("StageParent", "타워 데이터를 불러오는 중 오류 발생", e);
-		                    }
-		                });
-		            }
-		        }
-
-		        @Override
-		        public void onFailure(Exception e) {
-		            Gdx.app.error("StageParent", "사용자 데이터를 불러오는 중 오류 발생", e);
-		        }
-		    });
-		}
-	 private void loadAllData() {
-		    CountDownLatch latch = new CountDownLatch(1); // 1개의 작업이 완료될 때까지 대기
-		    loadTowerSkills(latch);
-
-		    new Thread(() -> {
-		        try {
-		            latch.await(); // 스킬 데이터가 모두 로드될 때까지 대기
-
-		            // 🔹 skillMap이 완전히 채워질 때까지 대기
-		            while (skillMap == null || skillMap.isEmpty()) {
-		                Thread.sleep(10); // 10ms 단위로 대기하면서 확인
-		            }
-
-		            Gdx.app.postRunnable(() -> loadUserTowers()); // 스킬 로드 완료 후 타워 데이터 로드
-		        } catch (InterruptedException e) {
-		            Gdx.app.error("StageParent", "데이터 로딩 중 인터럽트 발생", e);
-		        }
-		    }).start();
-		}
-
-		private void loadTowerSkills(CountDownLatch latch) {
-		    skillMap = new HashMap<>();
+		private void loadTowerSkills() {
 		    FirebaseTowerService.loadAllSkills(new FirebaseCallback<List<SkillDto>>() {
 		        @Override
 		        public void onSuccess(List<SkillDto> allSkills) {
 		            skillMap.clear();
 		            for (SkillDto skillDto : allSkills) {
-		                skillMap.put(skillDto.getSkillId(), skillDto);
+		                skillMap.put("tower_"+skillDto.getSkillId(), skillDto);
 		            }
-		            latch.countDown(); // 스킬 데이터 로드 완료 후 카운트 다운
-		        }
+
+	       		    FirebaseTowerService.loadUserData(new FirebaseCallback<UserDto>() {
+	       		        @Override
+	       		        public void onSuccess(UserDto user) {
+	       		            if (user.getUserTowers() != null) {
+	       		                FirebaseTowerService.loadAllTowers(new FirebaseCallback<List<TowerDto>>() {
+	       		                    @Override
+	       		                    public void onSuccess(List<TowerDto> allTowers) {
+	       		                        availableTowers.clear();
+	       		                        for (TowerOwnershipDto ownership : user.getUserTowers().values()) {
+	       		                            for (TowerDto towerDto : allTowers) {
+	       		                                if (ownership.getTowerId().equals(towerDto.getTowerId())) {
+	       		                                    SkillDto skillDto = skillMap.get(towerDto.getTowerId());
+	       		                                    Tower tower = new Tower(towerDto, ownership.getTowerLevel(), gridSize, stage, skillDto);
+	       		                                    availableTowers.add(tower);
+	       		                                    break;
+	       		                                }
+	       		                            }
+	       		                        }
+	       		                    }
+
+	       		                    @Override
+	       		                    public void onFailure(Exception e) {
+	       		                        Gdx.app.error("StageParent", "타워 데이터를 불러오는 중 오류 발생", e);
+	       		                    }
+	       		                });
+	       		            }
+	       		        }
+
+	       		        @Override
+	       		        public void onFailure(Exception e) {
+	       		            Gdx.app.error("StageParent", "사용자 데이터를 불러오는 중 오류 발생", e);
+	       		        }
+	       		    });
+	       		}
 
 		        @Override
 		        public void onFailure(Exception e) {
 		            Gdx.app.error("StageParent", "스킬 데이터를 불러오는 중 오류 발생", e);
-		            latch.countDown(); // 오류 발생해도 카운트 다운하여 무한 대기 방지
 		        }
 		    });
 		}
+
 
 	 public void render(SpriteBatch batch, ShapeRenderer shapeRenderer) {
         batch.begin();
