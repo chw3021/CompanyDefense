@@ -16,7 +16,7 @@ public class CodeInterpretationSkill extends SkillParent {
     @Override
     protected void applyEffect(Tower tower, Array<Enemy> enemies) {
         for (Enemy enemy : enemies) {
-            enemy.addDamage(new DamageComponent(tower.getMagicAttack() * mult));
+            enemy.addDamage(new DamageComponent(0.0f,(tower.getMagicAttack() * mult)));
         }
     }
 }

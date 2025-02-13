@@ -17,7 +17,7 @@ public class CodeExecutionSkill extends SkillParent {
     protected void applyEffect(Tower tower, Array<Enemy> enemies) {
         for (Enemy enemy : enemies) {
             if (enemy.getPosition().dst(tower.getPosition()) <= range) {
-                enemy.addDamage(new DamageComponent(tower.getMagicAttack() * mult));
+                enemy.addDamage(new DamageComponent(0.0f,(tower.getMagicAttack() * mult)));
             }
         }
     }
