@@ -16,6 +16,7 @@ public class DebuggingSkill extends SkillParent {
         this.stage = stage;
     }
 
+    //단일타겟스킬
     @Override
     protected void applyEffect(Tower tower, Array<Enemy> enemies) {
     	Enemy target = tower.target;

@@ -6,11 +6,14 @@ import io.github.chw3021.companydefense.component.DamageComponent;
 import io.github.chw3021.companydefense.dto.SkillDto;
 import io.github.chw3021.companydefense.enemy.Enemy;
 import io.github.chw3021.companydefense.skill.SkillParent;
+import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.tower.Tower;
 
 public class CodeExecutionSkill extends SkillParent {
-    public CodeExecutionSkill(SkillDto dto) {
+	private StageParent stage;
+    public CodeExecutionSkill(SkillDto dto, StageParent stage) {
         super(dto);
+        this.stage = stage;
     }
 
     @Override
