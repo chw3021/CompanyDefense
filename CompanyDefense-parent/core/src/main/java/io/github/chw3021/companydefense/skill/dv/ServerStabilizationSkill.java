@@ -22,7 +22,7 @@ public class ServerStabilizationSkill extends SkillParent {
                     Timer.schedule(new Timer.Task() {
                         @Override
                         public void run() {
-                            enemy.addDamage(new DamageComponent(tower.getMagicAttack() * mult));
+                            enemy.addDamage(new DamageComponent(0.0f,(tower.getMagicAttack() * mult)));
                         }
                     }, i * 0.1f);
                 }

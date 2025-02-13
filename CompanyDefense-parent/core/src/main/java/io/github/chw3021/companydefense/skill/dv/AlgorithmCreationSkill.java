@@ -22,7 +22,7 @@ public class AlgorithmCreationSkill extends SkillParent {
                 Timer.schedule(new Timer.Task() {
                     @Override
                     public void run() {
-                        target.addDamage(new DamageComponent(tower.getMagicAttack() * 11.0f));
+                        target.addDamage(new DamageComponent(0.0f,(tower.getMagicAttack() * mult)));
                     }
                 }, i);
             }
