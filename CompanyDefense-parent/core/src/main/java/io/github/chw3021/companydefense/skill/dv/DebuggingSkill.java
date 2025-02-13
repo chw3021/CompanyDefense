@@ -26,6 +26,3 @@ public class DebuggingSkill extends SkillParent {
         }
     }
 }
-
-//new DamageComponent(tower.getMagicAttack() * mult)
-//tower.getMagicAttack() * mult
