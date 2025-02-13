@@ -27,6 +27,8 @@ public abstract class SkillParent {
     protected String summoneeImagePath; //소환물 이미지 경로
     protected String skillDescription; //스킬설명
     protected float baseCooldown;
+    private PngAnimation effectAnimation;
+    private Texture projectileTexture;
 
     public SkillParent(SkillDto dto) {
         this.skillId = dto.getSkillId();
@@ -39,6 +41,10 @@ public abstract class SkillParent {
         this.summoneeImagePath = dto.getSummoneeImagePath();
         this.baseCooldown = cooldown;
         this.skillDescription = dto.getSkillDescription();
+        Gdx.app.postRunnable(() ->{
+            this.effectAnimation = new PngAnimation(0.1f, summoneeImagePath, 640, 640, true);
+            this.projectileTexture = new Texture(Gdx.files.internal(summoneeImagePath));
+        });
     }
 
     public boolean canUse(float currentTime) {
@@ -54,7 +60,9 @@ public abstract class SkillParent {
 
     // 🔹 스킬 이펙트 애니메이션 표시
     protected void showSkillEffect(StageParent stage, float x, float y, float width, float height) {
-        PngAnimation effectAnimation = new PngAnimation(0.02f, summoneeImagePath, 64, 64, true);
+    	if(effectAnimation == null) {
+    		return;
+    	}
         effectAnimation.setSize(width, height);
         effectAnimation.setPosition(x, y);
 
@@ -66,15 +74,14 @@ public abstract class SkillParent {
             public void run() {
                 effectAnimation.remove();
             }
-        }, duration);
+        }, 1);
     }
 
     // 🔹 스킬 이펙트 애니메이션 표시
     protected void showSkillEffect(StageParent stage, Vector2 v, float width, float height) {
-    	if(summoneeImagePath == null) {
+    	if(effectAnimation == null) {
     		return;
     	}
-        PngAnimation effectAnimation = new PngAnimation(0.1f, summoneeImagePath, 64, 64, true);
         effectAnimation.setSize(width, height);
         effectAnimation.setPosition(v.x, v.y);
 
@@ -86,7 +93,7 @@ public abstract class SkillParent {
             public void run() {
                 effectAnimation.remove();
             }
-        }, duration);
+        }, 1);
     }
 
 
@@ -96,7 +103,6 @@ public abstract class SkillParent {
     		return;
     	}
 
-        Texture projectileTexture = new Texture(Gdx.files.internal(summoneeImagePath));
         Projectile projectile = new Projectile(projectileTexture, start, target, damage, width, height);
 
         stage.addActor(projectile); // 스테이지에 애니메이션 추가
