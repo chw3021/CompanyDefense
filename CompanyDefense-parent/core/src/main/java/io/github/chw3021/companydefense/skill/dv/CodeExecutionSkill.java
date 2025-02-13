@@ -10,17 +10,20 @@ import io.github.chw3021.companydefense.stage.StageParent;
 import io.github.chw3021.companydefense.tower.Tower;
 
 public class CodeExecutionSkill extends SkillParent {
-	private StageParent stage;
+    private StageParent stage;
+
     public CodeExecutionSkill(SkillDto dto, StageParent stage) {
         super(dto);
         this.stage = stage;
     }
 
+    //범위스킬
     @Override
     protected void applyEffect(Tower tower, Array<Enemy> enemies) {
         for (Enemy enemy : enemies) {
-            if (enemy.getPosition().dst(tower.getPosition()) <= range) {
-                enemy.addDamage(new DamageComponent(0.0f,(tower.getMagicAttack() * mult)));
+            if (enemy.getPosition().dst(tower.getPosition()) <= range   ) {
+                DamageComponent damage = new DamageComponent(0.0f, tower.getMagicAttack() * mult);
+                shotProjectile(stage, tower.getPosition(), enemy, damage, tower.getWidth(), tower.getWidth());
             }
         }
     }
