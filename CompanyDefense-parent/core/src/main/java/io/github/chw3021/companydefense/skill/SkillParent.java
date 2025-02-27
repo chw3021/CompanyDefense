@@ -85,6 +85,8 @@ public abstract class SkillParent {
         }, duration);
     }
 
+
+    
     // 🔹 스킬 이펙트 애니메이션 표시
     protected void showSkillEffect(StageParent stage, Vector2 v, float width, float height) {
     	if(effectAnimation == null) {

@@ -27,4 +27,6 @@ public interface FirebaseService {
     
     void updateData(Map<String, Object> updates, FirebaseCallback<Void> callback);
 
+	void signInAnonymously(FirebaseCallback<String> callback);
+
 }

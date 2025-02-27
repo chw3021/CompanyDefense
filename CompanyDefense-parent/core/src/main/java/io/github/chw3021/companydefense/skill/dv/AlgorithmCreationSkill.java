@@ -29,6 +29,7 @@ public class AlgorithmCreationSkill extends SkillParent {
                     }
                 }, i);
             }
+            showSkillEffect(stage, tower.getX()+tower.getWidth()*0.25f, tower.getY()+tower.getHeight()*0.75f, tower.getWidth()*0.65f, tower.getHeight()*0.65f);
         }
     }
 }

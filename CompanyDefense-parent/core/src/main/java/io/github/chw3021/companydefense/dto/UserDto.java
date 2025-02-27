@@ -13,6 +13,7 @@ public class UserDto {
 	private int userHighScore = 0;
 	private int gold = 1000;
 	private int time = 5;
+	private String idToken;
 
     // 로그인 서비스 관련 필드
     private String loginProvider; // 예: "google", "ios", "guest", "kakao"
@@ -83,6 +84,12 @@ public class UserDto {
 	}
 	public void setTime(int time) {
 		this.time = time;
+	}
+	public String getIdToken() {
+		return idToken;
+	}
+	public void setIdToken(String idToken) {
+		this.idToken = idToken;
 	}
     
     

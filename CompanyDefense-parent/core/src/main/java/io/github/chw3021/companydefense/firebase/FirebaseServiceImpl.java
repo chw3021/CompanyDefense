@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.badlogic.gdx.Gdx;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import okhttp3.*;
 
@@ -45,14 +47,16 @@ public class FirebaseServiceImpl implements FirebaseService {
     }
 
 	
-	
+
+    private String idToken; // idToken 저장
+    
 	
     @Override
     public <T> void fetchData(String path, Class<T> type, FirebaseCallback<T> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + path + ".json";
-        Request request = new Request.Builder().url(url).build();
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken; // 🔹 idToken 추가
 
+        Request request = new Request.Builder().url(url).build();
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
@@ -73,9 +77,11 @@ public class FirebaseServiceImpl implements FirebaseService {
             }
         });
     }
+
+    
     public <T> void fetchData(String path, Type type, FirebaseCallback<T> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + path + ".json";
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken; // 🔹 idToken 추가
         Request request = new Request.Builder().url(url).build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -98,11 +104,11 @@ public class FirebaseServiceImpl implements FirebaseService {
             }
         });
     }
-
+    
     @Override
-	public <T> void saveData(String path, T data, FirebaseCallback<Void> callback) {
+    public <T> void saveData(String path, T data, FirebaseCallback<Void> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + path + ".json";
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken; // 🔹 idToken 추가
         String jsonData = new Gson().toJson(data);
 
         RequestBody body = RequestBody.create(jsonData, MediaType.get("application/json"));
@@ -126,7 +132,8 @@ public class FirebaseServiceImpl implements FirebaseService {
             }
         });
     }
-    
+
+
     @Override
     public void login(String email, String password, FirebaseCallback<Void> callback) {
         notifyLoadingStart();
@@ -142,7 +149,8 @@ public class FirebaseServiceImpl implements FirebaseService {
                 if (response.isSuccessful()) {
                     String responseBody = response.body().string();
                     LoginResponse loginResponse = new Gson().fromJson(responseBody, LoginResponse.class);
-                    currentUserId = loginResponse.getLocalId(); // 로그인 성공 시 사용자 ID 저장
+                    currentUserId = loginResponse.getLocalId(); // 사용자 ID 저장
+                    idToken = loginResponse.getIdToken(); // 🔹 idToken 저장 추가
                     callback.onSuccess(null);
                 } else {
                     callback.onFailure(new Exception("Login failed: " + response.message()));
@@ -160,7 +168,8 @@ public class FirebaseServiceImpl implements FirebaseService {
 
     @Override
     public void logout() {
-        currentUserId = null; // 현재 사용자 ID를 초기화
+        currentUserId = null;
+        idToken = null; // 🔹 idToken 초기화
     }
 
     @Override
@@ -238,6 +247,40 @@ public class FirebaseServiceImpl implements FirebaseService {
             }
         });
     }
+    @Override
+    public void signInAnonymously(FirebaseCallback<String> callback) {
+        notifyLoadingStart();
+        String url = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + API_KEY;
+
+        String json = "{ \"returnSecureToken\": true }";
+        RequestBody body = RequestBody.create(json, MediaType.get("application/json; charset=utf-8"));
+
+        Request request = new Request.Builder().url(url).post(body).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    String responseBody = response.body().string();
+                    JsonObject jsonObject = JsonParser.parseString(responseBody).getAsJsonObject();
+                    String idToken = jsonObject.get("idToken").getAsString();
+                    callback.onSuccess(idToken);
+                } else {
+                    callback.onFailure(new Exception("Anonymous sign-in failed: " + response.message()));
+                }
+                notifyLoadingEnd();
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                callback.onFailure(e);
+                notifyLoadingEnd();
+            }
+        });
+    }
+    
+	public void setIdToken(String idToken) {
+		this.idToken = idToken;
+	}
 
 
 
