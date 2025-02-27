@@ -679,6 +679,11 @@ public abstract class StageParent extends Stage implements LoadingListener{
 		            UserDto user = userFuture.get();
 		            List<TowerDto> allTowers = towerFuture.get();
 
+
+		            // LibGDX의 Array<Tower>로 변환할 준비
+		            Array<Tower> newTowers = new Array<>();
+	                System.out.println(allSkills);
+	                System.out.println(skillMap);
 		            // 3. 데이터를 Map으로 변환 (빠른 조회 가능)
 		            Map<String, SkillDto> skillMap = allSkills.stream()
 		                    .collect(Collectors.toMap(SkillDto::getSkillId, skill -> skill));
@@ -686,20 +691,14 @@ public abstract class StageParent extends Stage implements LoadingListener{
 		            Map<String, TowerDto> towerMap = allTowers.stream()
 		                    .collect(Collectors.toMap(TowerDto::getTowerId, tower -> tower));
 
-		            // LibGDX의 Array<Tower>로 변환할 준비
-		            Array<Tower> newTowers = new Array<>();
-	                System.out.println(allSkills);
-	                System.out.println(skillMap);
-
 		            List<TowerOwnershipDto> towerList = new ArrayList<>(user.getUserTowers().values());
 
 		            for (TowerOwnershipDto ownership : towerList) {
 		                try {
 		                    TowerDto towerDto = towerMap.get(ownership.getTowerId());
-		                    System.out.println("skill existense: " + skillMap.containsKey(towerDto.getTowerId()));
-
+		                    String skillId = towerDto.getTowerId().replace("tower_", "");
 		                    if (towerDto != null) {
-		                        SkillDto skillDto = skillMap.get(towerDto.getTowerId());
+		                        SkillDto skillDto = skillMap.get(skillId);
 		                        Tower tower = new Tower(towerDto, ownership.getTowerLevel(), gridSize, stage, skillDto);
 		                        newTowers.add(tower); // LibGDX의 Array<Tower>에 추가
 		                    }
