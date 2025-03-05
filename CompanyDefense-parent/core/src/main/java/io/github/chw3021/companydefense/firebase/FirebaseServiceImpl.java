@@ -8,12 +8,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.badlogic.gdx.Gdx;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import okhttp3.*;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class FirebaseServiceImpl implements FirebaseService {
     private static final String FIREBASE_DATABASE_URL = "https://company-defense-default-rtdb.firebaseio.com/";
@@ -21,7 +26,7 @@ public class FirebaseServiceImpl implements FirebaseService {
     private static final String API_KEY = "AIzaSyBR1kQXuUPKbRROAN8u-EHDOFcPna0ZM0E"; // Firebase Web API Key
 
     private final OkHttpClient client = new OkHttpClient();
-	protected String currentUserId;
+    protected String currentUserId;
 
     private List<LoadingListener> loadingListeners = new ArrayList<>();
     private AtomicInteger loadingCounter = new AtomicInteger(0); // 로딩 카운터
@@ -46,11 +51,11 @@ public class FirebaseServiceImpl implements FirebaseService {
         }
     }
 
-	
+    
 
     private String idToken; // idToken 저장
     
-	
+    
     @Override
     public <T> void fetchData(String path, Class<T> type, FirebaseCallback<T> callback) {
         notifyLoadingStart();
@@ -60,25 +65,33 @@ public class FirebaseServiceImpl implements FirebaseService {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    String responseBody = response.body().string();
-                    T result = new Gson().fromJson(responseBody, type);
-                    callback.onSuccess(result);
-                } else {
-                    callback.onFailure(new Exception("Request failed: " + response.message()));
+                try {
+                    if (response.isSuccessful()) {
+                        String responseBody = response.body().string();
+                        T result = new Gson().fromJson(responseBody, type);
+                        callback.onSuccess(result);
+                    } else {
+                        callback.onFailure(new Exception("Request failed: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
                 }
-                notifyLoadingEnd();
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
-                notifyLoadingEnd();
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
             }
         });
     }
 
     
+    @Override
     public <T> void fetchData(String path, Type type, FirebaseCallback<T> callback) {
         notifyLoadingStart();
         String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken; // 🔹 idToken 추가
@@ -87,20 +100,27 @@ public class FirebaseServiceImpl implements FirebaseService {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    String responseBody = response.body().string();
-                    T result = new Gson().fromJson(responseBody, type); // Type을 사용
-                    callback.onSuccess(result);
-                } else {
-                    callback.onFailure(new Exception("Request failed: " + response.message()));
+                try {
+                    if (response.isSuccessful()) {
+                        String responseBody = response.body().string();
+                        T result = new Gson().fromJson(responseBody, type); // Type을 사용
+                        callback.onSuccess(result);
+                    } else {
+                        callback.onFailure(new Exception("Request failed: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
                 }
-                notifyLoadingEnd();
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
-                notifyLoadingEnd();
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
             }
         });
     }
@@ -117,18 +137,25 @@ public class FirebaseServiceImpl implements FirebaseService {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) {
-                if (response.isSuccessful()) {
-                    callback.onSuccess(null);
-                } else {
-                    callback.onFailure(new Exception("Request failed: " + response.message()));
+                try {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(null);
+                    } else {
+                        callback.onFailure(new Exception("Request failed: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
                 }
-                notifyLoadingEnd();
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
-                notifyLoadingEnd();
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
             }
         });
     }
@@ -146,22 +173,29 @@ public class FirebaseServiceImpl implements FirebaseService {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    String responseBody = response.body().string();
-                    LoginResponse loginResponse = new Gson().fromJson(responseBody, LoginResponse.class);
-                    currentUserId = loginResponse.getLocalId(); // 사용자 ID 저장
-                    idToken = loginResponse.getIdToken(); // 🔹 idToken 저장 추가
-                    callback.onSuccess(null);
-                } else {
-                    callback.onFailure(new Exception("Login failed: " + response.message()));
+                try {
+                    if (response.isSuccessful()) {
+                        String responseBody = response.body().string();
+                        LoginResponse loginResponse = new Gson().fromJson(responseBody, LoginResponse.class);
+                        currentUserId = loginResponse.getLocalId(); // 사용자 ID 저장
+                        idToken = loginResponse.getIdToken(); // 🔹 idToken 저장 추가
+                        callback.onSuccess(null);
+                    } else {
+                        callback.onFailure(new Exception("Login failed: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
                 }
-                notifyLoadingEnd();
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
-                notifyLoadingEnd();
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
             }
         });
     }
@@ -185,21 +219,28 @@ public class FirebaseServiceImpl implements FirebaseService {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    String responseBody = response.body().string();
-                    LoginResponse loginResponse = new Gson().fromJson(responseBody, LoginResponse.class);
-                    currentUserId = loginResponse.getLocalId(); // 로그인 성공 시 사용자 ID 저장
-                    callback.onSuccess(null);
-                } else {
-                    callback.onFailure(new Exception("Login with provider failed: " + response.message()));
+                try {
+                    if (response.isSuccessful()) {
+                        String responseBody = response.body().string();
+                        LoginResponse loginResponse = new Gson().fromJson(responseBody, LoginResponse.class);
+                        currentUserId = loginResponse.getLocalId(); // 로그인 성공 시 사용자 ID 저장
+                        callback.onSuccess(null);
+                    } else {
+                        callback.onFailure(new Exception("Login with provider failed: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
                 }
-                notifyLoadingEnd();
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
-                notifyLoadingEnd();
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
             }
         });
     }
@@ -211,7 +252,7 @@ public class FirebaseServiceImpl implements FirebaseService {
     @Override
     public void updateData(Map<String, Object> updates, FirebaseCallback<Void> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + ".json"; // Firebase Root 경로
+        String url = FIREBASE_DATABASE_URL + ".json?auth=" + idToken; // Firebase Root 경로
 
         // 🔹 Null 값 제거 (Firebase에서 Null 값을 허용하지 않기 때문)
         updates.values().removeIf(Objects::isNull);
@@ -232,18 +273,25 @@ public class FirebaseServiceImpl implements FirebaseService {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) {
-                if (response.isSuccessful()) {
-                    callback.onSuccess(null);
-                } else {
-                    callback.onFailure(new Exception("업데이트 실패: " + response.message()));
+                try {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(null);
+                    } else {
+                        callback.onFailure(new Exception("업데이트 실패: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
                 }
-                notifyLoadingEnd();
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
-                notifyLoadingEnd();
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
             }
         });
     }
@@ -259,28 +307,35 @@ public class FirebaseServiceImpl implements FirebaseService {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    String responseBody = response.body().string();
-                    JsonObject jsonObject = JsonParser.parseString(responseBody).getAsJsonObject();
-                    String idToken = jsonObject.get("idToken").getAsString();
-                    callback.onSuccess(idToken);
-                } else {
-                    callback.onFailure(new Exception("Anonymous sign-in failed: " + response.message()));
+                try {
+                    if (response.isSuccessful()) {
+                        String responseBody = response.body().string();
+                        JsonObject jsonObject = JsonParser.parseString(responseBody).getAsJsonObject();
+                        String idToken = jsonObject.get("idToken").getAsString();
+                        callback.onSuccess(idToken);
+                    } else {
+                        callback.onFailure(new Exception("Anonymous sign-in failed: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
                 }
-                notifyLoadingEnd();
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
-                notifyLoadingEnd();
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
             }
         });
     }
     
-	public void setIdToken(String idToken) {
-		this.idToken = idToken;
-	}
+    public void setIdToken(String idToken) {
+        this.idToken = idToken;
+    }
 
 
 

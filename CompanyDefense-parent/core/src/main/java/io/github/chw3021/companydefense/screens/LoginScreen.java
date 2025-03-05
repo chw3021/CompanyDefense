@@ -143,12 +143,13 @@ public class LoginScreen implements Screen, LoadingListener {
         // Kakao 로그인 처리 로직 (테스트 중에는 빈 구현)
         Gdx.app.log("Login", "Kakao Login selected");
     }
-    
     private void loginAsGuest() {
         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
         String existingUserId = prefs.getString("userId", null);
+        String storedIdToken = prefs.getString("idToken", null); // 🔹 저장된 idToken 가져오기
 
-        if (existingUserId != null) {
+        if (existingUserId != null && storedIdToken != null) {
+            firebaseService.setIdToken(storedIdToken); // 🔹 idToken 설정
             firebaseService.fetchData("users/" + existingUserId, UserDto.class, new FirebaseCallback<UserDto>() {
                 @Override
                 public void onSuccess(UserDto user) {
@@ -160,24 +161,37 @@ public class LoginScreen implements Screen, LoadingListener {
 
                 @Override
                 public void onFailure(Exception e) {
-                    Gdx.app.error("Login", "Failed to load existing guest user", e);
+                    Gdx.app.error("Login", "Failed to load existing guest user, re-authenticating...", e);
+                    signInAgain(); // 🔹 idToken이 만료된 경우 다시 로그인 시도
                 }
             });
         } else {
             // 🔹 Firebase Auth 익명 로그인 사용
-            firebaseService.signInAnonymously(new FirebaseCallback<String>() {
-                @Override
-                public void onSuccess(String idToken) {
-                    firebaseService.setIdToken(idToken);
-                    createNewGuest();
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    Gdx.app.error("Login", "Guest login failed", e);
-                }
-            });
+            signInAgain();
         }
+    }
+
+    private void signInAgain() {
+        firebaseService.signInAnonymously(new FirebaseCallback<String>() {
+            @Override
+            public void onSuccess(String idToken) {
+                firebaseService.setIdToken(idToken);
+                Preferences prefs = Gdx.app.getPreferences("GamePreferences");
+                prefs.putString("idToken", idToken); // 🔹 idToken 저장
+                prefs.flush();
+                
+                if (prefs.getString("userId", null) == null) {
+                    createNewGuest();
+                } else {
+                    loginAsGuest(); // 🔹 기존 계정 불러오기 재시도
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                Gdx.app.error("Login", "Guest login failed", e);
+            }
+        });
     }
 
     private void createNewGuest() {

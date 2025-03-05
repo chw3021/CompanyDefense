@@ -31,6 +31,7 @@ import io.github.chw3021.companydefense.dto.UserDto;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.firebase.LoadingListener;
+import io.github.chw3021.companydefense.screens.equipmentscreens.HobbyScreenView;
 import io.github.chw3021.companydefense.screens.equipmentscreens.TowerScreenView;
 import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreenView;
 import io.github.chw3021.companydefense.screens.imagetools.Commons;
@@ -45,7 +46,7 @@ public class MainViewScreen implements Screen, LoadingListener {
     private Game game;
 
     private Container<Actor> contentContainer; // 상단 컨텐츠 교체용 컨테이너
-    private ImageButton btnStage, btnAuto, btnInfo, btnShop; // 네비게이션 버튼
+    private ImageButton btnStage, btnAuto, btnInfo, btnHobby; // 네비게이션 버튼
     private ImageButton btnMenu; // 메뉴 버튼
     private ImageButton btnSetting; // 설정 버튼
     private Table topTable;
@@ -87,7 +88,6 @@ public class MainViewScreen implements Screen, LoadingListener {
         firebaseService.addLoadingListener(this);
         
         camera = new OrthographicCamera();
-        camera.setToOrtho(false, 480, 800);
 
         stage = new Stage(new ScreenViewport(camera), batch);
         Gdx.input.setInputProcessor(stage);
@@ -120,6 +120,17 @@ public class MainViewScreen implements Screen, LoadingListener {
     }
     
 
+    /** 🔹 플레이어 골드 업데이트 */
+    public void updatePlayerGold(int gold) {
+        Gdx.app.postRunnable(() -> playerGoldLabel.setText(" " + gold));
+    }
+    
+
+    /** 🔹 플레이어 골드 업데이트 */
+    public void updatePlayerTime(int time) {
+        Gdx.app.postRunnable(() -> playerTimeLabel.setText(" " + time));
+    }
+    
     /** 🔹 Firebase에서 데이터 로드 */
     private void loadData() {
         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
@@ -224,17 +235,18 @@ public class MainViewScreen implements Screen, LoadingListener {
         navBar.defaults().pad(10);
 
         btnStage = createNavButton("menu/stage.png", () -> switchScreen(new StageSelectionScreenView(game)));
+        btnStage.setDisabled(true);
         btnAuto = createNavButton("menu/auto.png", () -> System.out.println("auto"));
         btnInfo = createNavButton("menu/human.png", () -> {
         	switchScreen(tsv = new TowerScreenView(game,this));
             //Gdx.app.postRunnable(() -> );
         });
-        btnShop = createNavButton("menu/hobbies.png", () -> System.out.println("slotmachine"));
+        btnHobby = createNavButton("menu/hobbies.png", () -> switchScreen(new HobbyScreenView(game,this)));
 
         navBar.add(btnStage).size(screenWidth * 0.15f);
         navBar.add(btnAuto).size(screenWidth * 0.15f);
         navBar.add(btnInfo).size(screenWidth * 0.15f);
-        navBar.add(btnShop).size(screenWidth * 0.15f);
+        navBar.add(btnHobby).size(screenWidth * 0.15f);
 
         root.add(navBar).fillX().height(screenWidth * 0.2f);
         

@@ -8,7 +8,7 @@ public class UserDto {
 	private String userName;
 	private int userLevel = 1;
     private Map<String, TowerOwnershipDto> userTowers;  // 타워와 레벨을 매핑
-    private List<EquipmentOwnershipDto> userEquipments;  // 장비와 레벨을 매핑
+    private Map<String, HobbyOwnershipDto> userHobbies;  // 취미;와 레벨을 매핑
 	private List<MailDto> userMails;
 	private int userHighScore = 0;
 	private int gold = 1000;
@@ -42,12 +42,6 @@ public class UserDto {
 	}
 	public void setUserTowers(Map<String, TowerOwnershipDto> userTowers) {
 		this.userTowers = userTowers;
-	}
-	public List<EquipmentOwnershipDto> getUserEquipments() {
-		return userEquipments;
-	}
-	public void setUserEquipments(List<EquipmentOwnershipDto> userEquipments) {
-		this.userEquipments = userEquipments;
 	}
 	public List<MailDto> getUserMails() {
 		return userMails;
@@ -90,6 +84,12 @@ public class UserDto {
 	}
 	public void setIdToken(String idToken) {
 		this.idToken = idToken;
+	}
+	public Map<String, HobbyOwnershipDto> getUserHobbies() {
+		return userHobbies;
+	}
+	public void setUserHobbies(Map<String, HobbyOwnershipDto> userHobbies) {
+		this.userHobbies = userHobbies;
 	}
     
     

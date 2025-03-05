@@ -10,6 +10,8 @@ import com.badlogic.gdx.Preferences;
 import com.google.gson.reflect.TypeToken;
 
 import io.github.chw3021.companydefense.Main;
+import io.github.chw3021.companydefense.dto.HobbyDto;
+import io.github.chw3021.companydefense.dto.HobbyOwnershipDto;
 import io.github.chw3021.companydefense.dto.SkillDto;
 import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.dto.TowerOwnershipDto;
@@ -63,7 +65,7 @@ public class FirebaseTowerService {
             callback.onFailure(new Exception("login required"));
             return;
         }
-
+    
         firebaseService.fetchData("users/" + userId, UserDto.class, new FirebaseCallback<UserDto>() {
             @Override
             public void onSuccess(UserDto fetchedUser) {
@@ -73,42 +75,70 @@ public class FirebaseTowerService {
                         public void onSuccess(List<TowerDto> towers) {
                             UserDto newUser = new UserDto();
                             newUser.setUserId(userId);
-
+    
                             Map<String, TowerOwnershipDto> defaultTowers = new HashMap<>();
                             for (TowerDto tower : towers) {
                                 TowerOwnershipDto ownership = new TowerOwnershipDto(tower.getTowerId(), 1);
                                 defaultTowers.put(tower.getTowerId(), ownership);
-
-                                // 🔥 TowerOwnership 테이블에도 저장
+    
                                 firebaseService.saveData("users/" + userId + "/userTowers/" + tower.getTowerId(), ownership, new FirebaseCallback<Void>() {
                                     @Override
                                     public void onSuccess(Void unused) {
                                         Gdx.app.log("Firebase", "타워 소유권 저장 완료: " + tower.getTowerId());
                                     }
-
+    
                                     @Override
                                     public void onFailure(Exception e) {
                                         Gdx.app.error("Firebase", "타워 소유권 저장 실패", e);
                                     }
                                 });
                             }
-
+    
                             newUser.setUserTowers(defaultTowers);
-
-                            // 🔥 전체 사용자 데이터 저장
-                            firebaseService.saveData("users/" + userId, newUser, new FirebaseCallback<Void>() {
+    
+                            loadAllHobbies(new FirebaseCallback<List<HobbyDto>>() {
                                 @Override
-                                public void onSuccess(Void unused) {
-                                    callback.onSuccess(newUser);
+                                public void onSuccess(List<HobbyDto> hobbies) {
+                                    Map<String, HobbyOwnershipDto> defaultHobbies = new HashMap<>();
+                                    for (HobbyDto hobby : hobbies) {
+                                        HobbyOwnershipDto ownership = new HobbyOwnershipDto(hobby.getHobbyId(), 1);
+                                        defaultHobbies.put(hobby.getHobbyId(), ownership);
+    
+                                        firebaseService.saveData("users/" + userId + "/userHobbies/" + hobby.getHobbyId(), ownership, new FirebaseCallback<Void>() {
+                                            @Override
+                                            public void onSuccess(Void unused) {
+                                                Gdx.app.log("Firebase", "취미 소유권 저장 완료: " + hobby.getHobbyId());
+                                            }
+    
+                                            @Override
+                                            public void onFailure(Exception e) {
+                                                Gdx.app.error("Firebase", "취미 소유권 저장 실패", e);
+                                            }
+                                        });
+                                    }
+    
+                                    newUser.setUserHobbies(defaultHobbies);
+    
+                                    firebaseService.saveData("users/" + userId, newUser, new FirebaseCallback<Void>() {
+                                        @Override
+                                        public void onSuccess(Void unused) {
+                                            callback.onSuccess(newUser);
+                                        }
+    
+                                        @Override
+                                        public void onFailure(Exception e) {
+                                            callback.onFailure(e);
+                                        }
+                                    });
                                 }
-
+    
                                 @Override
                                 public void onFailure(Exception e) {
                                     callback.onFailure(e);
                                 }
                             });
                         }
-
+    
                         @Override
                         public void onFailure(Exception e) {
                             callback.onFailure(e);
@@ -118,7 +148,22 @@ public class FirebaseTowerService {
                     callback.onSuccess(fetchedUser);
                 }
             }
-
+    
+            @Override
+            public void onFailure(Exception e) {
+                callback.onFailure(e);
+            }
+        });
+    }
+    
+    public static void loadAllHobbies(FirebaseCallback<List<HobbyDto>> callback) {
+        firebaseService.fetchData("hobbies/", new TypeToken<Map<String, HobbyDto>>() {}.getType(), new FirebaseCallback<Map<String, HobbyDto>>() {
+            @Override
+            public void onSuccess(Map<String, HobbyDto> hobbiesMap) {
+                List<HobbyDto> hobbiesList = new ArrayList<>(hobbiesMap.values());
+                callback.onSuccess(hobbiesList);
+            }
+    
             @Override
             public void onFailure(Exception e) {
                 callback.onFailure(e);
@@ -136,7 +181,6 @@ public class FirebaseTowerService {
             @Override
             public void onSuccess(TowerOwnershipDto towerOwnership) {
                 if (towerOwnership == null) {
-                    callback.onFailure(new Exception("타워 정보 없음"));
                     return;
                 }
 
@@ -151,7 +195,45 @@ public class FirebaseTowerService {
                 firebaseService.updateData(updates, new FirebaseCallback<Void>() {
                     @Override
                     public void onSuccess(Void unused) {
-                        Gdx.app.log("Firebase", "타워 업그레이드 완료: " + towerId + " -> 레벨 " + newLevel + ", 골드: " + newGoldAmount);
+                        callback.onSuccess(null);
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        callback.onFailure(e);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                callback.onFailure(e);
+            }
+        });
+    }
+
+
+	public static void updateUserHobbies(String userId, String hobbyId, int newTimeAmount, Map<String, HobbyOwnershipDto> userHobbies,
+			FirebaseCallback<Void> callback) {
+        String hobbyPath = "users/" + userId + "/userHobbies/" + hobbyId;
+        String timePath = "users/" + userId + "/time"; // 시간 경로 추가
+
+        firebaseService.fetchData(hobbyPath, HobbyOwnershipDto.class, new FirebaseCallback<HobbyOwnershipDto>() {
+            @Override
+            public void onSuccess(HobbyOwnershipDto hobbyOwnershipDto) {
+                if (hobbyOwnershipDto == null) {
+                    return;
+                }
+
+                int newLevel = hobbyOwnershipDto.getHobbyLevel() + 1;
+
+                Map<String, Object> updates = new HashMap<>();
+                updates.put(hobbyPath + "/hobbyLevel", newLevel);
+                updates.put(timePath, newTimeAmount);
+
+                firebaseService.updateData(updates, new FirebaseCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void unused) {
                         callback.onSuccess(null);
                     }
 
@@ -168,6 +250,6 @@ public class FirebaseTowerService {
                 callback.onFailure(e);
             }
         });
-    }
+	}
 
 }
