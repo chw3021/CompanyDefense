@@ -287,16 +287,17 @@ public abstract class StageParent extends Stage implements LoadingListener{
 
     private void upgradeTeamTowers(String teamName) {
         int cost = 50*teamLevel.get(teamName); // 업그레이드 비용 (원하는 값으로 설정)
-	     if (teamName.equals("hr")) hrUpgradeCost.setText(cost);
-	     if (teamName.equals("dv")) dvUpgradeCost.setText(cost);
-	     if (teamName.equals("sl")) slUpgradeCost.setText(cost);
         
         if (currency < cost) {
             System.out.println("재화 부족!");
             return;
         }
         currency -= cost; // 재화 차감
-        teamLevel.computeIfPresent(teamName, (k,v) -> v=v+1);
+
+		int newCost = 50*teamLevel.computeIfPresent(teamName, (k,v) -> v=v+1);
+		if (teamName.equals("hr")) hrUpgradeCost.setText(newCost);
+		if (teamName.equals("dv")) dvUpgradeCost.setText(newCost);
+		if (teamName.equals("sl")) slUpgradeCost.setText(newCost);
 
         for (Tower tower : towers) {
             if (tower.getTeam().equals(teamName)) {

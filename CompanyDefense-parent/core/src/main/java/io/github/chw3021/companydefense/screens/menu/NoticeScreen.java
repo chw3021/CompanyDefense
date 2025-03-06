@@ -14,8 +14,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
-import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreen;
-
 public class NoticeScreen implements Screen{
 	private SpriteBatch batch;
     private Stage stage;
@@ -55,7 +53,6 @@ public class NoticeScreen implements Screen{
 
         // 카메라 초기화
         camera = new OrthographicCamera();
-        camera.setToOrtho(false, 480, 800);
         camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0); // 카메라 초기 위치 설정
     }
 

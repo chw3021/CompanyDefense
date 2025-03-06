@@ -15,6 +15,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -29,8 +30,6 @@ import com.badlogic.gdx.utils.SnapshotArray;
 import io.github.chw3021.companydefense.Main;
 import io.github.chw3021.companydefense.dto.HobbyDto;
 import io.github.chw3021.companydefense.dto.HobbyOwnershipDto;
-import io.github.chw3021.companydefense.dto.SkillDto;
-import io.github.chw3021.companydefense.dto.TowerDto;
 import io.github.chw3021.companydefense.dto.UserDto;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
@@ -88,7 +87,7 @@ public class HobbyScreenView extends Table {
         this.add(hobbyGrid).expandX().row(); // 💡 그리드 크기 맞추기
 
         // 하단 중앙에 취미 활동 버튼 추가
-        TextButton activityButton = new TextButton("취미 활동", skin);
+        TextButton activityButton = new TextButton("취미 활동 하기!", skin);
         activityButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -159,9 +158,9 @@ public class HobbyScreenView extends Table {
         return description + String.format(" (%.2f%%)", effectValue);
     }
     
-	private void performHobbyActivity() {
+        
+    private void performHobbyActivity() {
         if (userDto.getTime() < 1) {
-            System.out.println("시간 부족!");
             return;
         }
 
@@ -183,6 +182,15 @@ public class HobbyScreenView extends Table {
                     Label levelLabel = findLevelLabel(randomHobby.getHobbyId());
                     if (levelLabel != null) {
                         levelLabel.setText("레벨: " + randomHobby.getHobbyLevel());
+
+                        // 🔹 반짝임 효과 추가
+                        Table hobbyCell = findHobbyCell(randomHobby.getHobbyId());
+                        if (hobbyCell != null) {
+                            hobbyCell.addAction(Actions.sequence(
+                                Actions.alpha(0.5f, 0.1f), // 반투명하게
+                                Actions.alpha(1.0f, 0.1f)  // 다시 불투명하게
+                            ));
+                        }
                     }
                     mainViewScreen.updatePlayerTime(newTimeAmount);
                 });
@@ -194,6 +202,27 @@ public class HobbyScreenView extends Table {
             }
         });
     }
+
+    // 🔹 HobbyCell을 찾는 메서드 추가
+    private Table findHobbyCell(String hobbyId) {
+        for (Actor actor : hobbyGrid.getChildren()) {
+            if (actor instanceof Table) {
+                Table hobbyTable = (Table) actor;
+                // HobbyCell 내의 nameLabel을 찾아서 hobbyId와 비교
+                for (Actor child : hobbyTable.getChildren()) {
+                    if (child instanceof Label) {
+                        Label nameLabel = (Label) child;
+                        if (nameLabel.getText().toString().equals(getHobbyName(hobbyId))) {
+                            return hobbyTable;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    
 	private Label findLevelLabel(String hobbyId) {
 	    for (Actor actor : hobbyGrid.getChildren()) {
 	        if (actor instanceof Table) {

@@ -236,7 +236,7 @@ public class MainViewScreen implements Screen, LoadingListener {
 
         btnStage = createNavButton("menu/stage.png", () -> switchScreen(new StageSelectionScreenView(game)));
         btnStage.setDisabled(true);
-        btnAuto = createNavButton("menu/auto.png", () -> System.out.println("auto"));
+        //btnAuto = createNavButton("menu/auto.png", () -> System.out.println("auto"));
         btnInfo = createNavButton("menu/human.png", () -> {
         	switchScreen(tsv = new TowerScreenView(game,this));
             //Gdx.app.postRunnable(() -> );
@@ -244,7 +244,7 @@ public class MainViewScreen implements Screen, LoadingListener {
         btnHobby = createNavButton("menu/hobbies.png", () -> switchScreen(new HobbyScreenView(game,this)));
 
         navBar.add(btnStage).size(screenWidth * 0.15f);
-        navBar.add(btnAuto).size(screenWidth * 0.15f);
+        //navBar.add(btnAuto).size(screenWidth * 0.15f);
         navBar.add(btnInfo).size(screenWidth * 0.15f);
         navBar.add(btnHobby).size(screenWidth * 0.15f);
 

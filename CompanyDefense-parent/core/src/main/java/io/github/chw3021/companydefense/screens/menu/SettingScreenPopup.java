@@ -7,16 +7,16 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 
-public class MenuScreenPopup extends Window {
-    public MenuScreenPopup(Skin skin) {
+public class SettingScreenPopup extends Window {
+    public SettingScreenPopup(Skin skin) {
         super("메뉴", skin);
-        this.setSize(Gdx.graphics.getWidth()*0.5f, Gdx.graphics.getHeight()*0.6f);
-        this.setPosition(Gdx.graphics.getWidth()*0.25f, Gdx.graphics.getHeight()*0.3f);
-
+        this.setSize(300, 400);
+        this.setPosition(Gdx.graphics.getWidth() / 2f - 150, Gdx.graphics.getHeight() / 2f - 200);
+        
         this.row();
-        this.add(createButton("랭킹", skin, () -> System.out.println("랭킹")));
+        this.add(createButton("음량", skin, () -> System.out.println("음량")));
         this.row();
-        this.add(createButton("우편함", skin, () -> System.out.println("우편함")));
+        this.add(createButton("계정탈퇴", skin, () -> System.out.println("계정탈퇴")));
 
         this.setModal(true);
     }

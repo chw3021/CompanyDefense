@@ -35,7 +35,6 @@ import io.github.chw3021.companydefense.firebase.FirebaseTowerService;
 import io.github.chw3021.companydefense.screens.MainViewScreen;
 
 public class TowerScreenView extends Table {
-    private Game game;
     private Skin skin;
     private UserDto userDto;
     private List<TowerDto> allTowers;
@@ -50,7 +49,6 @@ public class TowerScreenView extends Table {
     private float screenHeight = Gdx.graphics.getHeight();
 
     public TowerScreenView(Game game, MainViewScreen mainViewScreen) {
-        this.game = game;
         this.mainViewScreen = mainViewScreen;
 
         firebaseService = (FirebaseServiceImpl) Main.getInstance().getFirebaseService();
@@ -208,13 +206,15 @@ public class TowerScreenView extends Table {
 
 
 	 private void showTowerDialog(TowerDto tower, TowerOwnershipDto towerOwnership, Label levelLabel) {
-		    Dialog dialog = new Dialog("", skin);
+		    Dialog dialog = new Dialog(tower.getTowerName(), skin);
 		    dialog.setModal(true);
 	
-		    Label towerNameLabel = new Label(tower.getTowerName(), skin);
 		    Image towerImage = new Image(new Texture(Gdx.files.internal(tower.getTowerImagePath())));
 		    Label levelTextLabel = new Label("레벨: " + towerOwnership.getTowerLevel(), skin);
-	
+		    Label upgradeCostLabel = new Label(String.format("%d", 50 * tower.getTowerGrade() * (towerOwnership.getTowerLevel() + 1)), skin);
+		    Table upgradeCostTable = new Table();
+		    upgradeCostTable.add(new Image(new Texture(Gdx.files.internal("icons/coin.png")))).width(dialog.getWidth()*0.05f).height(dialog.getWidth()*0.05f); // 버튼 크기 지정
+		    upgradeCostTable.add(upgradeCostLabel).pad(5);
 		    
 		    // 부동소수점 처리
 		    float physicalAttack = tower.getTowerPhysicalAttack() * (1 + tower.getTowerAttackMult() * towerOwnership.getTowerLevel());
@@ -227,7 +227,7 @@ public class TowerScreenView extends Table {
 		    upgradeButton.addListener(new ClickListener() {
 		        @Override
 		        public void clicked(InputEvent event, float x, float y) {
-		            upgradeTower(tower, towerOwnership, levelTextLabel, attackLabel, levelLabel);
+		            upgradeTower(tower, towerOwnership, levelTextLabel, attackLabel, levelLabel, upgradeCostLabel);
 		        }
 		    });
 	
@@ -325,6 +325,7 @@ public class TowerScreenView extends Table {
 		    contentTable.add(skillButton).size(screenWidth * 0.08f, screenWidth * 0.08f).colspan(2).center().row();
 		    contentTable.add(levelTextLabel).colspan(2).center().row();
 		    contentTable.add(attackLabel).colspan(2).center().row();
+		    contentTable.add(upgradeCostTable).colspan(2).center().row();
 		    contentTable.add(upgradeButton).colspan(2).center().row();
 	
 		    // 🔹 닫기 버튼을 우측 상단에 배치
@@ -341,10 +342,9 @@ public class TowerScreenView extends Table {
 
 	 
     /** 🔹 타워 업그레이드 */
-    private void upgradeTower(TowerDto tower, TowerOwnershipDto towerOwnership, Label levelTextLabel, Label attackLabel, Label levelLabel) {
+    private void upgradeTower(TowerDto tower, TowerOwnershipDto towerOwnership, Label levelTextLabel, Label attackLabel, Label levelLabel, Label upgradeCostLabel) {
         int upgradeCost = 50 * tower.getTowerGrade() * (towerOwnership.getTowerLevel() + 1);
         if (userDto.getGold() < upgradeCost) {
-            System.out.println("골드 부족!");
             return;
         }
 
@@ -365,8 +365,9 @@ public class TowerScreenView extends Table {
                     // 소수점 2자리로 포맷팅하여 표시
                     String physicalAttackStr = String.format("%.1f", newPhysicalAttack);
                     String magicAttackStr = String.format("%.1f", newMagicAttack);
-
+                    int upgradeCost = 50 * tower.getTowerGrade() * (towerOwnership.getTowerLevel() + 1);
                     // 레이블에 적용
+                    upgradeCostLabel.setText(upgradeCost);
                     attackLabel.setText("물리 공격력: " + physicalAttackStr + "\n마법 공격력: " + magicAttackStr);
                     levelLabel.setText("레벨: " + towerOwnership.getTowerLevel());
                     mainViewScreen.updatePlayerGold(newGoldAmount);

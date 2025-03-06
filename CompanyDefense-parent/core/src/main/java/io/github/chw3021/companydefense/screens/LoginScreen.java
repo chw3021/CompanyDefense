@@ -60,7 +60,6 @@ public class LoginScreen implements Screen, LoadingListener {
         batch = new SpriteBatch();
         firebaseService.addLoadingListener(this);
         camera = new OrthographicCamera();
-        camera.setToOrtho(false, 480, 800);
 
         stage = new Stage(new ScreenViewport(camera));
         skin = new Skin(Gdx.files.internal("ui/companyskin.json")); // UI 스킨 파일 (uiskin.json 필요)
@@ -100,24 +99,24 @@ public class LoginScreen implements Screen, LoadingListener {
                 loginWithGooglePlay();
             }
         });
-
-        TextButton iosButton = new TextButton("iOS Login", skin);
-        iosButton.setBounds(centerX, Gdx.graphics.getHeight() * 0.45f, buttonWidth, buttonHeight);
-        iosButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                loginWithIOS();
-            }
-        });
-
-        TextButton kakaoButton = new TextButton("Kakao Login", skin);
-        kakaoButton.setBounds(centerX, Gdx.graphics.getHeight() * 0.3f, buttonWidth, buttonHeight);
-        kakaoButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                loginWithKakao();
-            }
-        });
+//
+//        TextButton iosButton = new TextButton("iOS Login", skin);
+//        iosButton.setBounds(centerX, Gdx.graphics.getHeight() * 0.45f, buttonWidth, buttonHeight);
+//        iosButton.addListener(new ClickListener() {
+//            @Override
+//            public void clicked(InputEvent event, float x, float y) {
+//                loginWithIOS();
+//            }
+//        });
+//
+//        TextButton kakaoButton = new TextButton("Kakao Login", skin);
+//        kakaoButton.setBounds(centerX, Gdx.graphics.getHeight() * 0.3f, buttonWidth, buttonHeight);
+//        kakaoButton.addListener(new ClickListener() {
+//            @Override
+//            public void clicked(InputEvent event, float x, float y) {
+//                loginWithKakao();
+//            }
+//        });
 
         TextButton guestButton = new TextButton("Guest Login", skin);
         guestButton.setBounds(centerX, Gdx.graphics.getHeight() * 0.15f, buttonWidth, buttonHeight);
@@ -129,8 +128,6 @@ public class LoginScreen implements Screen, LoadingListener {
         });
 
         stage.addActor(googleButton);
-        stage.addActor(iosButton);
-        stage.addActor(kakaoButton);
         stage.addActor(guestButton);
     }
 
