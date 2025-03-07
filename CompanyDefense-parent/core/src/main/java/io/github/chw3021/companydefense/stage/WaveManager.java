@@ -1,5 +1,8 @@
 package io.github.chw3021.companydefense.stage;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -10,8 +13,9 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Array;
 
+import io.github.chw3021.companydefense.firebase.FirebaseCallback;
+import io.github.chw3021.companydefense.firebase.FirebaseService;
 import io.github.chw3021.companydefense.screens.MainViewScreen;
-import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreen;
 
 
 public class WaveManager {
@@ -22,12 +26,16 @@ public class WaveManager {
     private boolean gameOver;
     private boolean gameWon;
     private Game game;
+    private FirebaseService firebaseService; // FirebaseService 추가
+    private int score;
 
-    public WaveManager(Stage uiStage, Game game) {
+    public WaveManager(Stage uiStage, Game game, FirebaseService firebaseService) {
         waves = new Array<>();
         currentWaveIndex = 0;
         this.uiStage = uiStage;
         this.game = game;
+        this.firebaseService = firebaseService; // FirebaseService 초기화
+        this.score = 0; // 초기 점수 설정
     }
 
     public void addWave(Wave wave) {
@@ -51,6 +59,7 @@ public class WaveManager {
             } else {
                 waveInProgress = false; // 웨이브 종료
                 currentWaveIndex++;
+                score += 100;
 
                 // 마지막 웨이브 체크
                 if (currentWaveIndex >= waves.size) {
@@ -88,15 +97,72 @@ public class WaveManager {
             return;
         }
 
+        // 보상 계산
+        int goldReward = currentWaveIndex * 200;
+        if (isWin) {
+            goldReward *= 1.5; // 승리 시 1.5배 추가 지급
+        }
+
+        // 점수 계산
+        int finalScore = score;
+
         // 팝업창 생성
-        Skin skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        Skin skin = new Skin(Gdx.files.internal("ui/companyskin.json"));
         Dialog dialog = new Dialog(isWin ? "승리!" : "패배", skin);
-        dialog.text(isWin ? "승리!" : "패배.").pad(20);
+        dialog.text(isWin ? "결과: " + (isWin ? "승리!" : "패배") + "\n획득 골드: " + goldReward + "\n점수: " + finalScore : "패배").pad(20);
 
         TextButton button = new TextButton("메인 화면", skin);
         button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                // Firebase에 골드 지급 및 최고 점수 갱신
+                String userId = firebaseService.getCurrentUserId();
+                if (userId != null) {
+                    // 골드 지급
+                    Map<String, Object> goldUpdate = new HashMap<>();
+                    goldUpdate.put("gold", goldReward);
+                    firebaseService.updateData("users/" + userId, goldUpdate, new FirebaseCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void unused) {
+                            Gdx.app.log("WaveManager", "골드 지급 성공: " + goldReward);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            Gdx.app.error("WaveManager", "골드 지급 실패: " + e.getMessage());
+                        }
+                    });
+
+                    // 최고 점수 갱신
+                    firebaseService.fetchData("users/" + userId + "/userHighScore", Integer.class, new FirebaseCallback<Integer>() {
+                        @Override
+                        public void onSuccess(Integer currentHighScore) {
+                            if (currentHighScore == null || finalScore > currentHighScore) {
+                                Map<String, Object> scoreUpdate = new HashMap<>();
+                                scoreUpdate.put("userHighScore", finalScore);
+                                firebaseService.updateData("users/" + userId, scoreUpdate, new FirebaseCallback<Void>() {
+                                    @Override
+                                    public void onSuccess(Void unused) {
+                                        Gdx.app.log("WaveManager", "최고 점수 갱신 성공: " + finalScore);
+                                    }
+
+                                    @Override
+                                    public void onFailure(Exception e) {
+                                        Gdx.app.error("WaveManager", "최고 점수 갱신 실패: " + e.getMessage());
+                                    }
+                                });
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            Gdx.app.error("WaveManager", "최고 점수 불러오기 실패: " + e.getMessage());
+                        }
+                    });
+                } else {
+                    Gdx.app.error("WaveManager", "사용자 ID를 가져올 수 없습니다.");
+                }
+
                 game.setScreen(new MainViewScreen(game));
                 stage.dispose();
             }
@@ -109,6 +175,7 @@ public class WaveManager {
         dialog.show(uiStage);
     }
 
+
     
     public void setStage(Stage stage) {
     	uiStage = stage;
@@ -120,5 +187,9 @@ public class WaveManager {
 
     public boolean isGameWon() {
         return gameWon;
+    }
+
+    public void setFirebaseService(FirebaseService firebaseService) {
+        this.firebaseService = firebaseService;
     }
 }
