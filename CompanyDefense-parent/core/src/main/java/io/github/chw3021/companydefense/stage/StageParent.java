@@ -182,7 +182,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
         towers = new Array<>();
 
         activeEnemies = new Array<>();
-        waveManager = new WaveManager(this, game);
+        waveManager = new WaveManager(this, game, firebaseService);
         availableTowers = new Array<Tower>();
 	    skillMap = new HashMap<>();
         

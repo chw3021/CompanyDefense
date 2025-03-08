@@ -48,7 +48,6 @@ public class MainViewScreen implements Screen, LoadingListener {
     private Container<Actor> contentContainer; // 상단 컨텐츠 교체용 컨테이너
     private ImageButton btnStage, btnAuto, btnInfo, btnHobby; // 네비게이션 버튼
     private ImageButton btnMenu; // 메뉴 버튼
-    private ImageButton btnSetting; // 설정 버튼
     private Table topTable;
     private Table root;
     private LoadingScreenManager loadingScreenManager;
@@ -192,14 +191,7 @@ public class MainViewScreen implements Screen, LoadingListener {
         btnMenu.setSize(screenWidth * 0.05f, screenWidth * 0.05f);
         btnMenu.setPosition(Gdx.graphics.getWidth() - screenWidth * 0.05f, Gdx.graphics.getHeight() - screenHeight * 0.05f);
 
-
-        btnSetting = Commons.createImageButton("menu/setting.png", downPath,this::showMenuPopup);
-        btnSetting.setSize(screenWidth * 0.05f, screenWidth * 0.05f);
-        btnSetting.setPosition(Gdx.graphics.getWidth() - screenWidth * 0.05f, Gdx.graphics.getHeight() - screenHeight * 0.05f);
-
         topTable.add(btnMenu).size(screenWidth * 0.05f, screenWidth * 0.05f).expandX().right().pad(screenWidth * 0.005f);
-        
-        topTable.add(btnSetting).size(screenWidth * 0.05f, screenWidth * 0.05f).right().pad(screenWidth * 0.005f).row();
         
         return topTable;
     }
@@ -303,7 +295,7 @@ public class MainViewScreen implements Screen, LoadingListener {
 
     /** 💡 메뉴 팝업 띄우기 */
     private void showMenuPopup() {
-        MenuScreenPopup popup = new MenuScreenPopup(skin);
+        MenuScreenPopup popup = new MenuScreenPopup(skin, firebaseService, stage);
         stage.addActor(popup);
         addDialogListener(popup);
     }

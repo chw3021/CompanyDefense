@@ -1,6 +1,7 @@
 package io.github.chw3021.companydefense.tower;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
@@ -418,20 +419,32 @@ public class Tower extends Actor {
         }
     }
     
-    public void render(SpriteBatch batch
-    		, Texture guideTexture, Texture guideTexture2) {
-
+    public void render(SpriteBatch batch, Texture guideTexture, Texture guideTexture2) {
+        // 타워 등급에 따른 색상 정의
+        Color gradeColor;
+        switch (towerGrade) {
+            case 1: gradeColor = Color.LIGHT_GRAY; break;  // 1등급: 회색
+            case 2: gradeColor = Color.GREEN; break;       // 2등급: 초록색
+            case 3: gradeColor = Color.BLUE; break;        // 3등급: 파란색
+            case 4: gradeColor = Color.PURPLE; break;      // 4등급: 보라색
+            case 5: gradeColor = Color.ORANGE; break;      // 5등급: 주황색
+            default: gradeColor = Color.RED; break;        // 그 이상: 빨간색
+        }
+        
+        // 원래 배치 색상 저장
+        Color originalColor = batch.getColor().cpy();
+    
         if (isAttacking) {
             elapsedTime += Gdx.graphics.getDeltaTime();
-            currentFrame = attackAnimation.getKeyFrame(elapsedTime);  // 🔹 현재 프레임 업데이트
-
+            currentFrame = attackAnimation.getKeyFrame(elapsedTime);  // 현재 프레임 업데이트
+    
             // 마지막 프레임에 데미지 or 투사체 생성
             if (attackAnimation.isAnimationFinished(elapsedTime)) {
-            	if(target==null) {
+                if(target==null) {
                     isAttacking = false;
-                    currentFrame = new TextureRegion(originalTexture); // 🔹 원래 texture로 복귀
-            		return;
-            	}
+                    currentFrame = new TextureRegion(originalTexture);
+                    return;
+                }
                 if (this.attackRange >= 4 * gridSize) {
                     // 원거리 공격 (투사체 발사)
                     Texture projectileTexture = new Texture(Gdx.files.internal("tower/projectile.png"));
@@ -444,24 +457,75 @@ public class Tower extends Actor {
                     target.addDamage(damageComponent);
                 }
                 isAttacking = false;
-                currentFrame = new TextureRegion(originalTexture); // 🔹 원래 texture로 복귀
+                currentFrame = new TextureRegion(originalTexture);
             }
         }
         else {
             currentFrame = new TextureRegion(originalTexture); // 기본 상태
         }
-        batch.draw(currentFrame, getX(), getY(), getWidth(), getHeight());
-
+        
+        // 텍스처를 그리드 중앙에 그리기
+        float originX = getWidth() * 0.1f;
+        float originY = getHeight() * 0.1f;
+        
+        // 중앙 정렬로 텍스처 그리기
+        batch.draw(
+            currentFrame,
+            getX() + originX,     // 왼쪽 하단 X 좌표 계산
+            getY() + originY,     // 왼쪽 하단 Y 좌표 계산
+            originX, originY,     // 회전 원점
+            getWidth(), getHeight(), // 크기
+            1, 1,                 // 스케일
+            0                     // 회전 각도
+        );
+        
+        // 등급에 따른 색상 띠 그리기
+        batch.setColor(gradeColor);
+        
+        // 띠의 높이는 타워 높이의 8%로 설정
+        float barHeight = getHeight() * 0.08f;
+        // 띠의 너비는 타워 너비의 80%로 설정
+        float barWidth = getWidth() * 0.8f;
+        // 띠를 타워의 아래쪽에 배치 (타워 높이의 5% 정도 위에)
+        float barY = getY() + originY + getHeight() * 0.05f;
+        // 띠를 타워의 중앙에 맞춰서 배치
+        float barX = getX() + originX*2;
+        
+        // 등급 띠 그리기 (색상이 지정된 사각형)
+        batch.draw(
+            getWhitePixel(),
+            barX,
+            barY,
+            barWidth,
+            barHeight
+        );
+        
+        // 원래 배치 색상으로 복원
+        batch.setColor(originalColor);
+    
         if (isDragging) {
-        	if(isMergable) {
+            if(isMergable) {
                 batch.draw(guideTexture2, dragStartPos.x-getWidth()/2,
-                		dragStartPos.y-getHeight()/2);
-        	}
-        	else {
+                        dragStartPos.y-getHeight()/2);
+            }
+            else {
                 batch.draw(guideTexture, dragStartPos.x-getWidth()/2,
-                		dragStartPos.y-getHeight()/2);
-        	}
+                        dragStartPos.y-getHeight()/2);
+            }
         }
+    }
+    
+    // 단색 텍스처를 얻기 위한 메서드 (하얀색 1x1 픽셀)
+    private static Texture whitePixel = null;
+    private Texture getWhitePixel() {
+        if (whitePixel == null) {
+            Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+            pixmap.setColor(Color.WHITE);
+            pixmap.fill();
+            whitePixel = new Texture(pixmap);
+            pixmap.dispose();
+        }
+        return whitePixel;
     }
 
     @Override

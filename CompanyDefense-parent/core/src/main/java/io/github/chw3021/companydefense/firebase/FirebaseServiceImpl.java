@@ -245,6 +245,7 @@ public class FirebaseServiceImpl implements FirebaseService {
         });
     }
 
+
     @Override
     public String getCurrentUserId() {
         return currentUserId; // 현재 사용자 ID 반환
@@ -295,6 +296,7 @@ public class FirebaseServiceImpl implements FirebaseService {
             }
         });
     }
+
     @Override
     public void signInAnonymously(FirebaseCallback<String> callback) {
         notifyLoadingStart();
@@ -337,6 +339,40 @@ public class FirebaseServiceImpl implements FirebaseService {
         this.idToken = idToken;
     }
 
-
+    @Override
+    public void deleteData(String path, FirebaseCallback<Void> callback) {
+        notifyLoadingStart();
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken;
+        
+        Request request = new Request.Builder()
+                .url(url)
+                .delete()  // DELETE HTTP 메서드 사용
+                .build();
+        
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(null);
+                    } else {
+                        callback.onFailure(new Exception("삭제 실패: " + response.message()));
+                    }
+                } finally {
+                    notifyLoadingEnd();
+                    response.close();
+                }
+            }
+            
+            @Override
+            public void onFailure(Call call, IOException e) {
+                try {
+                    callback.onFailure(e);
+                } finally {
+                    notifyLoadingEnd();
+                }
+            }
+        });
+    }
 
 }

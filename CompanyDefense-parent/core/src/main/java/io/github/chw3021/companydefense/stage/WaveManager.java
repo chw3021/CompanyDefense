@@ -5,6 +5,7 @@ import java.util.Map;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
@@ -99,9 +100,6 @@ public class WaveManager {
 
         // 보상 계산
         int goldReward = currentWaveIndex * 200;
-        if (isWin) {
-            goldReward *= 1.5; // 승리 시 1.5배 추가 지급
-        }
 
         // 점수 계산
         int finalScore = score;
@@ -109,46 +107,59 @@ public class WaveManager {
         // 팝업창 생성
         Skin skin = new Skin(Gdx.files.internal("ui/companyskin.json"));
         Dialog dialog = new Dialog(isWin ? "승리!" : "패배", skin);
-        dialog.text(isWin ? "결과: " + (isWin ? "승리!" : "패배") + "\n획득 골드: " + goldReward + "\n점수: " + finalScore : "패배").pad(20);
+        dialog.text("결과: " + (isWin ? "승리!" : "패배") + "\n획득 골드: " + goldReward + "\n점수: " + finalScore).pad(20);
 
         TextButton button = new TextButton("메인 화면", skin);
         button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 // Firebase에 골드 지급 및 최고 점수 갱신
-                String userId = firebaseService.getCurrentUserId();
+                Preferences prefs = Gdx.app.getPreferences("GamePreferences");
+                String userId = prefs.getString("userId", null);
                 if (userId != null) {
                     // 골드 지급
-                    Map<String, Object> goldUpdate = new HashMap<>();
-                    goldUpdate.put("gold", goldReward);
-                    firebaseService.updateData("users/" + userId, goldUpdate, new FirebaseCallback<Void>() {
+
+                    // 최고 점수 갱신
+                    firebaseService.fetchData("users/" + userId + "/gold", Integer.class, new FirebaseCallback<Integer>() {
                         @Override
-                        public void onSuccess(Void unused) {
-                            Gdx.app.log("WaveManager", "골드 지급 성공: " + goldReward);
+                        public void onSuccess(Integer gold) {
+                            Map<String, Object> update = new HashMap<>();
+                            update.put("users/" + userId+ "/gold", gold + (isWin ? goldReward*1.5 : goldReward));
+                            firebaseService.updateData(update, new FirebaseCallback<Void>() {
+                                @Override
+                                public void onSuccess(Void unused) {
+                                    Gdx.app.log("WaveManager", "gold s: " + goldReward);
+                                }
+
+                                @Override
+                                public void onFailure(Exception e) {
+                                    Gdx.app.error("WaveManager", "gold fail: " + e.getMessage());
+                                }
+                            });
                         }
 
                         @Override
                         public void onFailure(Exception e) {
-                            Gdx.app.error("WaveManager", "골드 지급 실패: " + e.getMessage());
+                            Gdx.app.error("WaveManager", "userHighScore: " + e.getMessage());
                         }
                     });
-
+                    
                     // 최고 점수 갱신
                     firebaseService.fetchData("users/" + userId + "/userHighScore", Integer.class, new FirebaseCallback<Integer>() {
                         @Override
                         public void onSuccess(Integer currentHighScore) {
                             if (currentHighScore == null || finalScore > currentHighScore) {
                                 Map<String, Object> scoreUpdate = new HashMap<>();
-                                scoreUpdate.put("userHighScore", finalScore);
-                                firebaseService.updateData("users/" + userId, scoreUpdate, new FirebaseCallback<Void>() {
+                                scoreUpdate.put("users/" + userId + "/userHighScore", finalScore);
+                                firebaseService.updateData(scoreUpdate, new FirebaseCallback<Void>() {
                                     @Override
                                     public void onSuccess(Void unused) {
-                                        Gdx.app.log("WaveManager", "최고 점수 갱신 성공: " + finalScore);
+                                        Gdx.app.log("WaveManager", "userHighScore: " + finalScore);
                                     }
 
                                     @Override
                                     public void onFailure(Exception e) {
-                                        Gdx.app.error("WaveManager", "최고 점수 갱신 실패: " + e.getMessage());
+                                        Gdx.app.error("WaveManager", "userHighScore: " + e.getMessage());
                                     }
                                 });
                             }
@@ -156,11 +167,11 @@ public class WaveManager {
 
                         @Override
                         public void onFailure(Exception e) {
-                            Gdx.app.error("WaveManager", "최고 점수 불러오기 실패: " + e.getMessage());
+                            Gdx.app.error("WaveManager", "userHighScore: " + e.getMessage());
                         }
                     });
                 } else {
-                    Gdx.app.error("WaveManager", "사용자 ID를 가져올 수 없습니다.");
+                    Gdx.app.error("WaveManager", "idnone.");
                 }
 
                 game.setScreen(new MainViewScreen(game));

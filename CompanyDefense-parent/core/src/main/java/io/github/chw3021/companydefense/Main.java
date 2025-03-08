@@ -18,7 +18,6 @@ import io.github.chw3021.companydefense.platform.GoogleSignInHandler;
 import io.github.chw3021.companydefense.screens.LoginScreen;
 import io.github.chw3021.companydefense.screens.MainViewScreen;
 import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreen;
-import io.github.chw3021.companydefense.screens.menu.MenuScreen;
 
 public class Main extends Game implements InputProcessor {
     private OrthographicCamera camera;
@@ -65,12 +64,6 @@ public class Main extends Game implements InputProcessor {
             public void clicked(InputEvent event, float x, float y) {
                 if (getScreen() instanceof LoginScreen || getScreen() instanceof MainViewScreen) {
                     Gdx.app.exit();
-                }
-                if (getScreen() instanceof MenuScreen) {
-                    setScreen(new MainViewScreen(game));
-                }
-                if (getScreen() instanceof StageSelectionScreen) {
-                    setScreen(new MenuScreen(game));
                 }
             }
         });
