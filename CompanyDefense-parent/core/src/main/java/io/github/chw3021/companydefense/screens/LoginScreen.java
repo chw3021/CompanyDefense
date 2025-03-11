@@ -20,6 +20,7 @@ import io.github.chw3021.companydefense.dto.UserDto;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
 import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.firebase.LoadingListener;
+import io.github.chw3021.companydefense.firebase.TokenManager;
 import io.github.chw3021.companydefense.platform.GoogleSignInHandler;
 import okhttp3.OkHttpClient;
 
@@ -40,6 +41,7 @@ public class LoginScreen implements Screen, LoadingListener {
 
     private GoogleSignInHandler googleSignInHandler;
 
+    private final TokenManager tokenManager = TokenManager.getInstance();
     @Override
     public void onLoadingStart() {
         Gdx.app.postRunnable(() -> loadingScreenManager.showLoadingScreen());
@@ -146,7 +148,7 @@ public class LoginScreen implements Screen, LoadingListener {
         String storedIdToken = prefs.getString("idToken", null); // 🔹 저장된 idToken 가져오기
 
         if (existingUserId != null && storedIdToken != null) {
-            firebaseService.setIdToken(storedIdToken); // 🔹 idToken 설정
+            tokenManager.setIdToken(storedIdToken); // 🔹 idToken 설정
             firebaseService.fetchData("users/" + existingUserId, UserDto.class, new FirebaseCallback<UserDto>() {
                 @Override
                 public void onSuccess(UserDto user) {
@@ -172,11 +174,11 @@ public class LoginScreen implements Screen, LoadingListener {
         firebaseService.signInAnonymously(new FirebaseCallback<String>() {
             @Override
             public void onSuccess(String idToken) {
-                firebaseService.setIdToken(idToken);
+                tokenManager.setIdToken(idToken);
                 Preferences prefs = Gdx.app.getPreferences("GamePreferences");
                 prefs.putString("idToken", idToken); // 🔹 idToken 저장
                 prefs.flush();
-                
+
                 if (prefs.getString("userId", null) == null) {
                     createNewGuest();
                 } else {
@@ -217,7 +219,7 @@ public class LoginScreen implements Screen, LoadingListener {
             }
         });
     }
-    
+
     private void loginWithGooglePlay() {
         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
         String existingUserId = prefs.getString("userId", null);
@@ -247,7 +249,7 @@ public class LoginScreen implements Screen, LoadingListener {
 
                         // 🔹 ID 토큰을 FirebaseService에 설정
                         if (user.getIdToken() != null) {
-                            firebaseService.setIdToken(user.getIdToken());
+                            tokenManager.setIdToken(user.getIdToken());
                         }
 
                         saveNewGoogleUser(user);
@@ -305,7 +307,7 @@ public class LoginScreen implements Screen, LoadingListener {
         backgroundSprite.draw(batch);
 
         batch.end();
-        
+
         stage.act(Gdx.graphics.getDeltaTime());
         stage.draw();
     }

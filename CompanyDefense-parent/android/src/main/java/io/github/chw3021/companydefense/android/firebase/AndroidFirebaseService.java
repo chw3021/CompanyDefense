@@ -11,10 +11,13 @@ import java.util.Map;
 
 import io.github.chw3021.companydefense.firebase.FirebaseService;
 import io.github.chw3021.companydefense.firebase.FirebaseCallback;
+import io.github.chw3021.companydefense.firebase.TokenManager;
 
 public class AndroidFirebaseService implements FirebaseService {
     private final FirebaseAuth auth;
     private final FirebaseDatabase database;
+
+    private final TokenManager tokenManager = TokenManager.getInstance();
 
     public AndroidFirebaseService() {
         auth = FirebaseAuth.getInstance();
@@ -40,7 +43,15 @@ public class AndroidFirebaseService implements FirebaseService {
     @Override
     public void login(String email, String password, FirebaseCallback<Void> callback) {
         auth.signInWithEmailAndPassword(email, password)
-                .addOnSuccessListener(authResult -> callback.onSuccess(null))
+                .addOnSuccessListener(authResult -> {
+                    // idToken 저장 로직 추가
+                    authResult.getUser().getIdToken(true)
+                            .addOnSuccessListener(result -> {
+                                setIdToken(result.getToken());
+                                callback.onSuccess(null);
+                            })
+                            .addOnFailureListener(callback::onFailure);
+                })
                 .addOnFailureListener(callback::onFailure);
     }
 
@@ -54,7 +65,13 @@ public class AndroidFirebaseService implements FirebaseService {
         FirebaseAuth.getInstance().signInWithCredential(credential)
             .addOnCompleteListener(task -> {
                 if (task.isSuccessful()) {
-                    callback.onSuccess(null);
+                    // idToken 저장 로직 추가
+                    task.getResult().getUser().getIdToken(true)
+                            .addOnSuccessListener(result -> {
+                                setIdToken(result.getToken());
+                                callback.onSuccess(null);
+                            })
+                            .addOnFailureListener(callback::onFailure);
                 } else {
                     callback.onFailure(task.getException());
                 }
@@ -64,6 +81,7 @@ public class AndroidFirebaseService implements FirebaseService {
     @Override
     public void logout() {
         auth.signOut();
+        setIdToken(null);
     }
 
     @Override
@@ -76,11 +94,51 @@ public class AndroidFirebaseService implements FirebaseService {
 
     @Override
     public <T> void fetchData(String path, Type type, FirebaseCallback<T> callback) {
-
+        // Type을 사용한 구현 추가
+        DatabaseReference ref = database.getReference(path);
+        ref.get().addOnSuccessListener(snapshot -> {
+            // Android Firebase SDK는 Type을 직접 사용할 수 없으므로
+            // 여기서는 Object를 얻어 callback에 전달하는 방식으로 처리
+            T data = (T) snapshot.getValue();
+            callback.onSuccess(data);
+        }).addOnFailureListener(callback::onFailure);
     }
 
     @Override
     public void updateData(Map<String, Object> updates, FirebaseCallback<Void> callback) {
+        // 업데이트 구현 추가
+        DatabaseReference ref = database.getReference();
+        ref.updateChildren(updates)
+                .addOnSuccessListener(aVoid -> callback.onSuccess(null))
+                .addOnFailureListener(callback::onFailure);
+    }
 
+    @Override
+    public void signInAnonymously(FirebaseCallback<String> callback) {
+        // 익명 로그인 구현 추가
+        auth.signInAnonymously()
+                .addOnSuccessListener(authResult -> {
+                    authResult.getUser().getIdToken(true)
+                            .addOnSuccessListener(result -> {
+                                setIdToken(result.getToken());
+                                callback.onSuccess(result.getToken());
+                            })
+                            .addOnFailureListener(callback::onFailure);
+                })
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    @Override
+    public void deleteData(String path, FirebaseCallback<Void> callback) {
+        // 데이터 삭제 구현 추가
+        DatabaseReference ref = database.getReference(path);
+        ref.removeValue()
+                .addOnSuccessListener(aVoid -> callback.onSuccess(null))
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    // setIdToken 메서드 추가
+    public void setIdToken(String idToken) {
+        tokenManager.setIdToken(idToken);
     }
 }

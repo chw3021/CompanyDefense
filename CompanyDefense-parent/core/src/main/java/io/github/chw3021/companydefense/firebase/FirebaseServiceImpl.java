@@ -51,15 +51,25 @@ public class FirebaseServiceImpl implements FirebaseService {
         }
     }
 
+    // TokenManager 사용
+    private final TokenManager tokenManager = TokenManager.getInstance();
+    
     
 
-    private String idToken; // idToken 저장
+    // idToken 접근 메서드
+    protected String getIdToken() {
+        return tokenManager.getIdToken();
+    }
+    
+    protected void setIdToken(String idToken) {
+        tokenManager.setIdToken(idToken);
+    }
     
     
     @Override
     public <T> void fetchData(String path, Class<T> type, FirebaseCallback<T> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken; // 🔹 idToken 추가
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + getIdToken(); // 🔹 idToken 추가
 
         Request request = new Request.Builder().url(url).build();
         client.newCall(request).enqueue(new Callback() {
@@ -94,7 +104,7 @@ public class FirebaseServiceImpl implements FirebaseService {
     @Override
     public <T> void fetchData(String path, Type type, FirebaseCallback<T> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken; // 🔹 idToken 추가
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + getIdToken(); // 🔹 idToken 추가
         Request request = new Request.Builder().url(url).build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -128,7 +138,7 @@ public class FirebaseServiceImpl implements FirebaseService {
     @Override
     public <T> void saveData(String path, T data, FirebaseCallback<Void> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken; // 🔹 idToken 추가
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + getIdToken(); // 🔹 idToken 추가
         String jsonData = new Gson().toJson(data);
 
         RequestBody body = RequestBody.create(jsonData, MediaType.get("application/json"));
@@ -178,7 +188,7 @@ public class FirebaseServiceImpl implements FirebaseService {
                         String responseBody = response.body().string();
                         LoginResponse loginResponse = new Gson().fromJson(responseBody, LoginResponse.class);
                         currentUserId = loginResponse.getLocalId(); // 사용자 ID 저장
-                        idToken = loginResponse.getIdToken(); // 🔹 idToken 저장 추가
+                        setIdToken(loginResponse.getIdToken()); // 🔹 idToken 저장 추가
                         callback.onSuccess(null);
                     } else {
                         callback.onFailure(new Exception("Login failed: " + response.message()));
@@ -203,7 +213,7 @@ public class FirebaseServiceImpl implements FirebaseService {
     @Override
     public void logout() {
         currentUserId = null;
-        idToken = null; // 🔹 idToken 초기화
+        setIdToken(null); // 🔹 idToken 초기화
     }
 
     @Override
@@ -253,7 +263,7 @@ public class FirebaseServiceImpl implements FirebaseService {
     @Override
     public void updateData(Map<String, Object> updates, FirebaseCallback<Void> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + ".json?auth=" + idToken; // Firebase Root 경로
+        String url = FIREBASE_DATABASE_URL + ".json?auth=" + getIdToken(); // Firebase Root 경로
 
         // 🔹 Null 값 제거 (Firebase에서 Null 값을 허용하지 않기 때문)
         updates.values().removeIf(Objects::isNull);
@@ -335,14 +345,11 @@ public class FirebaseServiceImpl implements FirebaseService {
         });
     }
     
-    public void setIdToken(String idToken) {
-        this.idToken = idToken;
-    }
 
     @Override
     public void deleteData(String path, FirebaseCallback<Void> callback) {
         notifyLoadingStart();
-        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + idToken;
+        String url = FIREBASE_DATABASE_URL + path + ".json?auth=" + getIdToken();
         
         Request request = new Request.Builder()
                 .url(url)
