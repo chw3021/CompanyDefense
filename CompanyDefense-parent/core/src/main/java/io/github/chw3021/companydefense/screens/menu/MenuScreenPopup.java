@@ -400,7 +400,7 @@ public class MenuScreenPopup extends Window {
             firebaseService.updateData(updates, new FirebaseCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    Gdx.app.log("Firebase", "닉네임이 성공적으로 변경되었습니다.");
+                    //Gdx.app.log("Firebase", "닉네임이 성공적으로 변경되었습니다.");
                     Gdx.app.postRunnable(() -> {
                         updateNicknameDisplay(nickname); // 닉네임 표시 업데이트
                         showNicknameUpdateSuccess(nickname);
@@ -409,7 +409,7 @@ public class MenuScreenPopup extends Window {
                 
                 @Override
                 public void onFailure(Exception e) {
-                    Gdx.app.error("Firebase", "닉네임 변경 실패: " + e.getMessage());
+                    //Gdx.app.error("Firebase", "닉네임 변경 실패: " + e.getMessage());
                     Gdx.app.postRunnable(() -> showNicknameUpdateFailure());
                 }
             });
@@ -512,7 +512,7 @@ public class MenuScreenPopup extends Window {
             firebaseService.deleteData("users/" + userId, new FirebaseCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    Gdx.app.log("Firebase", "사용자 데이터가 성공적으로 삭제되었습니다.");
+                    //Gdx.app.log("Firebase", "사용자 데이터가 성공적으로 삭제되었습니다.");
                     Gdx.app.postRunnable(() -> {
                         showDeleteSuccessMessage();
                         remove(); // 메뉴 팝업 닫기
@@ -521,7 +521,7 @@ public class MenuScreenPopup extends Window {
                 
                 @Override
                 public void onFailure(Exception e) {
-                    Gdx.app.error("Firebase", "사용자 데이터 삭제 실패: " + e.getMessage());
+                    //Gdx.app.error("Firebase", "사용자 데이터 삭제 실패: " + e.getMessage());
                     Gdx.app.postRunnable(() -> showDeleteFailureMessage());
                 }
             });

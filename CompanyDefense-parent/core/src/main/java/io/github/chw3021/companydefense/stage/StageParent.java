@@ -308,8 +308,10 @@ public abstract class StageParent extends Stage implements LoadingListener{
     }
     
     public void upgradeTowerByTeamLevel(Tower tower, String teamName) {
-        tower.setPhysicalAttack(tower.getBasePhysicalAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
-        tower.setMagicAttack(tower.getBaseMagicAttack() * (1.05f + 0.05f*teamLevel.get(teamName)));
+        tower.setPhysicalAttack(tower.getBasePhysicalAttack() 
+        		* (1.05f + 0.05f*teamLevel.get(teamName)));
+        tower.setMagicAttack(tower.getBaseMagicAttack() 
+        		* (1.05f + 0.05f*teamLevel.get(teamName)));
     }
     
 
