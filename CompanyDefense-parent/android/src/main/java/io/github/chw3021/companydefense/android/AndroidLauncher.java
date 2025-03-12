@@ -84,7 +84,6 @@ public class AndroidLauncher extends AndroidApplication implements GoogleSignInH
             }
         }
     }
-
     private void firebaseAuthWithGoogle(String idToken) {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         firebaseAuth.signInWithCredential(credential)
@@ -96,14 +95,16 @@ public class AndroidLauncher extends AndroidApplication implements GoogleSignInH
                         userDto.setUserId(user.getUid());
                         userDto.setUserName(user.getDisplayName() != null ? user.getDisplayName() : "Unknown User");
                         userDto.setLoginProvider("google");
-
+                        userDto.setIdToken(idToken); // UserDto에 idToken 설정 추가
+                        
                         // 로그인 성공 시 SharedPreferences 저장
                         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
                         prefs.putString("loginProvider", "google");
                         prefs.putString("userId", user.getUid());
                         prefs.putString("userName", userDto.getUserName());
+                        prefs.putString("idToken", idToken); // idToken 저장 추가
                         prefs.flush();
-
+    
                         if (currentCallback != null) {
                             currentCallback.onSuccess(userDto);
                         }
