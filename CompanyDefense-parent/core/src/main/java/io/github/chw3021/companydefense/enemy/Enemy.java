@@ -157,8 +157,8 @@ public class Enemy extends Entity {
 
     public void renderHealthBar(ShapeRenderer shapeRenderer) {
 
-        float barWidth = texture.getWidth(); // 체력바 길이
-        float barX = transform.position.x + texture.getWidth() / 2f; // 체력바 x 위치
+        float barWidth = texture.getWidth();
+        float barX = transform.position.x + texture.getWidth() / 2f; 
         float barY = transform.position.y + texture.getHeight() + HEALTH_BAR_MARGIN; // 적 위에 배치
 
         float healthRatio = healthComponent.health / healthComponent.maxHealth;
@@ -188,6 +188,7 @@ public class Enemy extends Entity {
         }
     	wave.removeEnemy(this);
     	stage.getActiveEnemies().removeValue(this, true);
+    	stage.setCurrency(stage.getCurrency()+5);
     }
     
     public void addDamage(DamageComponent damageComponent) {

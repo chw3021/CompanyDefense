@@ -293,10 +293,10 @@ public class Tower extends Actor {
         return bestTarget;
     }
 
-    public boolean upgrade(Array<Tower> availableTowers) {
+    public boolean trade(Array<Tower> availableTowers) {
         if (Math.random() < 0.3) { // 30% 확률 성공
             for (Tower other : availableTowers) {
-                if (other.towerGrade == this.towerGrade + 1) {
+                if (other.towerGrade == this.towerGrade) {
                     this.physicalAttack = other.physicalAttack;
                     this.magicAttack = other.magicAttack;
                     this.basePhysicalAttack = other.basePhysicalAttack;

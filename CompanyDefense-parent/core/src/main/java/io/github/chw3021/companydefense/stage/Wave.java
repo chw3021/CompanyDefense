@@ -51,7 +51,7 @@ public class Wave {
             if (timeSinceLastSpawn >= spawnDelay) {
                 Enemy enemyToSpawn = waveEnemies.removeIndex(0);
                 activeEnemies.add(enemyToSpawn);
-                enemyToSpawn.update(); // Calculate initial path
+                enemyToSpawn.update();
                 timeSinceLastSpawn = 0.0f;
             }
         } else if (activeEnemies.isEmpty()) {

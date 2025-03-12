@@ -121,8 +121,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
                 filteredPositions.add(position);
             }
         }
-        if(currency-100<0) {
-            System.out.println("money!");
+        if(getCurrency()-100<0) {
         	return;
         }
 
@@ -138,10 +137,10 @@ public abstract class StageParent extends Stage implements LoadingListener{
             towerToSpawn.setMagicAttack(towerToSpawn.getBaseMagicAttack() * (1.05f + 0.05f*teamLevel.get(towerToSpawn.getTeam())));
             this.addActor(towerToSpawn);
             towers.add(towerToSpawn);
-            currency -= 100;
+            setCurrency(getCurrency() - 100);
 
         } else {
-            System.out.println("No valid positions to spawn a tower!");
+            //System.out.println("No valid positions to spawn a tower!");
         }
     }
 
@@ -225,7 +224,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
             tower.update(delta, activeEnemies); // 타워가 범위 내 적을 공격
         }
         lifeLabel.setText(life);
-        coinLabel.setText(currency);
+        coinLabel.setText(getCurrency());
 
         // Update wave management
         waveManager.update(delta, this);
@@ -288,11 +287,11 @@ public abstract class StageParent extends Stage implements LoadingListener{
     private void upgradeTeamTowers(String teamName) {
         int cost = 50*teamLevel.get(teamName); // 업그레이드 비용 (원하는 값으로 설정)
         
-        if (currency < cost) {
+        if (getCurrency() < cost) {
             System.out.println("재화 부족!");
             return;
         }
-        currency -= cost; // 재화 차감
+        setCurrency(getCurrency() - cost); // 재화 차감
 
 		int newCost = 50*teamLevel.computeIfPresent(teamName, (k,v) -> v=v+1);
 		if (teamName.equals("hr")) hrUpgradeCost.setText(newCost);
@@ -461,7 +460,7 @@ public abstract class StageParent extends Stage implements LoadingListener{
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (selectedTower != null) {
-                    upgradeTower(selectedTower);
+                    tradeTower(selectedTower);
                 }
             }
         });
@@ -541,13 +540,13 @@ public abstract class StageParent extends Stage implements LoadingListener{
         loadTowerSkills();
     }
     
-    public void upgradeTower(Tower tower) {
-        // 상위 등급 타워로 승급
-        if(!tower.upgrade(availableTowers)) {
-            // 타워 제거
+    public void tradeTower(Tower tower) {
+    	
+        if(!tower.trade(availableTowers)) {
+        	
             towers.removeValue(tower, true);
             towerInfoTable.setVisible(false);
-            // 선택된 타워가 팔린 타워라면 선택 해제
+            
             if (selectedTower == tower) {
                 deselectTower();
             }
@@ -556,13 +555,12 @@ public abstract class StageParent extends Stage implements LoadingListener{
 
     public void sellTower(Tower tower) {
         // 타워 판매 가격 반환
-        currency += tower.getGrade()*30; // 판매 가격 추가
-        coinLabel.setText("  " + currency);
+        setCurrency(getCurrency() + tower.getGrade()*30);
+        coinLabel.setText("  " + getCurrency());
 
-        // 타워 제거
         towers.removeValue(tower, true);
         tower.remove();
-        // 선택된 타워가 팔린 타워라면 선택 해제
+        
         if (selectedTower == tower) {
             deselectTower();
         }
@@ -801,5 +799,13 @@ public abstract class StageParent extends Stage implements LoadingListener{
         backgroundTexture.dispose();
         focusTexture.dispose();
     }
+
+	public int getCurrency() {
+		return currency;
+	}
+
+	public void setCurrency(int currency) {
+		this.currency = currency;
+	}
 }
 
