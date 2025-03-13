@@ -57,11 +57,11 @@ public class FirebaseServiceImpl implements FirebaseService {
     
 
     // idToken 접근 메서드
-    protected String getIdToken() {
+    public String getIdToken() {
         return tokenManager.getIdToken();
     }
     
-    protected void setIdToken(String idToken) {
+    public void setIdToken(String idToken) {
         tokenManager.setIdToken(idToken);
     }
     
