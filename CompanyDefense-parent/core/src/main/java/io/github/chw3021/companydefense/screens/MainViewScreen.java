@@ -163,10 +163,8 @@ public class MainViewScreen implements Screen, LoadingListener {
         playerGoldLabel = new Label("0", skin);
         playerGoldLabel.setFontScale(screenHeight*0.001f);
         
-
         goldTable.add(goldIcon).size(screenWidth * 0.05f, screenWidth * 0.05f).padLeft(screenWidth * 0.01f);
         goldTable.add(playerGoldLabel).padLeft(screenWidth * 0.01f);
-
 
         // 🔹 시간 아이콘
         Table timeTable = new Table();
@@ -179,7 +177,6 @@ public class MainViewScreen implements Screen, LoadingListener {
         timeTable.add(timeIcon).size(screenWidth * 0.05f, screenWidth * 0.05f).padLeft(screenWidth * 0.01f);
         timeTable.add(playerTimeLabel).padLeft(screenWidth * 0.01f);
 
-        
         updatePlayerGold();
         
         topTable.add(goldTable).left().padLeft(screenWidth * 0.01f);
@@ -228,10 +225,8 @@ public class MainViewScreen implements Screen, LoadingListener {
 
         btnStage = createNavButton("menu/stage.png", () -> switchScreen(new StageSelectionScreenView(game)));
         btnStage.setDisabled(true);
-        //btnAuto = createNavButton("menu/auto.png", () -> System.out.println("auto"));
         btnInfo = createNavButton("menu/human.png", () -> {
         	switchScreen(tsv = new TowerScreenView(game,this));
-            //Gdx.app.postRunnable(() -> );
         });
         btnHobby = createNavButton("menu/hobbies.png", () -> switchScreen(new HobbyScreenView(game,this)));
 

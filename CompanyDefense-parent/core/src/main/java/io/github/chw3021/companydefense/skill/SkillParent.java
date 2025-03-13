@@ -53,10 +53,9 @@ public abstract class SkillParent {
     }
 
     public void use(Tower tower, Array<Enemy> enemies) {
-        if (!canUse()) return; // 🔹 currentTime 체크 방식 변경
-        System.out.println(skillId);
+        if (!canUse()) return;
         
-        elapsedTime = 0; // 🔹 스킬 사용 후 경과 시간 초기화
+        elapsedTime = 0;
         applyEffect(tower, enemies);
     }
 

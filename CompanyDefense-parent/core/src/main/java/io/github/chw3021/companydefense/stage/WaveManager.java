@@ -128,19 +128,16 @@ public class WaveManager {
                             firebaseService.updateData(update, new FirebaseCallback<Void>() {
                                 @Override
                                 public void onSuccess(Void unused) {
-                                    Gdx.app.log("WaveManager", "gold s: " + goldReward);
                                 }
 
                                 @Override
                                 public void onFailure(Exception e) {
-                                    Gdx.app.error("WaveManager", "gold fail: " + e.getMessage());
                                 }
                             });
                         }
 
                         @Override
                         public void onFailure(Exception e) {
-                            Gdx.app.error("WaveManager", "userHighScore: " + e.getMessage());
                         }
                     });
                     
@@ -154,12 +151,12 @@ public class WaveManager {
                                 firebaseService.updateData(scoreUpdate, new FirebaseCallback<Void>() {
                                     @Override
                                     public void onSuccess(Void unused) {
-                                        Gdx.app.log("WaveManager", "userHighScore: " + finalScore);
+                                        //Gdx.app.log("WaveManager", "userHighScore: " + finalScore);
                                     }
 
                                     @Override
                                     public void onFailure(Exception e) {
-                                        Gdx.app.error("WaveManager", "userHighScore: " + e.getMessage());
+                                        //Gdx.app.error("WaveManager", "userHighScore: " + e.getMessage());
                                     }
                                 });
                             }

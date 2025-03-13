@@ -17,7 +17,6 @@ import io.github.chw3021.companydefense.firebase.FirebaseServiceImpl;
 import io.github.chw3021.companydefense.platform.GoogleSignInHandler;
 import io.github.chw3021.companydefense.screens.LoginScreen;
 import io.github.chw3021.companydefense.screens.MainViewScreen;
-import io.github.chw3021.companydefense.screens.gamescreens.StageSelectionScreen;
 
 public class Main extends Game implements InputProcessor {
     private OrthographicCamera camera;

@@ -231,15 +231,6 @@ public class TowerScreenView extends Table {
 		        }
 		    });
 	
-		    // 🔹 닫기 버튼 (X 아이콘 크기 조절)
-		    Texture closeTexture = new Texture(Gdx.files.internal("icons/cancel.png"));
-		    ImageButton closeButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(closeTexture)));
-		    closeButton.addListener(new ClickListener() {
-		        @Override
-		        public void clicked(InputEvent event, float x, float y) {
-		            dialog.hide();
-		        }
-		    });
 	
 		    Table contentTable = new Table();
 		    // 스킬 아이콘 가져오기
@@ -327,7 +318,16 @@ public class TowerScreenView extends Table {
 		    contentTable.add(attackLabel).colspan(2).center().row();
 		    contentTable.add(upgradeCostTable).colspan(2).center().row();
 		    contentTable.add(upgradeButton).colspan(2).center().row();
-	
+
+		    // 🔹 닫기 버튼 (X 아이콘 크기 조절)
+		    Texture closeTexture = new Texture(Gdx.files.internal("icons/cancel.png"));
+		    ImageButton closeButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(closeTexture)));
+		    closeButton.addListener(new ClickListener() {
+		        @Override
+		        public void clicked(InputEvent event, float x, float y) {
+		            dialog.hide();
+		        }
+		    });
 		    // 🔹 닫기 버튼을 우측 상단에 배치
 		    Table titleTable = new Table();
 		    titleTable.add().expandX();
@@ -342,7 +342,8 @@ public class TowerScreenView extends Table {
 
 	 
     /** 🔹 타워 업그레이드 */
-    private void upgradeTower(TowerDto tower, TowerOwnershipDto towerOwnership, Label levelTextLabel, Label attackLabel, Label levelLabel, Label upgradeCostLabel) {
+    private void upgradeTower(TowerDto tower, TowerOwnershipDto towerOwnership, 
+    		Label levelTextLabel, Label attackLabel, Label levelLabel, Label upgradeCostLabel) {
         int upgradeCost = 50 * tower.getTowerGrade() * (towerOwnership.getTowerLevel() + 1);
         if (userDto.getGold() < upgradeCost) {
             return;
@@ -352,7 +353,8 @@ public class TowerScreenView extends Table {
         userDto.setGold(newGoldAmount);
         
 
-        FirebaseTowerService.upgradeTowerLevel(userDto.getUserId(), towerOwnership.getTowerId(), newGoldAmount, new FirebaseCallback<Void>() {
+        FirebaseTowerService.upgradeTowerLevel(userDto.getUserId(), 
+        		towerOwnership.getTowerId(), newGoldAmount, new FirebaseCallback<Void>() {
             @Override
             public void onSuccess(Void unused) {
                 towerOwnership.setTowerLevel(towerOwnership.getTowerLevel() + 1);

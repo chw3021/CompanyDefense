@@ -160,7 +160,7 @@ public class LoginScreen implements Screen, LoadingListener {
 
                 @Override
                 public void onFailure(Exception e) {
-                    Gdx.app.error("Login", "Failed to load existing guest user, re-authenticating...", e);
+                    Gdx.app.error("Login", "Failed to load existing guest user, re-authenticating...");
                     signInAgain(); // 🔹 idToken이 만료된 경우 다시 로그인 시도
                 }
             });
@@ -219,77 +219,94 @@ public class LoginScreen implements Screen, LoadingListener {
             }
         });
     }
-
     private void loginWithGooglePlay() {
         Preferences prefs = Gdx.app.getPreferences("GamePreferences");
         String existingUserId = prefs.getString("userId", null);
-
-        if (existingUserId != null) {
-            // 기존 유저 ID가 있으면 그대로 로그인
+        String storedIdToken = prefs.getString("idToken", null); // Google 로그인에도 저장된 토큰 확인
+    
+        if (existingUserId != null && storedIdToken != null) {
+            // 기존 유저 ID와 토큰이 있으면 토큰 설정 후 로그인
+            firebaseService.setIdToken(storedIdToken);
+            
+            // 토큰 유효성 검증을 위해 유저 데이터 요청
             firebaseService.fetchData("users/" + existingUserId, UserDto.class, new FirebaseCallback<UserDto>() {
                 @Override
                 public void onSuccess(UserDto user) {
                     Gdx.app.log("Login", "Existing google user loaded: " + user.getUserId());
                     Gdx.app.postRunnable(() -> {
-                        game.setScreen(new MainViewScreen(game)); // 메인 메뉴로 이동
+                        game.setScreen(new MainViewScreen(game));
                     });
                 }
-
+    
                 @Override
                 public void onFailure(Exception e) {
-                    Gdx.app.error("Login", "Failed to load existing google user", e);
+                    Gdx.app.error("Login", "Failed to load existing google user or token expired", e);
+                    // 토큰이 만료되었거나 문제가 있을 경우 다시 로그인
+                    initiateGoogleSignIn();
                 }
             });
         } else {
-            if (googleSignInHandler != null) {
-                googleSignInHandler.signIn(new FirebaseCallback<UserDto>() {
-                    @Override
-                    public void onSuccess(UserDto user) {
-                        Gdx.app.log("Login", "Google Login Success: " + user.getUserId());
-
-                        // 🔹 ID 토큰을 FirebaseService에 설정
-                        if (user.getIdToken() != null) {
-                            tokenManager.setIdToken(user.getIdToken());
-                        }
-
-                        saveNewGoogleUser(user);
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        Gdx.app.error("Login", "Google Login Failed", e);
-                    }
-                });
-            }
+            // 사용자 정보나 토큰이 없으면 새로 로그인
+            initiateGoogleSignIn();
         }
     }
-
+    
+    private void initiateGoogleSignIn() {
+        if (googleSignInHandler != null) {
+            googleSignInHandler.signIn(new FirebaseCallback<UserDto>() {
+                @Override
+                public void onSuccess(UserDto user) {
+                    Gdx.app.log("Login", "Google Login Success: " + user.getUserId());
+    
+                    // ID 토큰을 FirebaseService에 설정
+                    if (user.getIdToken() != null) {
+                        firebaseService.setIdToken(user.getIdToken());
+                        
+                        // ID 토큰을 preferences에 저장 (중요!)
+                        Preferences prefs = Gdx.app.getPreferences("GamePreferences");
+                        prefs.putString("idToken", user.getIdToken());
+                        prefs.flush();
+                    }
+    
+                    saveNewGoogleUser(user);
+                }
+    
+                @Override
+                public void onFailure(Exception e) {
+                    Gdx.app.error("Login", "Google Login Failed", e);
+                }
+            });
+        }
+    }
     private void saveNewGoogleUser(UserDto googleUser) {
         googleUser.setLoginProvider("google");
-
+    
         firebaseService.saveData("users/" + googleUser.getUserId(), googleUser, new FirebaseCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 Gdx.app.log("Login", "Google login successful: " + googleUser.getUserId());
-
+    
                 Preferences prefs = Gdx.app.getPreferences("GamePreferences");
                 prefs.putString("loginProvider", "google");
                 prefs.putString("userId", googleUser.getUserId());
                 prefs.putString("userName", googleUser.getUserName());
+                // idToken이 이미 앞에서 저장되었는지 확인하고, 없으면 다시 저장
+                if (prefs.getString("idToken", null) == null && googleUser.getIdToken() != null) {
+                    prefs.putString("idToken", googleUser.getIdToken());
+                }
                 prefs.flush();
-
+    
                 Gdx.app.postRunnable(() -> {
                     game.setScreen(new MainViewScreen(game));
                 });
             }
-
+    
             @Override
             public void onFailure(Exception e) {
                 Gdx.app.error("Login", "Google login failed", e);
             }
         });
     }
-
 
     @Override
     public void show() {}

@@ -18,10 +18,12 @@ public class HealthComponent implements Component {
     
     public void damage(DamageComponent damageComponent) {
         // 물리 공격력에 대한 방어력 적용
-        float effectivePhysicalDamage = damageComponent.getPhysicalDamage() * (1 - physicalDefense / (physicalDefense + 100));
+        float effectivePhysicalDamage = damageComponent.getPhysicalDamage() 
+        		* (1 - physicalDefense / (physicalDefense + 100));
         
         // 마법 공격력에 대한 방어력 적용
-        float effectiveMagicDamage = damageComponent.getMagicDamage() * (1 - magicDefense / (magicDefense + 100));
+        float effectiveMagicDamage = damageComponent.getMagicDamage() 
+        		* (1 - magicDefense / (magicDefense + 100));
         
         // 최종 피해 계산 (물리 + 마법 피해)
         float totalDamage = effectivePhysicalDamage + effectiveMagicDamage;
