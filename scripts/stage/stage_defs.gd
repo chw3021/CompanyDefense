@@ -152,9 +152,12 @@ const STAGES := {
 	},
 }
 
-## 무한 모드 난이도: 웨이브마다 체력 x endless_hp_growth, 마리 수와 생성 속도도 늘어난다
+## 무한 모드 난이도: 체력 = 기본 × (1 + 라운드/k)^p. 마리 수와 생성 속도도 늘어난다
+## 기하급수(매 라운드 ×1.22)였을 때는 강화로 전력이 2배가 돼도 3~4라운드밖에 못 버텨 강화 보람이 없었다.
+## 다항식이면 전력이 2배일 때 버티는 라운드가 약 2^(1/p) 배로 늘어난다
 const ENDLESS_BASE_HP := 40.0
-static var endless_hp_growth := 1.22  # 시뮬레이터가 --dev-growth 로 바꿔 볼 수 있게 var
+static var endless_hp_power := 3.0  # 시뮬레이터가 --dev-power, --dev-k 로 바꿔 볼 수 있게 var
+static var endless_hp_k := 10.0
 const ENDLESS_MAX_COUNT := 36
 
 
@@ -167,7 +170,7 @@ static func is_endless(stage_id: int) -> bool:
 ## 특수 적은 6웨이브부터 섞여 나온다
 static func endless_wave(index: int) -> Array:
 	var w := index + 1
-	var hp := ENDLESS_BASE_HP * pow(endless_hp_growth, index)
+	var hp := ENDLESS_BASE_HP * pow(1.0 + index / endless_hp_k, endless_hp_power)
 	var count := mini(8 + int(index * 0.7), ENDLESS_MAX_COUNT)
 	var interval := maxf(0.35, 1.0 - index * 0.02)
 	var special := w > 5

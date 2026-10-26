@@ -15,6 +15,7 @@ const PROFILES := {
 	"after2": {"towers": [8, 4, 2, 1, 1], "hobbies": 3, "equipment": 2},
 	"mid": {"towers": [5, 5, 5, 5, 5], "hobbies": 5, "equipment": 3},
 	"veteran": {"towers": [15, 12, 10, 8, 6], "hobbies": 10, "equipment": 7},
+	"max": {"towers": [30, 30, 30, 30, 30], "hobbies": 10, "equipment": 10},  # 모든 강화를 끝까지
 }
 
 var dev
@@ -34,8 +35,10 @@ func run(p_dev) -> void:
 			stages = Array(arg.trim_prefix("--dev-stages=").split(",")).map(func(s): return int(s))
 		elif arg.begins_with("--dev-profiles="):
 			profiles = Array(arg.trim_prefix("--dev-profiles=").split(","))
-		elif arg.begins_with("--dev-growth="):
-			StageDefs.endless_hp_growth = float(arg.trim_prefix("--dev-growth="))
+		elif arg.begins_with("--dev-power="):
+			StageDefs.endless_hp_power = float(arg.trim_prefix("--dev-power="))
+		elif arg.begins_with("--dev-k="):
+			StageDefs.endless_hp_k = float(arg.trim_prefix("--dev-k="))
 		elif arg.begins_with("--dev-hp-scale="):
 			hp_scale = float(arg.trim_prefix("--dev-hp-scale="))
 		elif arg.begins_with("--dev-bots="):
