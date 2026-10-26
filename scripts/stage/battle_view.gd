@@ -257,10 +257,7 @@ func _draw_tower(t: Tower) -> void:
 	var c := battle.cell
 	var base := Vector2(t.cell.x * c, t.cell.y * c)
 	var center_x := base.x + c / 2
-	var foot := base.y + c * 0.86
 	var portrait := tex(GameData.asset(t.data.towerImagePath))
-	var h := c * 0.98 * (1.0 + 0.25 * t.spawn_anim)
-	var w := h * portrait.get_width() / portrait.get_height()
 	var team_color: Color = GameData.TEAM_COLORS[t.team]
 	var grade_color := GameData.grade_color(t.grade)
 	# 책상 윗면을 팀 색으로 칠하고, 2등급부터는 등급 색 테두리 (멀리서도 팀/등급이 보이게)
@@ -269,22 +266,22 @@ func _draw_tower(t: Tower) -> void:
 	_rounded(top, Color(team_color, 0.55), 10)
 	if t.grade >= 2:
 		_outline(top.grow(1), grade_color, 10, 3 + t.grade / 2)
-	# 발밑에 팀 색 받침
-	_ellipse(Vector2(center_x, foot), c * 0.36, 0.35, Color(team_color.darkened(0.2), 0.8))
-	if t.buff_glow > 0:
-		ci.draw_arc(Vector2(center_x, foot - c * 0.4), c * 0.46, 0, TAU, 32, Color(UI.GOLD, 0.55), 3, true)
 	var alpha := 0.35 if (_dragging and _press_tower == t) else 1.0
 	var shade := 0.55 if t.stun_left > 0 else 1.0  # 통화 중이면 어둡게
 	# 공격하는 동안 대상 쪽으로 살짝 몸을 내민다
 	var progress := t.attack_progress()
 	var lunge := Vector2.ZERO
 	if progress >= 0 and t.target != null and not t.target.dead:
-		lunge = (t.target.pos - t.center()).normalized() * c * 0.09 * sin(progress * PI)
-	var body := Rect2(center_x - w / 2 + lunge.x, foot - h + lunge.y, w, h)
-	# 어두운 외곽선을 둘러 책상/통로 위에서도 인물이 또렷하게
-	for o in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2)]:
-		ci.draw_texture_rect(portrait, Rect2(body.position + o, body.size), false, Color(0.08, 0.06, 0.12, 0.7 * alpha))
-	ci.draw_texture_rect(portrait, body, false, Color(shade, shade, shade, alpha))
+		lunge = (t.target.pos - t.center()).normalized() * c * 0.07 * sin(progress * PI)
+	# 전신 대신 얼굴 토큰: 직원이 많아져도 누가 누군지 얼굴로 알아보게
+	var radius := c * 0.36 * (1.0 + 0.25 * t.spawn_anim)
+	var at := Vector2(center_x, base.y + c * 0.45) + lunge
+	ci.draw_circle(at + Vector2(0, c * 0.04), radius + 3, Color(0, 0, 0, 0.35 * alpha))
+	ci.draw_circle(at, radius + 2, Color(team_color.darkened(0.45), alpha))
+	_draw_face(t.id, portrait, at, radius - 1, Color(shade, shade, shade, alpha))
+	ci.draw_arc(at, radius, 0, TAU, 32, Color(team_color, alpha), 4, true)
+	if t.buff_glow > 0:
+		ci.draw_arc(at, radius + 5, 0, TAU, 32, Color(UI.GOLD, 0.7), 3, true)
 	if t.stun_left > 0:
 		_rounded(Rect2(center_x - c * 0.36, base.y + c * 0.04, c * 0.72, c * 0.24), Color(0, 0, 0, 0.65), 8)
 		_text(Vector2(center_x, base.y + c * 0.16), "통화 중", 17, UI.WARN)
@@ -298,6 +295,32 @@ func _draw_tower(t: Tower) -> void:
 	_text(badge, str(t.grade), int(c * 0.22))
 	if battle.selected == t:
 		_outline(Rect2(base, Vector2(c, c)).grow(-2), UI.TEXT, 12, 3)
+
+
+## 직원 그림(350x512)에서 얼굴이 있는 곳: [가운데 x, 머리 꼭대기 y]. 여기서 190px 정사각형을 잘라 쓴다
+const FACE_CROPS := {
+	"dv1": [161, 24], "dv2": [218, 24], "dv3": [171, 28], "dv4": [173, 26], "dv5_1": [171, 26], "dv5_2": [176, 190],
+	"hr1": [180, 22], "hr2": [170, 14], "hr3": [170, 28], "hr4": [168, 20], "hr5_1": [171, 30], "hr5_2": [175, 18],
+	"sl1": [173, 22], "sl2": [173, 16], "sl3": [169, 22], "sl4": [176, 14], "sl5_1": [173, 14], "sl5_2": [212, 12],
+}
+const FACE_SIZE := 190.0
+var _circle := PackedVector2Array()  # 반지름 1 짜리 원 꼭짓점 (얼굴 토큰용)
+
+
+## 직원 얼굴을 at 을 중심으로 반지름 radius 인 원 안에 그린다
+func _draw_face(tower_id: String, portrait: Texture2D, at: Vector2, radius: float, modulate: Color) -> void:
+	if _circle.is_empty():
+		for i in 28:
+			_circle.append(Vector2.from_angle(i * TAU / 28))
+	var crop: Array = FACE_CROPS.get(tower_id.trim_prefix("tower_"), [175, 20])
+	var size := portrait.get_size()
+	var origin := Vector2(crop[0] - FACE_SIZE / 2, crop[1] - 8)
+	var points := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	for p in _circle:
+		points.append(at + p * radius)
+		uvs.append((origin + (p * 0.5 + Vector2(0.5, 0.5)) * FACE_SIZE) / size)
+	ci.draw_polygon(points, PackedColorArray([modulate]), uvs, portrait)
 
 
 ## 개발팀: 코드 기호가 튀어나옴, 인사팀: 도장을 쾅, 영업팀: 서류가방 휘두르기
