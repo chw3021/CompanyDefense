@@ -5,9 +5,34 @@ extends Node
 const TEAMS := ["hr", "dv", "sl"]
 const TEAM_NAMES := {"hr": "인사", "dv": "개발", "sl": "영업"}
 const TEAM_COLORS := {"hr": Color("ff7eb6"), "dv": Color("4c8dff"), "sl": Color("ffb648")}
-const GRADE_COLORS := [Color("b8c0cc"), Color("4cd17a"), Color("4c9dff"), Color("b07cff"), Color("ffa53d")]
-const GRADE_NAMES := ["일반", "고급", "희귀", "영웅", "전설"]
-const MAX_GRADE := 5
+const GRADE_COLORS := [Color("b8c0cc"), Color("4cd17a"), Color("4c9dff"), Color("b07cff"), Color("ffa53d"), Color("ff5c8a")]
+const GRADE_NAMES := ["일반", "고급", "희귀", "영웅", "전설", "신화"]
+const MAX_GRADE := 5      # 승진(같은 직원 합치기)으로 오를 수 있는 최고 등급
+const MYTHIC_GRADE := 6   # 신화: 전설 + 조합 재료로만 각성
+
+## 신화 직원. 전설(base) 하나와 재료 두 명(다른 두 팀의 영웅, 희귀)을 모으면 전설이 신화로 각성한다.
+## 그림은 base 전설의 것을 쓰고, 능력치는 base 의 배율, 레벨은 base 의 레벨을 따른다
+const MYTHICS := {
+	"tower_dv6_1": {"base": "tower_dv5_1", "name": "천재 개발자", "recipe": ["tower_hr4", "tower_sl3"],
+			"skill": {"skillName": "전체 리팩토링", "mult": 5.0, "cooldown": 12.0, "duration": 2.0, "range": 0.0,
+			"description": "맵 위의 모든 적에게 마법 공격력의 500% 피해를 주고 2초 동안 기절시킵니다."}},
+	"tower_dv6_2": {"base": "tower_dv5_2", "name": "화이트 해커", "recipe": ["tower_sl4", "tower_hr3"],
+			"skill": {"skillName": "방화벽 구축", "mult": 0.25, "cooldown": 15.0, "duration": 6.0, "range": 0.0,
+			"description": "맵 위의 모든 적에게 6초 동안 0.1초마다 마법 공격력의 25% 피해를 주고 30% 느리게 만듭니다."}},
+	"tower_hr6_1": {"base": "tower_hr5_1", "name": "인사 부사장", "recipe": ["tower_sl4", "tower_dv3"],
+			"skill": {"skillName": "성과급 지급", "mult": 1.0, "cooldown": 15.0, "duration": 6.0, "range": 0.0,
+			"description": "가장 강한 아군 3명의 공격력과 공격 속도를 6초 동안 100% 올리고 스킬을 바로 쓸 수 있게 합니다."}},
+	"tower_hr6_2": {"base": "tower_hr5_2", "name": "복지의 여신", "recipe": ["tower_dv4", "tower_sl3"],
+			"skill": {"skillName": "전사 워크숍", "mult": 0.5, "cooldown": 18.0, "duration": 6.0, "range": 0.0,
+			"description": "모든 아군의 공격력과 공격 속도를 6초 동안 50% 올리고, 모든 적을 1.5초 동안 기절시킵니다."}},
+	"tower_sl6_1": {"base": "tower_sl5_1", "name": "대표이사", "recipe": ["tower_dv4", "tower_hr3"],
+			"skill": {"skillName": "인수합병", "mult": 0.4, "cooldown": 12.0, "duration": 1.0, "range": 0.0,
+			"description": "맵 위에서 체력이 40% 이하인 일반 적을 모두 즉시 처치하고 한 마리당 코인 2개를 얻습니다. (보스는 물리 공격력의 800% 피해)"}},
+	"tower_sl6_2": {"base": "tower_sl5_2", "name": "글로벌 영업왕", "recipe": ["tower_hr4", "tower_dv3"],
+			"skill": {"skillName": "해외 수주", "mult": 4.0, "cooldown": 10.0, "duration": 3.0, "range": 4.0,
+			"description": "사거리 4칸 안의 적에게 물리 공격력의 400% 피해를 주고 3초 동안 60% 느리게 만들며 코인 30개를 얻습니다."}},
+}
+const MYTHIC_STAT_MULT := 2.5
 const MAX_TOWER_LEVEL := 30
 const MAX_EQUIPMENT_LEVEL := 10
 ## 스킬 쿨타임은 최대 50% 까지만 줄어든다
@@ -20,6 +45,7 @@ var hobbies := {}     # hobbyId -> Dictionary
 var hobby_ids: Array[String] = []
 var equipment := {}   # eqId -> Dictionary
 var equipment_ids: Array[String] = []
+var mythic_of := {}   # 전설 towerId -> 신화 towerId
 
 
 func _init() -> void:
@@ -36,6 +62,29 @@ func _init() -> void:
 	equipment = root["equipment"]
 	for key in equipment:
 		equipment_ids.append(key)
+	_add_mythics()
+
+
+## 신화 직원을 전설 데이터에서 만들어 towers / skills 에 넣는다 (tower_ids 에는 넣지 않는다: 고용, 직원 탭 대상이 아님)
+func _add_mythics() -> void:
+	for id in MYTHICS:
+		var m: Dictionary = MYTHICS[id]
+		var t: Dictionary = towers[m.base].duplicate()
+		t.towerId = id
+		t.towerName = m.name
+		t.towerGrade = MYTHIC_GRADE
+		t.towerPhysicalAttack = float(t.towerPhysicalAttack) * MYTHIC_STAT_MULT
+		t.towerMagicAttack = float(t.towerMagicAttack) * MYTHIC_STAT_MULT
+		t.towerAttackSpeed = float(t.towerAttackSpeed) * 1.2
+		t.towerAttackRange = float(t.towerAttackRange) + (0.5 if t.team == "sl" else 1.0)  # 영업팀은 근접 그대로 (4칸부터 원거리)
+		t.mythicBase = m.base
+		towers[id] = t
+		var skill: Dictionary = m.skill.duplicate()
+		var key: String = id.trim_prefix("tower_")
+		skill.skillId = key
+		skill.summoneeImagePath = skills[String(m.base).trim_prefix("tower_")].get("summoneeImagePath", "")
+		skills[key] = skill
+		mythic_of[m.base] = id
 
 
 func skill_for_tower(tower: Dictionary) -> Dictionary:

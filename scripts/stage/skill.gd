@@ -215,5 +215,58 @@ func _apply(t: Tower) -> bool:
 			if not targets.is_empty():
 				_effect(t.center(), range_px * 1.2)
 			return not targets.is_empty()
+		# ---- 신화
+		"dv6_1":  # 전체 리팩토링: 맵 전체 마법 피해 + 기절
+			var targets := _alive()
+			for e: Enemy in targets:
+				e.damage(0, t.magic * mult)
+				e.stun(duration)
+			return not targets.is_empty()
+		"dv6_2":  # 방화벽 구축: 맵 전체 지속 피해 + 감속
+			var targets := _alive()
+			if targets.is_empty():
+				return false
+			_dot(targets, 0.1, roundi(duration * 10), 0, t.magic * mult)
+			for e: Enemy in targets:
+				e.slow(0.3, duration)
+			return true
+		"hr6_1":  # 성과급 지급: 가장 강한 아군 3명 강화 + 스킬 즉시 준비
+			var allies: Array = battle.towers.filter(func(a: Tower): return a != t)
+			allies.sort_custom(func(a: Tower, b: Tower): return a.physical + a.magic > b.physical + b.magic)
+			for ally: Tower in allies.slice(0, 3):
+				ally.buff_attack(mult, duration)
+				ally.buff_speed(mult, duration)
+				ally.skill._elapsed = ally.skill.cooldown
+			return true
+		"hr6_2":  # 전사 워크숍: 모든 아군 강화 + 모든 적 기절
+			for ally: Tower in battle.towers:
+				ally.buff_attack(mult, duration)
+				ally.buff_speed(mult, duration)
+			for e: Enemy in _alive():
+				e.stun(1.5)
+			return true
+		"sl6_1":  # 인수합병: 체력이 낮은 일반 적 즉시 처치 (+코인), 보스는 큰 피해
+			var targets := _alive()
+			var taken := 0
+			for e: Enemy in targets:
+				if e.is_boss():
+					e.damage(t.physical * 8.0, 0)
+				elif e.hp_ratio() <= mult:
+					e.kill()
+					taken += 1
+			if taken > 0:
+				battle.add_coins(taken * 2)
+				battle.floating_text("+%d" % (taken * 2), t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
+			return not targets.is_empty()
+		"sl6_2":  # 해외 수주: 범위 물리 피해 + 감속 + 코인
+			var targets := _in_range(t, range_px)
+			if targets.is_empty():
+				return false
+			for e: Enemy in targets:
+				e.damage(t.physical * mult, 0)
+				e.slow(0.6, duration)
+			battle.add_coins(30)
+			battle.floating_text("+30", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
+			return true
 	push_warning("unknown skill " + id)
 	return false

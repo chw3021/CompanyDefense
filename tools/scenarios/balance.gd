@@ -174,7 +174,12 @@ func _act(battle: Battle, bot: String) -> void:
 			if t.skill.base_cooldown != INF:
 				t.skill.base_cooldown = INF
 				t.recalculate()
-	elif bot == "smart":
+	if bot == "smart":
+		for t: Tower in battle.towers:
+			if battle.can_awaken(t):
+				battle.awaken(t)
+				return
+	if bot == "smart":
 		var counts := {"hr": 0, "dv": 0, "sl": 0}
 		for t: Tower in battle.towers:
 			counts[t.team] += 1 << (t.grade - 1)

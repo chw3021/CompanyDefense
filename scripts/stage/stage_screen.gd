@@ -14,10 +14,11 @@ var _wave_label: Label
 var _speed_button: Button
 var _wave_button: Button
 var _hire_button: Button
+var _merge_button: Button  # 1성 모두 승진
 var _map_area: Control
 var _float_layer: Control
 var _info_slot: Control
-var _hint: Label
+var _hint: VBoxContainer
 var _card: PanelContainer
 var _upgrades: HBoxContainer
 var _upgrade_labels := {}
@@ -137,8 +138,19 @@ func _build_panel() -> Control:
 	_info_slot.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_info_slot.clip_contents = true
 	col.add_child(_info_slot)
-	_hint = UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!", 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	_hint = UI.vbox(14)
+	_hint.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!", 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	var tools := UI.hbox(12)
+	tools.alignment = BoxContainer.ALIGNMENT_CENTER
+	_merge_button = UI.button("", UI.SUCCESS, func(): battle.merge_all(1), 24)
+	var book := UI.button("신화 조합표", Color("7a3fb0"), _open_recipes, 24)
+	for b in [_merge_button, book]:
+		b.custom_minimum_size = Vector2(0, 64)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tools.add_child(b)
+	_hint.add_child(tools)
 	_info_slot.add_child(_hint)
 	_card = _build_tower_card()
 	_card.visible = false
@@ -237,9 +249,71 @@ func _build_tower_card() -> PanelContainer:
 	trade.icon = load("res://assets/icons/negociation.png")
 	sell.expand_icon = false
 	v.add_child(row)
+	# 전설이면 신화 조합 재료와 각성 버튼
+	var mythic := UI.hbox(12)
+	var recipe := UI.label("", 22, UI.MUTED)
+	recipe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	recipe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mythic.add_child(recipe)
+	var awaken := UI.button("신화 각성", Color("7a3fb0"), func():
+		if battle.selected:
+			battle.awaken(battle.selected), 26)
+	awaken.custom_minimum_size = Vector2(170, 70)
+	mythic.add_child(awaken)
+	v.add_child(mythic)
 	_card_widgets = {"portrait": portrait, "name": name_label, "grade": grade_label, "stats": stats,
-			"skill": skill, "sell": sell, "trade": trade}
+			"skill": skill, "sell": sell, "trade": trade, "mythic": mythic, "recipe": recipe, "awaken": awaken}
 	return card
+
+
+## 신화 조합 상태 (선택한 전설 기준): 재료 이름 옆에 보유/없음
+func _fill_recipe(t: Tower) -> void:
+	var mythic := battle.mythic_for(t)
+	_card_widgets.mythic.visible = mythic != ""
+	if mythic == "":
+		return
+	var parts := battle.recipe_towers(t)
+	var names := []
+	var recipe: Array = GameData.MYTHICS[mythic].recipe
+	for i in recipe.size():
+		names.append("%s %s" % [GameData.towers[recipe[i]].towerName, "(보유)" if parts[i] != null else "(없음)"])
+	_card_widgets.recipe.text = "→ %s\n재료: %s" % [GameData.MYTHICS[mythic].name, " + ".join(names)]
+	var ok := battle.can_awaken(t)
+	_card_widgets.recipe.add_theme_color_override("font_color", UI.GOLD if ok else UI.MUTED)
+	_card_widgets.awaken.disabled = not ok
+
+
+## 신화 조합표: 신화마다 재료와 지금 필드에 있는지
+func _open_recipes() -> void:
+	var list := UI.vbox(12)
+	var on_field := func(id: String) -> bool:
+		return battle.towers.any(func(t: Tower): return t.id == id)
+	for id in GameData.MYTHICS:
+		var m: Dictionary = GameData.MYTHICS[id]
+		var card := UI.panel(UI.CARD, 16, 16)
+		var v := UI.vbox(6)
+		card.add_child(v)
+		var head := UI.hbox(10)
+		head.add_child(UI.label(m.name, 30, GameData.grade_color(GameData.MYTHIC_GRADE)))
+		head.add_child(UI.label("%s팀 신화" % GameData.team_name(GameData.towers[id].team), 22, UI.MUTED))
+		v.add_child(head)
+		var parts := UI.hbox(8)
+		for need in [m.base] + m.recipe:
+			var t: Dictionary = GameData.towers[need]
+			var have: bool = on_field.call(need)
+			var chip := UI.label("%s (%s)" % [t.towerName, GameData.GRADE_NAMES[int(t.towerGrade) - 1]], 20,
+					UI.SUCCESS if have else UI.MUTED)
+			chip.add_theme_stylebox_override("normal", UI.box(Color(UI.SUCCESS, 0.15) if have else Color(0, 0, 0, 0.25), 10, 6))
+			parts.add_child(chip)
+		v.add_child(parts)
+		v.add_child(UI.wrap_label("%s: %s" % [m.skill.skillName, m.skill.description], 21, Color("c9d4ff"), HORIZONTAL_ALIGNMENT_LEFT))
+		list.add_child(card)
+	var scroll := UI.scroll(list)
+	scroll.custom_minimum_size = Vector2(640, 760)
+	var v := UI.vbox(10)
+	v.add_child(UI.wrap_label("전설 직원을 누르고 재료가 모두 필드에 있으면 '신화 각성'!\n재료로 쓴 직원은 사라집니다. 초록색은 지금 필드에 있는 직원.", 22, UI.MUTED))
+	v.add_child(scroll)
+	UI.modal("신화 조합표", v, [["닫기", UI.CARD_HI]], self)
 
 
 # ------------------------------------------------------------------ 갱신
@@ -268,6 +342,9 @@ func _refresh_hud() -> void:
 	var start_text := "야근 시작" if battle.loop else "웨이브 시작"
 	_wave_button.text = start_text if can_start else ("진행 중" if battle.wave_running else "종료")
 	_hire_button.modulate.a = 1.0 if battle.coins >= Battle.SPAWN_COST else 0.6
+	var pairs := battle.merge_pairs(1).size()
+	_merge_button.text = "1성 모두 승진 (%d쌍)" % pairs
+	_merge_button.disabled = pairs == 0
 	for team in GameData.TEAMS:
 		_upgrade_labels[team].text = "%s Lv.%d" % [GameData.team_name(team), battle.team_level[team]]
 		_upgrade_costs[team].text = str(battle.upgrade_cost(team))
@@ -291,12 +368,14 @@ func _on_tower_selected(t: Tower) -> void:
 	_card_widgets.grade.add_theme_color_override("font_color", GameData.grade_color(t.grade))
 	_card_widgets.sell.text = "퇴사  +%d" % Battle.sell_price(t)
 	_card_widgets.trade.text = "협상  -%d (30%%)" % Battle.trade_cost(t)
+	_card_widgets.trade.disabled = t.grade >= GameData.MYTHIC_GRADE
 	_fill_stats(t)
 	# 화면이 낮으면 팀 업그레이드 줄 자리에 카드를 보여 준다
 	_upgrades.visible = _info_slot.size.y + _card.size.y >= CARD_MIN_HEIGHT * 2
 
 
 func _fill_stats(t: Tower) -> void:
+	_fill_recipe(t)
 	_card_widgets.stats.text = "물리 %d  /  마법 %d  /  공속 %.1f" % [roundi(t.physical), roundi(t.magic), t.attack_speed]
 	var ready := t.skill.ready_ratio()
 	_card_widgets.skill.text = "스킬: %s%s" % [t.skill.name, "" if ready >= 1.0 else "  (%d%%)" % roundi(ready * 100)]

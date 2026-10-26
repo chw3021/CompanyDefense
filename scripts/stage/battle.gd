@@ -19,6 +19,7 @@ signal tower_placed(t: Tower, promoted: bool)
 signal tower_attacked(t: Tower, target: Enemy, melee: bool)
 signal skill_cast(t: Tower)
 signal projectile_hit(p: Dictionary)
+signal mythic_born(t: Tower)
 
 const SPAWN_COST := 100
 const TRADE_CHANCE := 0.3
@@ -99,6 +100,11 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 		var level: int = user.get("towers", {}).get(tower_id, 1)
 		var team: String = GameData.towers[tower_id].team
 		templates[tower_id] = Tower.make_template(tower_id, level, GameData.stat_bonus(user, team))
+	# 신화는 각성 전 전설의 레벨을 따른다
+	for id in GameData.MYTHICS:
+		var base: String = GameData.MYTHICS[id].base
+		var level: int = user.get("towers", {}).get(base, 1)
+		templates[id] = Tower.make_template(id, level, GameData.stat_bonus(user, GameData.towers[id].team))
 
 
 func cell_center(c: Vector2i) -> Vector2:
@@ -364,7 +370,7 @@ func hire() -> void:
 
 
 ## dragged 를 target 위에 놓았을 때: 둘을 합쳐 한 등급 높은 무작위 직원으로
-func merge(dragged: Tower, target: Tower) -> void:
+func merge(dragged: Tower, target: Tower, select_result := true) -> void:
 	if finished or not dragged.can_merge_with(target):
 		return
 	var upgrades := GameData.towers_of_grade(target.grade + 1)
@@ -378,8 +384,35 @@ func merge(dragged: Tower, target: Tower) -> void:
 	session.max_grade = maxi(session.max_grade, merged.grade)
 	tower_placed.emit(merged, true)
 	floating.emit("승진!", merged.center() + Vector2(0, -cell * 0.5), GameData.grade_color(merged.grade))
-	select(merged)
+	if select_result:
+		select(merged)
 	hud_changed.emit()
+
+
+## grade 등급에서 같은 직원끼리 짝지을 수 있는 쌍 [[a, b], ...]
+func merge_pairs(grade: int) -> Array:
+	var by_id := {}
+	for t: Tower in towers:
+		if t.grade == grade and grade < GameData.MAX_GRADE:
+			by_id[t.id] = by_id.get(t.id, []) + [t]
+	var pairs := []
+	for id in by_id:
+		var list: Array = by_id[id]
+		for i in range(0, list.size() - 1, 2):
+			pairs.append([list[i], list[i + 1]])
+	return pairs
+
+
+## 자동 승진: grade 등급의 짝을 모두 합친다. 합친 쌍 수를 돌려준다
+func merge_all(grade: int) -> int:
+	if finished:
+		return 0
+	var pairs := merge_pairs(grade)
+	for pair in pairs:
+		merge(pair[0], pair[1], false)
+	if not pairs.is_empty():
+		message.emit("%d성 %d쌍 승진!" % [grade, pairs.size()], UI.GOLD)
+	return pairs.size()
 
 
 static func sell_price(t: Tower) -> int:
@@ -403,6 +436,8 @@ func sell(t: Tower) -> void:
 func trade(t: Tower) -> void:
 	if finished:
 		return
+	if t.grade >= GameData.MYTHIC_GRADE:  # 신화는 협상 대상이 아니다
+		return
 	var cost := trade_cost(t)
 	if coins < cost:
 		message.emit("코인이 부족합니다", UI.DANGER)
@@ -420,6 +455,55 @@ func trade(t: Tower) -> void:
 		select(swapped)
 	else:
 		floating.emit("퇴사...", cell_center(c), UI.DANGER)
+	hud_changed.emit()
+
+
+# ------------------------------------------------------------------ 신화 각성 (조합)
+
+## t(전설)가 각성할 신화 id. 해당 없으면 ""
+func mythic_for(t: Tower) -> String:
+	return GameData.mythic_of.get(t.id, "") if t != null else ""
+
+
+## 조합 재료마다 필드에서 쓸 직원 (없으면 null). t 자신은 재료로 쓰지 않는다
+func recipe_towers(t: Tower) -> Array:
+	var mythic := mythic_for(t)
+	if mythic == "":
+		return []
+	var used := [t]
+	var result := []
+	for need: String in GameData.MYTHICS[mythic].recipe:
+		var found: Tower = null
+		for other: Tower in towers:
+			if other.id == need and not used.has(other):
+				found = other
+				break
+		if found:
+			used.append(found)
+		result.append(found)
+	return result
+
+
+func can_awaken(t: Tower) -> bool:
+	var parts := recipe_towers(t)
+	return not finished and not parts.is_empty() and not parts.has(null)
+
+
+## 전설 t 와 재료를 써서 t 자리에 신화를 앉힌다
+func awaken(t: Tower) -> void:
+	if not can_awaken(t):
+		return
+	var mythic := mythic_for(t)
+	var c := t.cell
+	for part: Tower in recipe_towers(t):
+		_remove(part)
+	_remove(t)
+	var m := _place(mythic, c)
+	session.max_grade = maxi(session.max_grade, m.grade)
+	tower_placed.emit(m, true)
+	mythic_born.emit(m)
+	floating.emit("신화 각성!", m.center() + Vector2(0, -cell * 0.5), GameData.grade_color(m.grade))
+	select(m)
 	hud_changed.emit()
 
 

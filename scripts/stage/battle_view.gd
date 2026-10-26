@@ -66,6 +66,7 @@ func setup(p_battle: Battle) -> void:
 	battle.tower_attacked.connect(_on_tower_attacked)
 	battle.skill_cast.connect(_on_skill_cast)
 	battle.projectile_hit.connect(_on_projectile_hit)
+	battle.mythic_born.connect(_on_mythic_born)
 	queue_redraw()
 
 
@@ -279,7 +280,15 @@ func _draw_tower(t: Tower) -> void:
 	_draw_face(t.id, portrait, at, radius - 1, Color(shade, shade, shade, alpha))
 	# 등급 테두리: 등급이 높을수록 두껍고, 4등급부터는 바깥에 반짝이는 고리
 	ci.draw_arc(at, radius + 1, 0, TAU, 32, Color(0.08, 0.06, 0.12, alpha), 7 + t.grade, true)
-	ci.draw_arc(at, radius + 1, 0, TAU, 32, Color(grade_color, alpha), 3 + t.grade, true)
+	if t.grade >= GameData.MYTHIC_GRADE:
+		# 신화: 무지갯빛이 빙글빙글 도는 테두리와 은은한 후광
+		var spin := Time.get_ticks_msec() / 600.0
+		ci.draw_circle(at, radius + 14, Color(1, 0.85, 0.95, 0.12 + 0.08 * sin(spin * 3.0)))
+		for i in 12:
+			var a := spin + i * TAU / 12
+			ci.draw_arc(at, radius + 1, a, a + TAU / 12 + 0.02, 4, Color(Color.from_hsv(fmod(i / 12.0 + spin * 0.2, 1.0), 0.7, 1.0), alpha), 9, true)
+	else:
+		ci.draw_arc(at, radius + 1, 0, TAU, 32, Color(grade_color, alpha), 3 + t.grade, true)
 	if t.grade >= 4:
 		var shine := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 220.0 + t.cell.x)
 		ci.draw_arc(at, radius + 5 + t.grade, 0, TAU, 32, Color(grade_color.lightened(0.3), (0.35 + 0.4 * shine) * alpha), 2.5, true)
@@ -327,7 +336,9 @@ func _draw_face(tower_id: String, portrait: Texture2D, at: Vector2, radius: floa
 	if _circle.is_empty():
 		for i in 28:
 			_circle.append(Vector2.from_angle(i * TAU / 28))
-	var crop: Array = FACE_CROPS.get(tower_id.trim_prefix("tower_"), [175, 20])
+	# 신화는 각성 전 전설의 얼굴 위치를 쓴다
+	var key: String = String(GameData.towers[tower_id].get("mythicBase", tower_id)).trim_prefix("tower_")
+	var crop: Array = FACE_CROPS.get(key, [175, 20])
 	var size := portrait.get_size()
 	var origin := Vector2(crop[0] - FACE_SIZE / 2, crop[1] - 8)
 	var points := PackedVector2Array()
@@ -779,6 +790,54 @@ func _on_skill_cast(t: Tower) -> void:
 						Vector2(cos(a), sin(a) - 0.8) * c * 3.0, randf() * TAU, randf_range(-12, 12))
 			for e: Enemy in _enemies_near(at, sk.range_px):
 				_add_fx("heart", e.pos + Vector2(0, -e.size * 0.5), 0.8, c * 0.12, Color(1, 0.5, 0.7), Vector2(0, -c * 0.8))
+		# ---- 신화: 맵 전체가 반응하는 큰 연출
+		"dv6_1":  # 전체 리팩토링: 화면을 가로지르는 코드 폭풍
+			_add_fx("flash", Vector2.ZERO, 0.5, 0, Color(0.4, 0.8, 1, 0.35))
+			for i in 40:
+				_add_fx("glyph", Vector2(randf() * map_size, randf_range(-0.4, 0.8) * map_size), 1.0, 24,
+						[Color(0.4, 0.9, 1), Color(0.5, 1, 0.6)].pick_random(), Vector2(0, c * randf_range(6, 10)), 0, 0, ["{ }", "</>", "0", "1", ";"].pick_random())
+			for e: Enemy in _enemies_near(at, INF):
+				_add_fx("cross", e.pos, 0.6, c * 0.5, Color(0.4, 0.9, 1))
+			_shake_screen(0.6)
+		"dv6_2":  # 방화벽 구축: 맵 가장자리를 두른 방화벽
+			_add_fx("flash", Vector2.ZERO, 0.6, 0, Color(1, 0.4, 0.2, 0.25))
+			_add_fx("zone", Vector2(map_size, map_size) / 2, maxf(0.8, sk.duration), map_size * 0.7, Color(1, 0.45, 0.2))
+			for e: Enemy in _enemies_near(at, INF):
+				_add_fx("spark", e.pos, 0.8, c * 0.12, Color(1, 0.55, 0.2), Vector2(0, -c * 1.2))
+		"hr6_1":  # 성과급 지급: 돈다발이 쏟아진다
+			for i in 18:
+				_add_fx("card", at, 1.0, c * 0.16, Color(0.55, 0.85, 0.5), Vector2(randf_range(-1, 1), randf_range(-3, -1.5)) * c * 1.6, randf() * TAU, randf_range(-8, 8))
+			_add_fx("text", at + Vector2(0, c * 0.05), 1.0, 26, UI.GOLD, Vector2(0, -c * 0.5), 0, 0, "성과급!")
+		"hr6_2":  # 전사 워크숍: 모든 직원에게서 하트, 모든 적에게 Zzz
+			_add_fx("flash", Vector2.ZERO, 0.6, 0, Color(1, 0.55, 0.75, 0.25))
+			for ally: Tower in battle.towers:
+				_add_fx("heart", ally.center() + Vector2(0, -c * 0.3), 1.0, c * 0.15, Color(1, 0.45, 0.6), Vector2(0, -c))
+			for e: Enemy in _enemies_near(at, INF):
+				_add_fx("text", e.pos + Vector2(0, -e.size * 0.6), 1.2, 18, Color(0.75, 0.85, 1), Vector2(c * 0.2, -c * 0.4), 0, 0, "Zzz")
+		"sl6_1":  # 인수합병: 모든 적 위에 계약 도장
+			_add_fx("flash", Vector2.ZERO, 0.4, 0, Color(1, 0.85, 0.3, 0.25))
+			for e: Enemy in _enemies_near(at, INF):
+				_add_fx("stamp", e.pos, 0.8, c * 0.3, Color(0.9, 0.1, 0.1), Vector2.ZERO, randf_range(-0.4, 0.4), 0, "인수")
+			_shake_screen(0.5)
+		"sl6_2":  # 해외 수주: 지구를 도는 비행기처럼 금빛 고리 셋
+			for i in 3:
+				_add_fx("ring", at, 0.5 + i * 0.2, sk.range_px * (0.7 + i * 0.25), Color(1, 0.8, 0.3))
+			for i in 16:
+				_add_fx("coin", at + Vector2(0, -c * 0.2), 1.0, c * 0.13, UI.GOLD, Vector2(randf_range(-1.2, 1.2), randf_range(-3, -1.8)) * c * 1.5, 0, randf_range(4, 10))
+			_shake_screen(0.4)
+
+
+## 신화 각성: 무지개 광선, 화면 번쩍, 큰 글자
+func _on_mythic_born(t: Tower) -> void:
+	var c := battle.cell
+	_add_fx("flash", Vector2.ZERO, 0.8, 0, Color(1, 1, 1, 0.5))
+	for i in 24:
+		_add_fx("ray", t.center(), 1.0, c * randf_range(2.0, 3.5), Color.from_hsv(i / 24.0, 0.6, 1.0), Vector2.ZERO, i * TAU / 24)
+	for i in 3:
+		_add_fx("ring", t.center(), 0.8 + i * 0.25, c * (1.5 + i), Color.from_hsv(i / 3.0, 0.5, 1.0))
+	_add_fx("text", Vector2(map_size / 2, map_size * 0.42), 1.8, 44, Color(1, 0.85, 0.95), Vector2(0, -c * 0.2), 0, 0, "신화 각성!")
+	_add_fx("text", Vector2(map_size / 2, map_size * 0.52), 1.8, 32, UI.GOLD, Vector2(0, -c * 0.2), 0, 0, t.name)
+	_shake_screen(1.0)
 
 
 func _flush_damage(e: Enemy) -> void:
