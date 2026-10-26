@@ -158,6 +158,10 @@ const STAGES := {
 const ENDLESS_BASE_HP := 40.0
 static var endless_hp_power := 3.0  # 시뮬레이터가 --dev-power, --dev-k 로 바꿔 볼 수 있게 var
 static var endless_hp_k := 10.0
+## 후반 벽: LATE_ROUND 라운드부터는 라운드마다 체력에 late_growth 를 한 번 더 곱한다.
+## 신화 + 맵 전체 피해로 화력이 다항식 체력을 따라잡아 판이 끝나지 않던 것을 막는다 (그 전 라운드는 영향 없음)
+const LATE_ROUND := 40
+static var late_growth := 1.06
 const ENDLESS_MAX_COUNT := 36
 
 
@@ -170,7 +174,7 @@ static func is_endless(stage_id: int) -> bool:
 ## 특수 적은 6웨이브부터 섞여 나온다
 static func endless_wave(index: int) -> Array:
 	var w := index + 1
-	var hp := ENDLESS_BASE_HP * pow(1.0 + index / endless_hp_k, endless_hp_power)
+	var hp := ENDLESS_BASE_HP * pow(1.0 + index / endless_hp_k, endless_hp_power) * pow(late_growth, maxi(0, index + 1 - LATE_ROUND))
 	var count := mini(8 + int(index * 0.7), ENDLESS_MAX_COUNT)
 	var interval := maxf(0.35, 1.0 - index * 0.02)
 	var special := w > 5

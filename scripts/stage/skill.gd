@@ -220,7 +220,8 @@ func _apply(t: Tower) -> bool:
 			var targets := _alive()
 			for e: Enemy in targets:
 				e.damage(0, t.magic * mult)
-				e.stun(duration)
+				if not e.is_boss():  # 맵 전체 기절은 보스에게 안 걸린다 (신화가 판을 끝없이 끌지 않게)
+					e.stun(duration)
 			return not targets.is_empty()
 		"dv6_2":  # 방화벽 구축: 맵 전체 지속 피해 + 감속
 			var targets := _alive()
@@ -243,7 +244,8 @@ func _apply(t: Tower) -> bool:
 				ally.buff_attack(mult, duration)
 				ally.buff_speed(mult, duration)
 			for e: Enemy in _alive():
-				e.stun(1.5)
+				if not e.is_boss():
+					e.stun(0.6)
 			return true
 		"sl6_1":  # 인수합병: 체력이 낮은 일반 적 즉시 처치 (+코인), 보스는 큰 피해
 			var targets := _alive()

@@ -39,6 +39,8 @@ func run(p_dev) -> void:
 			StageDefs.endless_hp_power = float(arg.trim_prefix("--dev-power="))
 		elif arg.begins_with("--dev-k="):
 			StageDefs.endless_hp_k = float(arg.trim_prefix("--dev-k="))
+		elif arg.begins_with("--dev-late="):
+			StageDefs.late_growth = float(arg.trim_prefix("--dev-late="))
 		elif arg.begins_with("--dev-hp-scale="):
 			hp_scale = float(arg.trim_prefix("--dev-hp-scale="))
 		elif arg.begins_with("--dev-bots="):
