@@ -249,7 +249,10 @@ func _refresh_hud() -> void:
 		_pulse(_life_label, UI.DANGER)
 	_last_life = battle.life
 	_coin_label.text = str(battle.coins)
-	_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
+	if battle.endless:
+		_wave_label.text = "웨이브 %d" % battle.display_wave()
+	else:
+		_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
 	_speed_button.text = "x%d" % int(battle.speed)
 	var can_start := battle.can_start_wave()
 	_wave_button.disabled = not can_start
@@ -326,17 +329,15 @@ func _pulse(label: Label, color: Color) -> void:
 
 ## 웨이브 시작: 띠가 옆에서 밀려 들어왔다가 빠진다. 보스 웨이브는 빨간 띠
 func _show_wave_banner(index: int) -> void:
-	var boss := false
-	for group in battle.def.waves[index][1]:
-		if StageDefs.ENEMIES[group[0]].boss:
-			boss = true
+	var boss := battle.wave_has_boss(index)
 	var band := UI.panel(Color(UI.DANGER, 0.88) if boss else Color(0.05, 0.06, 0.08, 0.82), 0, 14)
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.custom_minimum_size.x = MAP_CELL * 10
 	var v := UI.vbox(0)
 	band.add_child(v)
-	var last := index + 1 == battle.wave_count()
-	v.add_child(UI.label("WAVE %d / %d" % [index + 1, battle.wave_count()], 44, UI.GOLD if not boss else UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	var last := not battle.endless and index + 1 == battle.wave_count()
+	var title := "WAVE %d" % (index + 1) if battle.endless else "WAVE %d / %d" % [index + 1, battle.wave_count()]
+	v.add_child(UI.label(title, 44, UI.GOLD if not boss else UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	if boss or last:
 		v.add_child(UI.label("보스 등장!" if boss else "마지막 웨이브!", 26, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	_float_layer.add_child(band)
@@ -397,9 +398,14 @@ func _toggle_pause() -> void:
 func _on_game_over(won: bool, summary: Dictionary) -> void:
 	await get_tree().create_timer(0.6).timeout
 	var v := UI.vbox(10)
-	var headline := UI.label("모든 웨이브를 막아냈습니다!" if won else "회사가 무너졌습니다...", 30,
-			UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	var text := "모든 웨이브를 막아냈습니다!" if won else "회사가 무너졌습니다..."
+	if battle.endless:
+		text = "웨이브 %d까지 버텼습니다!" % summary.wave
+	var headline := UI.label(text, 30, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(headline)
+	if battle.endless:
+		var record := "최고 기록 경신!" if summary.new_record else "최고 기록: 웨이브 %d" % Save.user.endless_best
+		v.add_child(UI.label(record, 28, UI.GOLD if summary.new_record else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var stats := UI.panel(UI.CARD, 16, 18)
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -417,7 +423,8 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 		if stage_id < StageDefs.COUNT:
 			bonus += "\n다음 스테이지가 열렸습니다!"
 		v.add_child(UI.label(bonus, 24, UI.SUCCESS, HORIZONTAL_ALIGNMENT_CENTER))
-	UI.modal("승리!" if won else "패배", v, [
+	var title := "야근 종료" if battle.endless else ("승리!" if won else "패배")
+	UI.modal(title, v, [
 		["다시 하기", UI.CARD_HI, func(): UI.go("res://scenes/stage.tscn", func(s): s.stage_id = stage_id)],
 		["메인 화면", UI.PRIMARY, func(): UI.go("res://scenes/main.tscn")],
 	], self, false)

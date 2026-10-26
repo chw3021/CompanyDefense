@@ -1,7 +1,7 @@
 # 스테이지 선택 탭
 extends VBoxContainer
 
-const DIFFICULTY_COLORS := {"쉬움": Color("2fbf71"), "보통": Color("f0b43e"), "어려움": Color("e5534b")}
+const DIFFICULTY_COLORS := {"쉬움": Color("2fbf71"), "보통": Color("f0b43e"), "어려움": Color("e5534b"), "무한": Color("9b6bff")}
 
 var main
 
@@ -41,12 +41,16 @@ func _stage_card(id: int) -> Control:
 	var chips := UI.hbox(10)
 	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chips.add_child(_chip(s.difficulty, DIFFICULTY_COLORS[s.difficulty]))
-	chips.add_child(_chip("웨이브 %d" % s.waves.size(), UI.LINE))
-	if cleared:
+	var endless := StageDefs.is_endless(id)
+	chips.add_child(_chip("웨이브 무한" if endless else "웨이브 %d" % s.waves.size(), UI.LINE))
+	if cleared and not endless:
 		chips.add_child(_chip("클리어", UI.SUCCESS))
 	text.add_child(chips)
 	if not unlocked:
 		text.add_child(UI.label("이전 스테이지를 클리어하면 열립니다", 24, UI.MUTED))
+	elif endless:
+		var best_wave: int = Save.user.get("endless_best", 0)
+		text.add_child(UI.label("최고 기록 웨이브 %d" % best_wave if best_wave > 0 else "어디까지 버틸 수 있을까요?", 24, UI.GOLD))
 	else:
 		var best = Save.user.best_scores.get(str(id))
 		if best != null:

@@ -59,6 +59,7 @@ func create_user(user_name: String) -> void:
 		"equipment": {},
 		"mails": [],
 		"max_cleared": 0,
+		"endless_best": 0,
 		"best_scores": {},
 		"high_score": 0,
 		"games_played": 0,
@@ -98,7 +99,7 @@ func _normalize() -> void:
 	for key in ["towers", "hobbies", "equipment", "best_scores"]:
 		for id in user[key]:
 			user[key][id] = int(user[key][id])
-	for key in ["gold", "time", "last_refill", "max_cleared", "high_score", "games_played", "games_won"]:
+	for key in ["gold", "time", "last_refill", "max_cleared", "endless_best", "high_score", "games_played", "games_won"]:
 		user[key] = int(user.get(key, 0))
 	if String(user.get("name", "")).strip_edges() == "":
 		user["name"] = DEFAULT_NAME
@@ -223,6 +224,14 @@ func record_stage_result(stage_id: int, won: bool, score: int, gold_reward: int)
 					300 * stage_id, 2)
 	save()
 	return first_clear
+
+
+## 무한 모드에서 버틴 웨이브 수 기록. 최고 기록을 넘었으면 true (저장은 record_stage_result 가 한다)
+func record_endless_wave(waves: int) -> bool:
+	if user.is_empty() or waves <= int(user.get("endless_best", 0)):
+		return false
+	user.endless_best = waves
+	return true
 
 
 func is_stage_unlocked(stage_id: int) -> bool:

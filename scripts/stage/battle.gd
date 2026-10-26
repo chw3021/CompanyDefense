@@ -44,6 +44,7 @@ var speed := 1.0
 var paused := false
 var finished := false
 var won := false
+var endless := false  # 무한 모드: 웨이브가 끝나지 않고, 목숨이 다하면 끝
 var selected: Tower
 
 var wave_index := 0          # 진행 중이거나 다음에 시작할 웨이브
@@ -58,6 +59,7 @@ var _time := 0.0
 func setup(p_stage_id: int, cell_size: float) -> void:
 	stage_id = p_stage_id
 	def = StageDefs.STAGES[stage_id]
+	endless = StageDefs.is_endless(stage_id)
 	cell = cell_size
 	map = def.map
 	for wp in StageDefs.waypoints(map):
@@ -83,22 +85,35 @@ func cell_at(p: Vector2) -> Vector2i:
 	return Vector2i(floori(p.x / cell), floori(p.y / cell))
 
 
+## 무한 모드는 0
 func wave_count() -> int:
-	return def.waves.size()
+	return 0 if endless else def.waves.size()
+
+
+## index 번째 웨이브 정의 [생성 간격, [[적, 기본 체력, 마리 수], ...]]
+func wave_def(index: int) -> Array:
+	return StageDefs.endless_wave(index) if endless else def.waves[index]
 
 
 func display_wave() -> int:
-	return mini(wave_count(), wave_index + 1 if wave_running else wave_index)
+	var shown := wave_index + 1 if wave_running else wave_index
+	return shown if endless else mini(wave_count(), shown)
+
+
+func has_wave(index: int) -> bool:
+	return endless or index < wave_count()
 
 
 func can_start_wave() -> bool:
-	return not finished and not wave_running and wave_index < wave_count()
+	return not finished and not wave_running and has_wave(wave_index)
 
 
 func next_wave_has_boss() -> bool:
-	if wave_index >= wave_count():
-		return false
-	for group in def.waves[wave_index][1]:
+	return has_wave(wave_index) and wave_has_boss(wave_index)
+
+
+func wave_has_boss(index: int) -> bool:
+	for group in wave_def(index)[1]:
 		if StageDefs.ENEMIES[group[0]].boss:
 			return true
 	return false
@@ -143,7 +158,7 @@ func _update_wave(dt: float) -> void:
 func start_wave() -> void:
 	if not can_start_wave():
 		return
-	var wave: Array = def.waves[wave_index]
+	var wave: Array = wave_def(wave_index)
 	_spawn_delay = wave[0]
 	_since_spawn = _spawn_delay  # 첫 적은 바로 나온다
 	_pending.clear()
@@ -162,7 +177,7 @@ func _on_wave_cleared() -> void:
 	score += 100
 	var bonus := 50 + 25 * wave_index
 	coins += bonus
-	if wave_index >= wave_count():
+	if not has_wave(wave_index):
 		_end(true)
 		return
 	var text := "웨이브 클리어! +%d" % bonus
@@ -414,7 +429,12 @@ func _run_tasks(dt: float) -> void:
 
 # ------------------------------------------------------------------ 종료
 
+const ENDLESS_GOLD_PER_WAVE := 150
+
+
 func _gold_reward(p_won: bool) -> int:
+	if endless:
+		return wave_index * ENDLESS_GOLD_PER_WAVE
 	var reward := wave_index * 100 * (1 + 0.5 * (stage_id - 1))
 	return roundi(reward * 1.5 if p_won else reward)
 
@@ -432,9 +452,11 @@ func _end(p_won: bool) -> void:
 	if p_won:
 		score += life * 50
 	var gold := _gold_reward(p_won)
+	var new_record := endless and Save.record_endless_wave(wave_index)
 	var first_clear := Save.record_stage_result(stage_id, p_won, score, gold)
 	hud_changed.emit()
-	game_over.emit(p_won, {"kills": kills, "gold": gold, "score": score, "first_clear": first_clear})
+	game_over.emit(p_won, {"kills": kills, "gold": gold, "score": score, "first_clear": first_clear,
+			"wave": wave_index, "new_record": new_record})
 
 
 func set_speed(value: float) -> void:

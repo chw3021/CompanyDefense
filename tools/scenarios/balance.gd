@@ -4,7 +4,8 @@
 extends Node
 
 const STEP := 0.05          # 시뮬레이션 한 틱 (게임 시간 초)
-const MAX_TIME := 1800.0    # 한 판 최대 게임 시간
+const MAX_TIME := 7200.0    # 한 판 최대 게임 시간
+const ENDLESS_SLOTS := 80    # 무한 모드에서 웨이브별 누수를 셀 칸 수
 
 ## 계정 성장 단계 가정. towers 는 등급(1~5)별 레벨, hobbies/equipment 는 모든 항목에 같은 레벨
 ## after1/after2 는 앞 스테이지를 깬 뒤 번 골드(약 2,700 / 5,000)로 현실적으로 올릴 수 있는 정도
@@ -13,6 +14,7 @@ const PROFILES := {
 	"after1": {"towers": [5, 2, 1, 1, 1], "hobbies": 2, "equipment": 1},
 	"after2": {"towers": [8, 4, 2, 1, 1], "hobbies": 3, "equipment": 2},
 	"mid": {"towers": [5, 5, 5, 5, 5], "hobbies": 5, "equipment": 3},
+	"veteran": {"towers": [15, 12, 10, 8, 6], "hobbies": 10, "equipment": 7},
 }
 
 var dev
@@ -32,6 +34,8 @@ func run(p_dev) -> void:
 			stages = Array(arg.trim_prefix("--dev-stages=").split(",")).map(func(s): return int(s))
 		elif arg.begins_with("--dev-profiles="):
 			profiles = Array(arg.trim_prefix("--dev-profiles=").split(","))
+		elif arg.begins_with("--dev-growth="):
+			StageDefs.endless_hp_growth = float(arg.trim_prefix("--dev-growth="))
 		elif arg.begins_with("--dev-hp-scale="):
 			hp_scale = float(arg.trim_prefix("--dev-hp-scale="))
 		elif arg.begins_with("--dev-bots="):
@@ -52,6 +56,9 @@ func run(p_dev) -> void:
 
 
 func _line(a: Dictionary) -> String:
+	if a.endless:
+		return "stage=%d profile=%-6s bot=%-6s avg_wave=%.1f p10/50/90=%s time=%ds maxgrade=%s" % [
+			a.stage, a.profile, a.bot, a.avg_wave, str(a.wave_p10_50_90), roundi(a.avg_time), str(a.max_grade_hist)]
 	return "stage=%d profile=%-4s bot=%-6s win=%3d%% life=%.1f wave=%.1f/%d time=%ds leaks/wave=%s maxgrade=%s" % [
 		a.stage, a.profile, a.bot, roundi(a.win_rate * 100), a.avg_life, a.avg_wave, a.waves,
 		roundi(a.avg_time), str(a.leaks_per_wave), str(a.max_grade_hist)]
@@ -62,7 +69,9 @@ func _aggregate(stage_id: int, profile: String, bot: String, runs: int) -> Dicti
 	var life_sum := 0.0
 	var wave_sum := 0.0
 	var time_sum := 0.0
-	var waves: int = StageDefs.STAGES[stage_id].waves.size()
+	var endless := StageDefs.is_endless(stage_id)
+	var waves: int = ENDLESS_SLOTS if endless else StageDefs.STAGES[stage_id].waves.size()
+	var reached := []
 	var leaks := []
 	leaks.resize(waves)
 	leaks.fill(0.0)
@@ -73,6 +82,7 @@ func _aggregate(stage_id: int, profile: String, bot: String, runs: int) -> Dicti
 			wins += 1
 		life_sum += r.life
 		wave_sum += r.wave
+		reached.append(r.wave)
 		time_sum += r.time
 		for w in waves:
 			leaks[w] += r.leaks[w]
@@ -83,7 +93,14 @@ func _aggregate(stage_id: int, profile: String, bot: String, runs: int) -> Dicti
 		"avg_time": time_sum / runs,
 		"leaks_per_wave": leaks.map(func(v): return snappedf(v / runs, 0.1)),
 		"max_grade_hist": grade_hist,
+		"endless": endless, "wave_p10_50_90": _percentiles(reached),
 	}
+
+
+func _percentiles(values: Array) -> Array:
+	var sorted := values.duplicate()
+	sorted.sort()
+	return [0.1, 0.5, 0.9].map(func(q): return sorted[mini(sorted.size() - 1, int(q * sorted.size()))])
 
 
 func _make_user(profile: String) -> Dictionary:
@@ -110,7 +127,7 @@ func _play(stage_id: int, profile: String, bot: String) -> Dictionary:
 		battle.def = battle.def.duplicate()
 		battle.def.hp_scale = hp_scale
 	var leaks := []
-	leaks.resize(battle.wave_count())
+	leaks.resize(battle.wave_count() if battle.wave_count() > 0 else ENDLESS_SLOTS)
 	leaks.fill(0)
 	var last_life := battle.life
 	while not battle.finished and battle.game_time() < MAX_TIME:

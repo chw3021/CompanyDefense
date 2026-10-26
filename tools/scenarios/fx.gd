@@ -1,4 +1,4 @@
-# 연출 확인용: 전투 중 이벤트(공격, 처치, 승진, 탈출) 직후를 연속으로 찍는다.
+# 연출 확인용: 전투 중 이벤트(공격, 처치, 승진, 탈출) 직후를 연속으로 찍는다. --dev-stage=4 처럼 스테이지 지정
 extends Node
 
 var dev
@@ -8,7 +8,15 @@ func run(p_dev) -> void:
 	dev = p_dev
 	Save.reset()
 	Save.create_user("테스터")
-	await UI.go("res://scenes/stage.tscn", func(s): s.stage_id = 1)
+	var stage_id := 1
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--dev-stage="):
+			stage_id = int(arg.trim_prefix("--dev-stage="))
+	Save.user.max_cleared = 3
+	await UI.go("res://scenes/main.tscn")
+	await dev.wait(0.6)
+	await dev.shot("fx_00_stage_list")
+	await UI.go("res://scenes/stage.tscn", func(s): s.stage_id = stage_id)
 	await dev.wait(2.6)
 	var battle: Battle = get_tree().current_scene.battle
 	battle.coins = 2000
