@@ -174,12 +174,15 @@ func _draw() -> void:
 func _draw_dynamic() -> void:
 	ci = _dyn
 	_draw_flow()
-	if _dragging and _press_tower:
-		_draw_merge_targets()
 	if battle.selected:
 		_draw_range(battle.selected)
 	for t: Tower in battle.towers:
 		_draw_tower(t)
+	# 끌고 있거나 선택한 직원과 합칠 수 있는 직원을 금색으로 표시
+	if _dragging and _press_tower:
+		_draw_merge_targets(_press_tower)
+	elif battle.selected:
+		_draw_merge_targets(battle.selected)
 	for e: Enemy in battle.enemies:
 		_draw_enemy(e)
 	for p in battle.projectiles:
@@ -224,14 +227,13 @@ func _draw_marker(at: Vector2, color: Color, text: String) -> void:
 	_text(at, text, int(c * 0.28))
 
 
-func _draw_merge_targets() -> void:
+func _draw_merge_targets(src: Tower) -> void:
 	var c := battle.cell
 	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 120.0)
 	for t: Tower in battle.towers:
-		if _press_tower.can_merge_with(t):
-			var r := Rect2(t.cell.x * c, t.cell.y * c, c, c).grow(-2)
-			_rounded(r, Color(UI.GOLD, 0.15 + 0.15 * pulse), 12)
-			_outline(r, Color(UI.GOLD, 0.6 + 0.4 * pulse), 12, 4)
+		if src.can_merge_with(t):
+			var r := Rect2(t.cell.x * c, t.cell.y * c, c, c).grow(-1)
+			_outline(r, Color(UI.GOLD, 0.6 + 0.4 * pulse), 12, 5)
 
 
 func _draw_range(t: Tower) -> void:
@@ -248,8 +250,16 @@ func _draw_tower(t: Tower) -> void:
 	var portrait := tex(GameData.asset(t.data.towerImagePath))
 	var h := c * 0.98 * (1.0 + 0.25 * t.spawn_anim)
 	var w := h * portrait.get_width() / portrait.get_height()
+	var team_color: Color = GameData.TEAM_COLORS[t.team]
+	var grade_color := GameData.grade_color(t.grade)
+	# 책상 윗면을 팀 색으로 칠하고, 2등급부터는 등급 색 테두리 (멀리서도 팀/등급이 보이게)
+	var m := c * 0.1
+	var top := Rect2(base.x + m, base.y + m, c - m * 2, c - m * 2 - c * 0.08)
+	_rounded(top, Color(team_color, 0.55), 10)
+	if t.grade >= 2:
+		_outline(top.grow(1), grade_color, 10, 3 + t.grade / 2)
 	# 발밑에 팀 색 받침
-	_ellipse(Vector2(center_x, foot), c * 0.36, 0.35, Color(GameData.TEAM_COLORS[t.team], 0.6))
+	_ellipse(Vector2(center_x, foot), c * 0.36, 0.35, Color(team_color.darkened(0.2), 0.8))
 	if t.buff_glow > 0:
 		ci.draw_arc(Vector2(center_x, foot - c * 0.4), c * 0.46, 0, TAU, 32, Color(UI.GOLD, 0.55), 3, true)
 	var alpha := 0.35 if (_dragging and _press_tower == t) else 1.0
@@ -259,20 +269,22 @@ func _draw_tower(t: Tower) -> void:
 	var lunge := Vector2.ZERO
 	if progress >= 0 and t.target != null and not t.target.dead:
 		lunge = (t.target.pos - t.center()).normalized() * c * 0.09 * sin(progress * PI)
-	ci.draw_texture_rect(portrait, Rect2(center_x - w / 2 + lunge.x, foot - h + lunge.y, w, h), false, Color(shade, shade, shade, alpha))
+	var body := Rect2(center_x - w / 2 + lunge.x, foot - h + lunge.y, w, h)
+	# 어두운 외곽선을 둘러 책상/통로 위에서도 인물이 또렷하게
+	for o in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2)]:
+		ci.draw_texture_rect(portrait, Rect2(body.position + o, body.size), false, Color(0.08, 0.06, 0.12, 0.7 * alpha))
+	ci.draw_texture_rect(portrait, body, false, Color(shade, shade, shade, alpha))
 	if t.stun_left > 0:
 		_rounded(Rect2(center_x - c * 0.36, base.y + c * 0.04, c * 0.72, c * 0.24), Color(0, 0, 0, 0.65), 8)
 		_text(Vector2(center_x, base.y + c * 0.16), "통화 중", 17, UI.WARN)
 	# 공격 모션은 오른쪽 위에 팀마다 다른 모양으로
 	if progress >= 0:
 		_draw_attack_motion(t, Vector2(base.x + c * 0.8, base.y + c * 0.12), progress)
-	# 등급 배지 (칸 수 = 등급)
-	var badge := Rect2(base.x + c * 0.2, base.y + c * 0.85, c * 0.6, c * 0.1)
-	_rounded(badge, Color(0, 0, 0, 0.6), 4)
-	var pip_w := badge.size.x / GameData.MAX_GRADE
-	var grade_color := GameData.grade_color(t.grade)
-	for i in t.grade:
-		_rounded(Rect2(badge.position.x + i * pip_w + 1, badge.position.y + 1, pip_w - 2, badge.size.y - 2), grade_color, 3)
+	# 등급 배지: 왼쪽 아래 등급 색 동그라미에 숫자
+	var badge := Vector2(base.x + c * 0.2, base.y + c * 0.78)
+	ci.draw_circle(badge, c * 0.15, Color(0.08, 0.06, 0.12, 0.85))
+	ci.draw_circle(badge, c * 0.12, grade_color)
+	_text(badge, str(t.grade), int(c * 0.22))
 	if battle.selected == t:
 		_outline(Rect2(base, Vector2(c, c)).grow(-2), UI.TEXT, 12, 3)
 
