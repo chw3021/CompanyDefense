@@ -14,6 +14,11 @@ func _ready() -> void:
 			script_path = arg.trim_prefix("--dev-script=")
 		elif arg.begins_with("--dev-out="):
 			out_dir = arg.trim_prefix("--dev-out=")
+		elif arg.begins_with("--dev-gold="):  # 테스트용 골드 지정 (저장 데이터가 없으면 기본 이름으로 만든다)
+			if not Save.has_user():
+				Save.create_user(Save.DEFAULT_NAME)
+			Save.user.gold = int(arg.trim_prefix("--dev-gold="))
+			Save.save()
 	if script_path == "":
 		return
 	DirAccess.make_dir_recursive_absolute(out_dir)

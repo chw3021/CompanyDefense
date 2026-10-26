@@ -9,6 +9,7 @@ const MAX_TIME := 5
 const TIME_REFILL_SEC := 30 * 60
 const NICKNAME_MAX := 10
 const DEFAULT_NAME := "신입사원"
+const RICH_GOLD := 99999999  # tools/build.ps1 -Me 로 만든 내 전용 APK 에만 적용 (기능 태그 rich_start)
 
 var user: Dictionary = {}
 var settings := ConfigFile.new()
@@ -36,6 +37,7 @@ func _load() -> void:
 		return
 	user = parsed
 	_normalize()
+	_apply_rich_start()
 	refresh_time()
 
 
@@ -67,7 +69,14 @@ func create_user(user_name: String) -> void:
 	}
 	_normalize()
 	send_mail("입사를 환영합니다!", "컴퍼니 디펜스에 오신 것을 환영합니다.\n입사 축하금을 받아가세요.", 500, 3)
+	_apply_rich_start()
 	save()
+
+
+## 내 전용 빌드면 켤 때마다 골드를 RICH_GOLD 까지 채운다
+func _apply_rich_start() -> void:
+	if OS.has_feature("rich_start") and user.gold < RICH_GOLD:
+		user.gold = RICH_GOLD
 
 
 func reset() -> void:
