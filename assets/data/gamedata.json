@@ -3,7 +3,7 @@
     "dv1": {
       "attackType": "strongest",
       "team": "dv",
-      "towerAttackMult": 0.02,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 1,
@@ -18,7 +18,7 @@
     "dv2": {
       "attackType": "strongest",
       "team": "dv",
-      "towerAttackMult": 0.04,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 2,
@@ -33,7 +33,7 @@
     "dv3": {
       "attackType": "strongest",
       "team": "dv",
-      "towerAttackMult": 0.06,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 3,
@@ -48,7 +48,7 @@
     "dv4": {
       "attackType": "strongest",
       "team": "dv",
-      "towerAttackMult": 0.08,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 4,
@@ -93,7 +93,7 @@
     "hr1": {
       "attackType": "furthest",
       "team": "hr",
-      "towerAttackMult": 0.02,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 1,
@@ -108,7 +108,7 @@
     "hr2": {
       "attackType": "furthest",
       "team": "hr",
-      "towerAttackMult": 0.04,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 2,
@@ -123,7 +123,7 @@
     "hr3": {
       "attackType": "furthest",
       "team": "hr",
-      "towerAttackMult": 0.06,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 3,
@@ -138,7 +138,7 @@
     "hr4": {
       "attackType": "furthest",
       "team": "hr",
-      "towerAttackMult": 0.08,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 4,
       "towerAttackSpeed": 1,
       "towerGrade": 4,
@@ -183,7 +183,7 @@
     "sl1": {
       "attackType": "closest",
       "team": "sl",
-      "towerAttackMult": 0.02,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 2,
       "towerAttackSpeed": 1,
       "towerGrade": 1,
@@ -198,7 +198,7 @@
     "sl2": {
       "attackType": "closest",
       "team": "sl",
-      "towerAttackMult": 0.04,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 2,
       "towerAttackSpeed": 1,
       "towerGrade": 2,
@@ -213,7 +213,7 @@
     "sl3": {
       "attackType": "closest",
       "team": "sl",
-      "towerAttackMult": 0.06,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 2,
       "towerAttackSpeed": 1,
       "towerGrade": 3,
@@ -228,7 +228,7 @@
     "sl4": {
       "attackType": "closest",
       "team": "sl",
-      "towerAttackMult": 0.08,
+      "towerAttackMult": 0.1,
       "towerAttackRange": 2,
       "towerAttackSpeed": 1,
       "towerGrade": 4,
