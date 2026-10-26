@@ -1,0 +1,245 @@
+# 플레이어 데이터 저장/로드 (오프라인, user://save.json) 와 진행 규칙 (시간 충전, 메일, 스테이지 결과).
+extends Node
+
+signal changed
+
+const SAVE_PATH := "user://save.json"
+const SETTINGS_PATH := "user://settings.cfg"
+const MAX_TIME := 5
+const TIME_REFILL_SEC := 30 * 60
+const NICKNAME_MAX := 10
+const DEFAULT_NAME := "신입사원"
+
+var user: Dictionary = {}
+var settings := ConfigFile.new()
+
+
+func _ready() -> void:
+	settings.load(SETTINGS_PATH)
+	_load()
+
+
+func has_user() -> bool:
+	return not user.is_empty()
+
+
+func _now() -> int:
+	return int(Time.get_unix_time_from_system())
+
+
+func _load() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		push_warning("저장 데이터를 읽지 못했습니다. 새로 시작합니다.")
+		return
+	user = parsed
+	_normalize()
+	refresh_time()
+
+
+func save() -> void:
+	if user.is_empty():
+		return
+	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	f.store_string(JSON.stringify(user))
+	f.close()
+	changed.emit()
+
+
+func create_user(user_name: String) -> void:
+	user = {
+		"name": user_name,
+		"gold": 1000,
+		"time": MAX_TIME,
+		"last_refill": _now(),
+		"towers": {},
+		"hobbies": {},
+		"equipment": {},
+		"mails": [],
+		"max_cleared": 0,
+		"best_scores": {},
+		"high_score": 0,
+		"games_played": 0,
+		"games_won": 0,
+	}
+	_normalize()
+	send_mail("입사를 환영합니다!", "컴퍼니 디펜스에 오신 것을 환영합니다.\n입사 축하금을 받아가세요.", 500, 3)
+	save()
+
+
+func reset() -> void:
+	user = {}
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	changed.emit()
+
+
+## 데이터에 새 직원/취미/장비가 추가되었으면 채우고, 사라진 직원은 지운다
+func _normalize() -> void:
+	for key in ["towers", "hobbies", "equipment", "best_scores"]:
+		if not user.has(key) or typeof(user[key]) != TYPE_DICTIONARY:
+			user[key] = {}
+	if not user.has("mails"):
+		user["mails"] = []
+	for id in GameData.tower_ids:
+		if not user.towers.has(id):
+			user.towers[id] = 1
+	for id in GameData.hobby_ids:
+		if not user.hobbies.has(id):
+			user.hobbies[id] = 1
+	for id in GameData.equipment_ids:
+		if not user.equipment.has(id):
+			user.equipment[id] = 0
+	for id in user.towers.keys():
+		if not GameData.towers.has(id):
+			user.towers.erase(id)
+	# JSON 은 숫자를 float 로 읽으므로 정수로 되돌린다
+	for key in ["towers", "hobbies", "equipment", "best_scores"]:
+		for id in user[key]:
+			user[key][id] = int(user[key][id])
+	for key in ["gold", "time", "last_refill", "max_cleared", "high_score", "games_played", "games_won"]:
+		user[key] = int(user.get(key, 0))
+	if String(user.get("name", "")).strip_edges() == "":
+		user["name"] = DEFAULT_NAME
+
+
+# ------------------------------------------------------------------ 재화
+
+func gold() -> int:
+	return user.get("gold", 0)
+
+
+func spend_gold(amount: int) -> bool:
+	if user.is_empty() or user.gold < amount:
+		return false
+	user.gold -= amount
+	save()
+	return true
+
+
+func spend_time() -> bool:
+	if user.is_empty():
+		return false
+	refresh_time()
+	if user.time < 1:
+		return false
+	if user.time >= MAX_TIME:
+		# 가득 찬 상태에서 쓰면 그때부터 충전 시간을 잰다
+		user.last_refill = _now()
+	user.time -= 1
+	save()
+	return true
+
+
+## 30분마다 시간 1 충전 (최대 MAX_TIME)
+func refresh_time() -> void:
+	if user.is_empty():
+		return
+	var now := _now()
+	if user.time >= MAX_TIME:
+		user.last_refill = now
+		return
+	var elapsed: int = now - user.last_refill
+	if elapsed < 0:
+		user.last_refill = now  # 기기 시간이 뒤로 돌아간 경우
+		return
+	var gained := elapsed / TIME_REFILL_SEC
+	if gained > 0:
+		user.time = mini(MAX_TIME, user.time + gained)
+		user.last_refill = now if user.time >= MAX_TIME else user.last_refill + gained * TIME_REFILL_SEC
+		save()
+
+
+func seconds_until_next_time() -> int:
+	if user.is_empty() or user.time >= MAX_TIME:
+		return 0
+	return maxi(0, TIME_REFILL_SEC - (_now() - user.last_refill))
+
+
+# ------------------------------------------------------------------ 메일
+
+func send_mail(title: String, content: String, gold_reward: int, time_reward: int) -> void:
+	user.mails.push_front({
+		"id": "mail_%d_%d" % [_now(), user.mails.size()],
+		"title": title,
+		"content": content,
+		"gold": gold_reward,
+		"time": time_reward,
+		"claimed": false,
+		"sent_at": _now(),
+	})
+	save()
+
+
+static func mail_has_reward(mail: Dictionary) -> bool:
+	return int(mail.gold) > 0 or int(mail.time) > 0
+
+
+func unclaimed_mail_count() -> int:
+	if user.is_empty():
+		return 0
+	return user.mails.filter(func(m): return mail_has_reward(m) and not m.claimed).size()
+
+
+## 메일 보상 받기. 시간은 최대치를 넘어서 받을 수 있다
+func claim_mail(mail: Dictionary) -> bool:
+	if mail.claimed:
+		return false
+	mail.claimed = true
+	user.gold += int(mail.gold)
+	user.time += int(mail.time)
+	save()
+	return true
+
+
+func delete_claimed_mails() -> void:
+	user.mails = user.mails.filter(func(m): return mail_has_reward(m) and not m.claimed)
+	save()
+
+
+# ------------------------------------------------------------------ 스테이지 결과
+
+## 결과 반영. 이번에 처음 클리어했으면 true
+func record_stage_result(stage_id: int, won: bool, score: int, gold_reward: int) -> bool:
+	if user.is_empty():
+		return false
+	user.games_played += 1
+	user.gold += gold_reward
+	var key := str(stage_id)
+	if score > int(user.best_scores.get(key, -1)):
+		user.best_scores[key] = score
+	user.high_score = maxi(user.high_score, score)
+	var first_clear := false
+	if won:
+		user.games_won += 1
+		if user.time < MAX_TIME:
+			user.time += 1
+		if stage_id > user.max_cleared:
+			user.max_cleared = stage_id
+			first_clear = true
+			send_mail("스테이지 %d 첫 클리어 보상" % stage_id,
+					"스테이지 %d을(를) 처음으로 클리어했습니다!\n보너스를 받아가세요." % stage_id,
+					300 * stage_id, 2)
+	save()
+	return first_clear
+
+
+func is_stage_unlocked(stage_id: int) -> bool:
+	return has_user() and stage_id <= user.max_cleared + 1
+
+
+func set_user_name(user_name: String) -> void:
+	user.name = user_name
+	save()
+
+
+# ------------------------------------------------------------------ 설정
+
+func game_speed() -> float:
+	return settings.get_value("game", "speed", 1.0)
+
+
+func set_game_speed(speed: float) -> void:
+	settings.set_value("game", "speed", speed)
+	settings.save(SETTINGS_PATH)

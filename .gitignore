@@ -1,0 +1,11 @@
+# Godot 캐시/임포트 결과 (자동 재생성)
+.godot/
+android/
+
+# 빌드 결과물
+build/
+
+# 서명 키와 비밀번호는 절대 커밋하지 않는다
+*.keystore
+*.jks
+keys/
