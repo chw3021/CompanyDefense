@@ -14,9 +14,9 @@ func run(p_dev) -> void:
 	await dev.wait(2.6)
 	var screen := get_tree().current_scene
 	battle = screen.battle
-	# 재료를 깔아 둔다 (CTO + 인사 팀장 + 영업 대리), 영업 대리는 처음엔 빼고 찍는다
+	# 재료를 깔아 둔다 (CTO + 인사 이사 + VIP 매니저), VIP 매니저는 처음엔 빼고 찍는다
 	var cto := _place("tower_dv5_1", Vector2i(2, 1))
-	_place("tower_hr4", Vector2i(3, 1))
+	_place("tower_hr5_1", Vector2i(3, 1))
 	for c in [Vector2i(2, 3), Vector2i(3, 3), Vector2i(2, 5)]:
 		_place(["tower_sl1", "tower_hr2", "tower_dv3"].pick_random(), c)
 	screen._open_recipes()
@@ -29,7 +29,7 @@ func run(p_dev) -> void:
 	battle.select(cto)
 	await dev.wait(0.3)
 	await dev.shot("my_01_missing")
-	_place("tower_sl3", Vector2i(3, 5))
+	_place("tower_sl5_2", Vector2i(3, 5))
 	await dev.wait(0.3)
 	await dev.shot("my_02_ready")
 	battle.awaken(cto)

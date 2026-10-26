@@ -311,7 +311,7 @@ func _open_recipes() -> void:
 	var scroll := UI.scroll(list)
 	scroll.custom_minimum_size = Vector2(640, 760)
 	var v := UI.vbox(10)
-	v.add_child(UI.wrap_label("전설 직원을 누르고 재료가 모두 필드에 있으면 '신화 각성'!\n재료로 쓴 직원은 사라집니다. 초록색은 지금 필드에 있는 직원.", 22, UI.MUTED))
+	v.add_child(UI.wrap_label("세 팀의 전설 3명을 모으면 신화로 각성! 전설을 누르고 '신화 각성'.\n재료로 쓴 전설은 사라집니다. 초록색은 지금 필드에 있는 직원.", 22, UI.MUTED))
 	v.add_child(scroll)
 	UI.modal("신화 조합표", v, [["닫기", UI.CARD_HI]], self)
 
