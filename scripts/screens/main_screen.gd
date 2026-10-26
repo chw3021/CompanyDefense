@@ -15,6 +15,7 @@ var _gold_pill: PanelContainer
 var _time_pill: PanelContainer
 var _mail_button: Button
 var _mail_badge: Label
+var _mission_badge: Label
 var _content: Control
 var _nav_buttons: Array[Button] = []
 var _current_tab := -1
@@ -83,13 +84,14 @@ func _build_top_bar() -> Control:
 	row.add_child(_time_pill)
 	row.add_child(UI.spacer(0, false))
 
+	var mission_button := UI.button("미션", UI.CARD_HI, open_missions, 26)
+	mission_button.custom_minimum_size = Vector2(100, 68)
+	_mission_badge = _badge(mission_button)
+	row.add_child(mission_button)
+
 	_mail_button = UI.button("메일", UI.CARD_HI, open_mailbox, 26)
 	_mail_button.custom_minimum_size = Vector2(100, 68)
-	_mail_badge = UI.label("", 20, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	_mail_badge.add_theme_stylebox_override("normal", UI.box(UI.DANGER, 14, 2))
-	_mail_badge.custom_minimum_size = Vector2(30, 28)
-	_mail_badge.position = Vector2(76, -8)
-	_mail_button.add_child(_mail_badge)
+	_mail_badge = _badge(_mail_button)
 	row.add_child(_mail_button)
 
 	var menu := UI.button("", UI.CARD_HI, open_menu)
@@ -98,6 +100,16 @@ func _build_top_bar() -> Control:
 	menu.custom_minimum_size = Vector2(68, 68)
 	row.add_child(menu)
 	return bar
+
+
+## 버튼 오른쪽 위의 빨간 숫자 배지
+func _badge(b: Button) -> Label:
+	var badge := UI.label("", 20, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	badge.add_theme_stylebox_override("normal", UI.box(UI.DANGER, 14, 2))
+	badge.custom_minimum_size = Vector2(30, 28)
+	badge.position = Vector2(76, -8)
+	b.add_child(badge)
+	return badge
 
 
 func refresh_top_bar() -> void:
@@ -113,6 +125,9 @@ func refresh_top_bar() -> void:
 	var unclaimed := Save.unclaimed_mail_count()
 	_mail_badge.visible = unclaimed > 0
 	_mail_badge.text = str(unclaimed)
+	var ready := Missions.claimable_count(Save.user)
+	_mission_badge.visible = ready > 0
+	_mission_badge.text = str(ready)
 
 
 # ------------------------------------------------------------------ 탭
@@ -232,6 +247,120 @@ func _fill_mails(list: VBoxContainer) -> void:
 				rewards.add_child(t)
 			v.add_child(rewards)
 		list.add_child(card)
+
+
+# ------------------------------------------------------------------ 미션 / 업적
+
+func open_missions() -> void:
+	var list := UI.vbox(12)
+	var scroll := UI.scroll(list)
+	scroll.custom_minimum_size = Vector2(620, 700)
+	var tabs := UI.hbox(10)
+	var daily_tab := UI.button("일일 미션", UI.PRIMARY, Callable(), 26)
+	var achieve_tab := UI.button("업적", UI.CARD_HI, Callable(), 26)
+	var switch_tab := func(daily: bool):
+		UI.recolor(daily_tab, UI.PRIMARY if daily else UI.CARD_HI)
+		UI.recolor(achieve_tab, UI.CARD_HI if daily else UI.PRIMARY)
+		if daily:
+			_fill_daily(list)
+		else:
+			_fill_achievements(list)
+		scroll.scroll_vertical = 0
+	daily_tab.pressed.connect(switch_tab.bind(true))
+	achieve_tab.pressed.connect(switch_tab.bind(false))
+	for b in [daily_tab, achieve_tab]:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size.y = 72
+		tabs.add_child(b)
+	var v := UI.vbox(14)
+	v.add_child(tabs)
+	v.add_child(scroll)
+	switch_tab.call(true)
+	UI.modal("미션", v, [["닫기", UI.CARD_HI]], self)
+
+
+func _fill_daily(list: VBoxContainer) -> void:
+	for child in list.get_children():
+		child.queue_free()
+	var left := Missions.seconds_until_reset()
+	list.add_child(UI.label("매일 자정에 새 미션 (%d시간 %d분 남음)" % [left / 3600, left % 3600 / 60], 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	var d := Missions.daily(Save.user)
+	for m: Dictionary in d.missions:
+		var def := Missions.daily_def(m.id)
+		var state := "claimed" if m.claimed else ("ready" if Missions.daily_done(m) else "progress")
+		list.add_child(_mission_card(def.desc % def.goal, "", int(m.progress), int(def.goal), int(def.gold), 0, state, func():
+			if Save.claim_daily(m):
+				UI.toast("보상을 받았습니다!", UI.GOLD)
+			_fill_daily(list)))
+	var done: int = d.missions.filter(func(m): return Missions.daily_done(m)).size()
+	var bonus_state := "claimed" if d.bonus_claimed else ("ready" if Missions.daily_all_done(Save.user) else "progress")
+	list.add_child(_mission_card("오늘의 미션 모두 완료", "보너스", done, d.missions.size(), Missions.DAILY_BONUS_GOLD,
+			Missions.DAILY_BONUS_TIME, bonus_state, func():
+				if Save.claim_daily_bonus():
+					UI.toast("보너스를 받았습니다!", UI.GOLD)
+				_fill_daily(list)))
+
+
+func _fill_achievements(list: VBoxContainer) -> void:
+	for child in list.get_children():
+		child.queue_free()
+	# 받을 수 있는 것을 위로
+	var order := Missions.ACHIEVEMENTS.duplicate()
+	order.sort_custom(func(a, b): return Missions.achievement_ready(Save.user, a) and not Missions.achievement_ready(Save.user, b))
+	for a: Dictionary in order:
+		var tier := Missions.next_tier(Save.user, a)
+		var claimed := Missions.claimed_tiers(Save.user, a)
+		var stage := "%s  (%d/%d단계)" % [a.name, claimed, a.tiers.size()]
+		var value := Missions.stat_value(Save.user, a.stat)
+		if tier.is_empty():
+			var last: Array = a.tiers[a.tiers.size() - 1]
+			list.add_child(_mission_card(a.desc % last[0], stage, int(last[0]), int(last[0]), 0, 0, "claimed", Callable()))
+			continue
+		var state := "ready" if Missions.achievement_ready(Save.user, a) else "progress"
+		list.add_child(_mission_card(a.desc % tier[0], stage, value, int(tier[0]), int(tier[1]), 0, state, func():
+			if Save.claim_achievement(a):
+				UI.toast("업적 달성! %s" % a.name, UI.GOLD)
+			_fill_achievements(list)))
+
+
+## 미션 한 줄: 제목, 진행 막대, 보상, 받기 버튼. state = progress / ready / claimed
+func _mission_card(title: String, sub: String, value: int, goal: int, gold: int, time: int, state: String, on_claim: Callable) -> Control:
+	var ready := state == "ready"
+	var card := UI.panel(UI.CARD if state != "claimed" else Color(UI.CARD, 0.5), 16, 16)
+	var row := UI.hbox(14)
+	card.add_child(row)
+	var v := UI.vbox(6)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(v)
+	if sub != "":
+		v.add_child(UI.label(sub, 22, UI.GOLD if ready else UI.MUTED))
+	var title_label := UI.label(title, 27, UI.TEXT if state != "claimed" else UI.MUTED)
+	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(title_label)
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 14)
+	bar.max_value = maxi(1, goal)
+	bar.value = mini(value, goal)
+	bar.add_theme_stylebox_override("background", UI.box(Color(0, 0, 0, 0.4), 7, 0))
+	bar.add_theme_stylebox_override("fill", UI.box(UI.SUCCESS if value >= goal else UI.PRIMARY, 7, 0))
+	v.add_child(bar)
+	var info := UI.hbox(16)
+	info.add_child(UI.label("%d / %d" % [mini(value, goal), goal], 22, UI.MUTED))
+	if gold > 0:
+		info.add_child(UI.coin_row(str(gold), 22))
+	if time > 0:
+		var t := UI.hbox(6)
+		t.add_child(UI.icon("res://assets/icons/waste.png", 22))
+		t.add_child(UI.label("시간 %d" % time, 22, Color("7fd3ff")))
+		info.add_child(t)
+	v.add_child(info)
+	var b := UI.button({"ready": "받기", "claimed": "완료"}.get(state, "진행 중"), UI.SUCCESS if ready else UI.CARD_HI, on_claim, 24)
+	b.disabled = not ready
+	b.custom_minimum_size = Vector2(120, 72)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(b)
+	return card
 
 
 # ------------------------------------------------------------------ 메뉴

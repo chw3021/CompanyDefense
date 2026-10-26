@@ -66,6 +66,9 @@ var _spawn_delay := 1.0
 var _since_spawn := 0.0
 var _tasks: Array = []       # [{left, interval, repeats, fn}]
 var _time := 0.0
+## 이번 판 기록 (끝날 때 Save.record_session 으로 미션/업적에 반영)
+const NEW_SESSION := {"kills": 0, "boss_kills": 0, "merges": 0, "hires": 0, "skills": 0, "max_grade": 1}
+var session := NEW_SESSION.duplicate()
 
 
 func setup(p_stage_id: int, cell_size: float) -> void:
@@ -273,6 +276,9 @@ func on_enemy_damaged(e: Enemy, amount: float, magic_share: float) -> void:
 
 func on_enemy_killed(e: Enemy) -> void:
 	enemies.erase(e)
+	session.kills += 1
+	if e.is_boss():
+		session.boss_kills += 1
 	if e.anchored:
 		_update_blocking()
 	enemy_died.emit(e)
@@ -353,6 +359,7 @@ func hire() -> void:
 		return
 	coins -= SPAWN_COST
 	tower_placed.emit(_place(candidates.pick_random(), free.pick_random()), false)
+	session.hires += 1
 	hud_changed.emit()
 
 
@@ -367,6 +374,8 @@ func merge(dragged: Tower, target: Tower) -> void:
 	_remove(dragged)
 	_remove(target)
 	var merged := _place(upgrades.pick_random(), c)
+	session.merges += 1
+	session.max_grade = maxi(session.max_grade, merged.grade)
 	tower_placed.emit(merged, true)
 	floating.emit("승진!", merged.center() + Vector2(0, -cell * 0.5), GameData.grade_color(merged.grade))
 	select(merged)
@@ -458,6 +467,7 @@ func floating_text(text: String, at: Vector2, color: Color) -> void:
 
 
 func on_skill_used(t: Tower) -> void:
+	session.skills += 1
 	skill_cast.emit(t)
 
 
@@ -553,9 +563,20 @@ func _end(p_won: bool) -> void:
 	var gold := _gold_reward(p_won)
 	var new_record := endless and Save.record_endless_round(wave_index)
 	var first_clear := Save.record_stage_result(stage_id, p_won, score, gold)
+	session.games = 1
+	session.wins = 1 if p_won else 0
+	if endless:
+		session.round = wave_index
+	flush_session()
 	hud_changed.emit()
 	game_over.emit(p_won, {"kills": kills, "gold": gold, "score": score, "first_clear": first_clear,
 			"wave": wave_index, "new_record": new_record})
+
+
+## 이번 판 기록을 미션/업적에 반영하고 비운다 (끝났을 때, 또는 포기하고 나갈 때)
+func flush_session() -> void:
+	Save.record_session(session)
+	session = NEW_SESSION.duplicate()
 
 
 func set_speed(value: float) -> void:

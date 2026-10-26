@@ -404,7 +404,9 @@ func _toggle_pause() -> void:
 	var text := UI.label("스테이지를 포기하면 보상을 받을 수 없습니다.", 28, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	_pause_modal = UI.modal("일시정지", text, [
 		["계속하기", UI.PRIMARY, func(): battle.paused = false],
-		["포기하기", UI.DANGER, func(): UI.go("res://scenes/main.tscn")],
+		["포기하기", UI.DANGER, func():
+			battle.flush_session()
+			UI.go("res://scenes/main.tscn")],
 	], self, false)
 
 
@@ -440,6 +442,8 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 		if stage_id < StageDefs.COUNT:
 			bonus += "\n다음 스테이지가 열렸습니다!"
 		v.add_child(UI.label(bonus, 24, UI.SUCCESS, HORIZONTAL_ALIGNMENT_CENTER))
+	if Missions.claimable_count(Save.user) > 0:
+		v.add_child(UI.label("받을 수 있는 미션 보상이 있어요! (메인 화면 > 미션)", 24, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 	var title := "야근 종료" if battle.endless else ("승리!" if won else "패배")
 	UI.modal(title, v, [
 		["다시 하기", UI.CARD_HI, func(): UI.go("res://scenes/stage.tscn", func(s): s.stage_id = stage_id)],

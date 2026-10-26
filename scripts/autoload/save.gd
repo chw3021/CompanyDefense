@@ -256,6 +256,48 @@ func record_endless_round(rounds: int) -> bool:
 	return true
 
 
+# ------------------------------------------------------------------ 미션 / 업적 (정의는 Missions)
+
+## 전투 한 판의 기록을 누적 기록과 오늘 미션에 반영
+func record_session(session: Dictionary) -> void:
+	if user.is_empty():
+		return
+	Missions.apply_session(user, session)
+	save()
+
+
+func claim_daily(m: Dictionary) -> bool:
+	if m.claimed or not Missions.daily_done(m):
+		return false
+	m.claimed = true
+	user.gold += int(Missions.daily_def(m.id).gold)
+	save()
+	return true
+
+
+func claim_daily_bonus() -> bool:
+	var d := Missions.daily(user)
+	if d.bonus_claimed or not Missions.daily_all_done(user):
+		return false
+	d.bonus_claimed = true
+	user.gold += Missions.DAILY_BONUS_GOLD
+	user.time += Missions.DAILY_BONUS_TIME
+	save()
+	return true
+
+
+func claim_achievement(a: Dictionary) -> bool:
+	if not Missions.achievement_ready(user, a):
+		return false
+	var tier := Missions.next_tier(user, a)
+	var claimed: Dictionary = user.get("achievements", {})
+	claimed[a.id] = Missions.claimed_tiers(user, a) + 1
+	user["achievements"] = claimed
+	user.gold += int(tier[1])
+	save()
+	return true
+
+
 func is_stage_unlocked(stage_id: int) -> bool:
 	return has_user() and stage_id <= user.max_cleared + 1
 
