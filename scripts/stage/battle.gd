@@ -48,6 +48,11 @@ var paused := false
 var finished := false
 var won := false
 var endless := false  # 무한 모드: 웨이브가 끝나지 않고, 목숨이 다하면 끝
+var loop := false     # 고리 맵 서바이벌: 적이 계속 돌고, 라운드는 시간이 지나면 넘어가며, 적이 max_enemies 마리면 끝
+var max_enemies := 0
+var round_sec := 0.0
+var round_left := 0.0      # 다음 라운드까지 남은 시간
+var _crowd_warned := false
 var selected: Tower
 
 var wave_index := 0          # 진행 중이거나 다음에 시작할 웨이브
@@ -63,6 +68,9 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 	stage_id = p_stage_id
 	def = StageDefs.STAGES[stage_id]
 	endless = StageDefs.is_endless(stage_id)
+	loop = def.get("loop", false)
+	max_enemies = int(def.get("max_enemies", 0))
+	round_sec = float(def.get("round_sec", 0.0))
 	cell = cell_size
 	map = def.map
 	for wp in StageDefs.waypoints(map):
@@ -133,6 +141,8 @@ func _process(delta: float) -> void:
 	_update_wave(dt)
 	for e: Enemy in enemies.duplicate():
 		e.update(dt)
+	if loop:
+		_check_crowd()
 	for t: Tower in towers.duplicate():
 		t.update(dt)
 	_update_projectiles(dt)
@@ -146,6 +156,13 @@ func game_time() -> float:
 func _update_wave(dt: float) -> void:
 	if not wave_running:
 		return
+	if loop:
+		var shown := ceili(round_left)
+		round_left -= dt
+		if round_left <= 0:
+			_next_round()
+		elif ceili(round_left) != shown:
+			hud_changed.emit()  # 남은 시간 표시
 	if not _pending.is_empty():
 		_since_spawn += dt
 		if _since_spawn >= _spawn_delay:
@@ -154,26 +171,67 @@ func _update_wave(dt: float) -> void:
 			enemies.append(e)
 			enemy_spawned.emit(e)
 			_since_spawn = 0.0
+			if loop:
+				hud_changed.emit()  # 적 수 표시
 			if e.type.has("desc") and Save.mark_enemy_seen(e.type_id):
 				message.emit("새로운 적: %s\n%s" % [e.type.name, e.type.desc], UI.WARN)
-	elif enemies.is_empty():
+	elif enemies.is_empty() and not loop:
 		_on_wave_cleared()
 
 
 func start_wave() -> void:
 	if not can_start_wave():
 		return
-	var wave: Array = wave_def(wave_index)
-	_spawn_delay = wave[0]
-	_since_spawn = _spawn_delay  # 첫 적은 바로 나온다
 	_pending.clear()
+	_queue_wave(wave_index)
+	_since_spawn = _spawn_delay  # 첫 적은 바로 나온다
+	round_left = round_sec
+	wave_running = true
+	wave_started.emit(wave_index)
+	hud_changed.emit()
+
+
+## index 번째 웨이브의 적을 대기열에 붙인다. 고리 맵은 라운드 시간의 80% 안에 다 나오도록 간격을 줄인다
+func _queue_wave(index: int) -> void:
+	var wave: Array = wave_def(index)
+	var count := 0
 	for group in wave[1]:
 		var hp: float = float(group[1]) * StageDefs.ENEMIES[group[0]].hp_mult * float(def.get("hp_scale", 1.0))
 		for i in int(group[2]):
 			_pending.append([group[0], hp])
-	wave_running = true
+			count += 1
+	_spawn_delay = wave[0]
+	if loop and count > 0:
+		_spawn_delay = minf(_spawn_delay, round_sec * 0.8 / count)
+
+
+## 고리 맵: 시간이 다 되면 남은 적과 상관없이 다음 라운드
+func _next_round() -> void:
+	wave_index += 1
+	score += 100
+	var bonus := 30 + 10 * wave_index
+	coins += bonus
+	_queue_wave(wave_index)
+	round_left += round_sec
+	message.emit("라운드 보너스 +%d" % bonus, UI.GOLD)
 	wave_started.emit(wave_index)
 	hud_changed.emit()
+
+
+func alive_count() -> int:
+	return enemies.size()
+
+
+## 고리 맵: 적이 너무 많아지면 경고, max_enemies 마리면 끝
+func _check_crowd() -> void:
+	var n := alive_count()
+	if n >= max_enemies:
+		_end(false)
+	elif n >= max_enemies * 0.8 and not _crowd_warned:
+		_crowd_warned = true
+		message.emit("적이 너무 많아요! %d/%d" % [n, max_enemies], UI.DANGER)
+	elif n < max_enemies * 0.7:
+		_crowd_warned = false
 
 
 func _on_wave_cleared() -> void:
@@ -476,7 +534,7 @@ func _end(p_won: bool) -> void:
 	if p_won:
 		score += life * 50
 	var gold := _gold_reward(p_won)
-	var new_record := endless and Save.record_endless_wave(wave_index)
+	var new_record := endless and Save.record_endless_round(wave_index)
 	var first_clear := Save.record_stage_result(stage_id, p_won, score, gold)
 	hud_changed.emit()
 	game_over.emit(p_won, {"kills": kills, "gold": gold, "score": score, "first_clear": first_clear,

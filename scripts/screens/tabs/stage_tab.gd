@@ -42,15 +42,15 @@ func _stage_card(id: int) -> Control:
 	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chips.add_child(_chip(s.difficulty, DIFFICULTY_COLORS[s.difficulty]))
 	var endless := StageDefs.is_endless(id)
-	chips.add_child(_chip("웨이브 무한" if endless else "웨이브 %d" % s.waves.size(), UI.LINE))
+	chips.add_child(_chip("라운드 무한" if endless else "웨이브 %d" % s.waves.size(), UI.LINE))
 	if cleared and not endless:
 		chips.add_child(_chip("클리어", UI.SUCCESS))
 	text.add_child(chips)
 	if not unlocked:
 		text.add_child(UI.label("이전 스테이지를 클리어하면 열립니다", 24, UI.MUTED))
 	elif endless:
-		var best_wave: int = Save.user.get("endless_best", 0)
-		text.add_child(UI.label("최고 기록 웨이브 %d" % best_wave if best_wave > 0 else "어디까지 버틸 수 있을까요?", 24, UI.GOLD))
+		var best_round: int = Save.user.get("round_best", 0)
+		text.add_child(UI.label("최고 기록 라운드 %d" % best_round if best_round > 0 else "적 100마리가 모이기 전에 버텨 보세요!", 24, UI.GOLD))
 	else:
 		var best = Save.user.best_scores.get(str(id))
 		if best != null:

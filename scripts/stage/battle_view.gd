@@ -199,9 +199,11 @@ func _draw_flow() -> void:
 	var spacing := battle.cell * 0.9
 	var offset := fmod(Time.get_ticks_msec() / 1000.0 * battle.cell * 0.8, spacing)
 	var s := battle.cell * 0.12
-	for i in path.size() - 1:
+	# 고리 맵은 마지막 경유지에서 처음으로 돌아가는 구간까지 그린다
+	var segments := path.size() if battle.loop else path.size() - 1
+	for i in segments:
 		var a: Vector2 = path[i]
-		var b: Vector2 = path[i + 1]
+		var b: Vector2 = path[(i + 1) % path.size()]
 		var length := a.distance_to(b)
 		var dir := (b - a) / length
 		var side := Vector2(-dir.y, dir.x)
@@ -211,7 +213,8 @@ func _draw_flow() -> void:
 			ci.draw_colored_polygon(PackedVector2Array([p + dir * s, p - dir * s * 0.6 + side * s, p - dir * s * 0.6 - side * s]), FLOW)
 			d += spacing
 	_draw_marker(path[0], UI.SUCCESS, "입구")
-	_draw_marker(path[path.size() - 1], UI.DANGER, "출구")
+	if not battle.loop:
+		_draw_marker(path[path.size() - 1], UI.DANGER, "출구")
 
 
 func _draw_marker(at: Vector2, color: Color, text: String) -> void:

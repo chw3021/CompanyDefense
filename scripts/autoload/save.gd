@@ -61,7 +61,7 @@ func create_user(user_name: String) -> void:
 		"equipment": {},
 		"mails": [],
 		"max_cleared": 0,
-		"endless_best": 0,
+		"round_best": 0,  # 무한 야근 최고 라운드
 		"best_scores": {},
 		"high_score": 0,
 		"games_played": 0,
@@ -108,7 +108,7 @@ func _normalize() -> void:
 	for key in ["towers", "hobbies", "equipment", "best_scores"]:
 		for id in user[key]:
 			user[key][id] = int(user[key][id])
-	for key in ["gold", "time", "last_refill", "max_cleared", "endless_best", "high_score", "games_played", "games_won"]:
+	for key in ["gold", "time", "last_refill", "max_cleared", "round_best", "high_score", "games_played", "games_won"]:
 		user[key] = int(user.get(key, 0))
 	if String(user.get("name", "")).strip_edges() == "":
 		user["name"] = DEFAULT_NAME
@@ -249,10 +249,10 @@ func mark_enemy_seen(type_id: String) -> bool:
 	return true
 
 
-func record_endless_wave(waves: int) -> bool:
-	if user.is_empty() or waves <= int(user.get("endless_best", 0)):
+func record_endless_round(rounds: int) -> bool:
+	if user.is_empty() or rounds <= int(user.get("round_best", 0)):
 		return false
-	user.endless_best = waves
+	user.round_best = rounds
 	return true
 
 

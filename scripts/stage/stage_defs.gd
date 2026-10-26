@@ -16,8 +16,8 @@ const ENEMIES := {
 	"boss": {"name": "부장님 프린터", "hp_mult": 12.0, "speed": 1.0, "pdef": 20, "mdef": 20, "scale": 1.6, "tint": Color(1, 0.45, 0.45), "reward": 100, "boss": true},
 	# 특수 능력이 있는 적. desc 는 처음 만났을 때 한 번 보여 준다
 	# split: 죽으면 [적, 부모 최대 체력 대비 비율, 마리 수]로 나뉜다
-	"parcel": {"name": "택배 상자", "hp_mult": 1.2, "speed": 1.8, "pdef": 10, "mdef": 0, "scale": 1.1, "tint": Color(0.85, 0.62, 0.38), "reward": 8, "boss": false,
-			"split": ["parcel_mini", 0.3, 3], "desc": "부수면 작은 상자 3개로 나뉩니다"},
+	"parcel": {"name": "택배 상자", "hp_mult": 1.0, "speed": 1.8, "pdef": 10, "mdef": 0, "scale": 1.1, "tint": Color(0.85, 0.62, 0.38), "reward": 8, "boss": false,
+			"split": ["parcel_mini", 0.25, 3], "desc": "부수면 작은 상자 3개로 나뉩니다"},
 	"parcel_mini": {"name": "작은 상자", "hp_mult": 0.3, "speed": 2.6, "pdef": 5, "mdef": 0, "scale": 0.65, "tint": Color(0.9, 0.7, 0.45), "reward": 2, "boss": false},
 	# heal: interval 초마다 radius 칸 안의 적을 자기 최대 체력 × heal 만큼 회복
 	"water": {"name": "정수기", "hp_mult": 1.4, "speed": 1.6, "pdef": 10, "mdef": 20, "scale": 1.15, "tint": Color(0.5, 0.8, 1), "reward": 14, "boss": false,
@@ -26,7 +26,7 @@ const ENEMIES := {
 			"cc_immune": true, "desc": "빠르고, 기절과 감속에 걸리지 않습니다"},
 	# shield: 최대 체력 대비 보호막. shield_delay 초 동안 안 맞으면 초당 shield_regen 비율씩 다시 찬다
 	"laptop": {"name": "노트북", "hp_mult": 0.9, "speed": 2.0, "pdef": 0, "mdef": 0, "scale": 1.1, "tint": Color(0.6, 0.9, 1), "reward": 12, "boss": false,
-			"shield": 0.8, "shield_delay": 2.5, "shield_regen": 0.3, "desc": "보호막이 있고, 한동안 안 맞으면 다시 채웁니다"},
+			"shield": 0.6, "shield_delay": 2.5, "shield_regen": 0.3, "desc": "보호막이 있고, 한동안 안 맞으면 다시 채웁니다"},
 	# ring: interval 초마다 radius 칸 안의 직원을 ring 초 동안 기절 (통화 중)
 	"phone": {"name": "전화기", "hp_mult": 1.3, "speed": 1.7, "pdef": 15, "mdef": 10, "scale": 1.1, "tint": Color(1, 0.55, 0.45), "reward": 12, "boss": false,
 			"interval": 5.0, "radius": 1.5, "ring": 1.5, "desc": "벨이 울리면 근처 직원이 통화하느라 잠시 멈춥니다"},
@@ -83,10 +83,10 @@ const STAGES := {
 			[1.0, [["printer", 45, 10]]],
 			[0.7, [["fax", 55, 12]]],
 			[0.9, [["printer", 65, 8], ["copier", 65, 4]]],
-			[0.8, [["server", 75, 7], ["laptop", 75, 4]]],
+			[0.8, [["server", 70, 8], ["laptop", 70, 2]]],
 			[0.7, [["fax", 85, 10], ["copier", 85, 5]]],
 			[0.8, [["server", 95, 6], ["water", 95, 2], ["copier", 95, 6]]],
-			[0.6, [["printer", 110, 8], ["parcel", 110, 4], ["fax", 110, 8]]],
+			[0.6, [["printer", 110, 9], ["parcel", 110, 3], ["fax", 110, 8]]],
 			[1.0, [["copier", 125, 6], ["server", 125, 6], ["boss", 125, 1]]],
 		],
 	},
@@ -121,7 +121,8 @@ const STAGES := {
 			[1.2, [["copier", 190, 6], ["server", 190, 6], ["boss", 200, 2]]],
 		],
 	},
-	# 무한 모드: 웨이브가 끝없이 이어지고 갈수록 어려워진다 (endless_wave 가 만든다)
+	# 무한 모드 (서바이벌): 적이 출구 없이 고리를 계속 돌고, 라운드는 시간이 지나면 저절로 넘어간다.
+	# 살아 있는 적이 max_enemies 마리가 되면 끝 (endless_wave 가 라운드마다 적을 만든다)
 	4: {
 		"name": "무한 야근",
 		"difficulty": "무한",
@@ -129,18 +130,21 @@ const STAGES := {
 		"hp_scale": 1.0,  # 이 스테이지 모든 적 체력 배율 (밸런스 조정용)
 		"tint": Color(0.8, 0.68, 0.95),
 		"endless": true,
-		# 바깥을 한 바퀴 돈 뒤 가운데로 감겨 들어가는 나선
+		"loop": true,
+		"max_enemies": 100,
+		"round_sec": 20.0,
+		# 사무실 한가운데를 도는 고리. 책상은 고리 안쪽과 바깥쪽에 있다
 		"map": [
-			[1.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2],
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0],
-			[1.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.6, 0, 1.0],
-			[1.0, 0, 0, 0, 0, 0, 0, 1.0, 0, 1.0],
-			[1.0, 0, 1.9, 1.0, 1.0, 2.0, 0, 1.0, 0, 1.0],
-			[1.0, 0, 1.0, 0, 0, 0, 0, 1.0, 0, 1.0],
-			[1.0, 0, 1.0, 0, 0, 0, 0, 1.0, 0, 1.0],
-			[1.0, 0, 1.8, 1.0, 1.0, 1.0, 1.0, 1.7, 0, 1.0],
-			[1.0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0],
-			[1.4, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.3],
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 1.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.2, 0],
+			[0, 1.0, 0, 0, 0, 0, 0, 0, 1.0, 0],
+			[0, 1.0, 0, 0, 0, 0, 0, 0, 1.0, 0],
+			[0, 1.0, 0, 0, 0, 0, 0, 0, 1.0, 0],
+			[0, 1.0, 0, 0, 0, 0, 0, 0, 1.0, 0],
+			[0, 1.0, 0, 0, 0, 0, 0, 0, 1.0, 0],
+			[0, 1.0, 0, 0, 0, 0, 0, 0, 1.0, 0],
+			[0, 1.4, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.3, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		],
 		"waves": [],
 	},
@@ -190,7 +194,7 @@ static func endless_wave(index: int) -> Array:
 static func description(stage_id: int) -> String:
 	var s: Dictionary = STAGES[stage_id]
 	if is_endless(stage_id):
-		return "%s / 웨이브 무한" % s.difficulty
+		return "%s / 적 %d마리 버티기" % [s.difficulty, s.get("max_enemies", 100)]
 	return "%s / 웨이브 %d" % [s.difficulty, s.waves.size()]
 
 

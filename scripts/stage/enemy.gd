@@ -116,8 +116,11 @@ func update(delta: float) -> void:
 			step -= distance
 			_path_index += 1
 			if _path_index >= battle.path.size():
-				dead = true
-				battle.on_enemy_leaked(self)
+				if battle.loop:  # 고리 맵: 처음 경유지로 돌아가 계속 돈다
+					_path_index = 0
+				else:
+					dead = true
+					battle.on_enemy_leaked(self)
 		else:
 			pos += (target - pos).normalized() * step
 			progress += step

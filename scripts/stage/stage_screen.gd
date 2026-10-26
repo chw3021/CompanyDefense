@@ -98,9 +98,10 @@ func _build_hud() -> Control:
 	var row := UI.hbox(10)
 	margin.add_child(row)
 
-	row.add_child(UI.icon("res://assets/icons/heart.png", 40))
+	# 고리 맵은 목숨 대신 필드에 있는 적 수 (n/100)
+	row.add_child(UI.icon("res://assets/enemy/printer.png" if battle.loop else "res://assets/icons/heart.png", 40))
 	_life_label = UI.label("", 34)
-	_life_label.custom_minimum_size.x = 50
+	_life_label.custom_minimum_size.x = 120 if battle.loop else 50
 	row.add_child(_life_label)
 	row.add_child(UI.icon("res://assets/icons/coin.png", 40))
 	_coin_label = UI.label("", 34, UI.GOLD)
@@ -244,19 +245,28 @@ func _build_tower_card() -> PanelContainer:
 # ------------------------------------------------------------------ 갱신
 
 func _refresh_hud() -> void:
-	_life_label.text = str(battle.life)
-	if battle.life < _last_life:
-		_pulse(_life_label, UI.DANGER)
-	_last_life = battle.life
+	if battle.loop:
+		var n := battle.alive_count()
+		_life_label.text = "%d/%d" % [n, battle.max_enemies]
+		var ratio := float(n) / battle.max_enemies
+		_life_label.add_theme_color_override("font_color", UI.DANGER if ratio >= 0.8 else (UI.WARN if ratio >= 0.5 else UI.TEXT))
+	else:
+		_life_label.text = str(battle.life)
+		if battle.life < _last_life:
+			_pulse(_life_label, UI.DANGER)
+		_last_life = battle.life
 	_coin_label.text = str(battle.coins)
-	if battle.endless:
+	if battle.loop:
+		_wave_label.text = "라운드 %d · %d초" % [battle.display_wave(), ceili(maxf(0.0, battle.round_left))] if battle.wave_running else "라운드 %d" % maxi(1, battle.display_wave())
+	elif battle.endless:
 		_wave_label.text = "웨이브 %d" % battle.display_wave()
 	else:
 		_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
 	_speed_button.text = "x%d" % int(battle.speed)
 	var can_start := battle.can_start_wave()
 	_wave_button.disabled = not can_start
-	_wave_button.text = "웨이브 시작" if can_start else ("진행 중" if battle.wave_running else "종료")
+	var start_text := "야근 시작" if battle.loop else "웨이브 시작"
+	_wave_button.text = start_text if can_start else ("진행 중" if battle.wave_running else "종료")
 	_hire_button.modulate.a = 1.0 if battle.coins >= Battle.SPAWN_COST else 0.6
 	for team in GameData.TEAMS:
 		_upgrade_labels[team].text = "%s Lv.%d" % [GameData.team_name(team), battle.team_level[team]]
@@ -336,7 +346,9 @@ func _show_wave_banner(index: int) -> void:
 	var v := UI.vbox(0)
 	band.add_child(v)
 	var last := not battle.endless and index + 1 == battle.wave_count()
-	var title := "WAVE %d" % (index + 1) if battle.endless else "WAVE %d / %d" % [index + 1, battle.wave_count()]
+	var title := "WAVE %d / %d" % [index + 1, battle.wave_count()]
+	if battle.endless:
+		title = ("ROUND %d" if battle.loop else "WAVE %d") % (index + 1)
 	v.add_child(UI.label(title, 44, UI.GOLD if not boss else UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	if boss or last:
 		v.add_child(UI.label("보스 등장!" if boss else "마지막 웨이브!", 26, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
@@ -357,7 +369,10 @@ func _show_banner() -> void:
 	box.add_child(v)
 	v.add_child(UI.label("STAGE %d" % stage_id, 26, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UI.label(battle.def.name, 52, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
-	v.add_child(UI.label("직원을 고용하고 웨이브 시작을 누르세요", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	var guide := "직원을 고용하고 웨이브 시작을 누르세요"
+	if battle.loop:
+		guide = "적이 끝없이 몰려옵니다. %d마리가 쌓이면 끝!\n직원을 고용하고 야근 시작을 누르세요" % battle.max_enemies
+	v.add_child(UI.label(guide, 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_float_layer.add_child(box)
 	box.reset_size()
@@ -399,12 +414,14 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 	await get_tree().create_timer(0.6).timeout
 	var v := UI.vbox(10)
 	var text := "모든 웨이브를 막아냈습니다!" if won else "회사가 무너졌습니다..."
-	if battle.endless:
+	if battle.loop:
+		text = "적이 %d마리나 쌓였습니다...\n%d라운드를 버텼습니다!" % [battle.max_enemies, summary.wave]
+	elif battle.endless:
 		text = "웨이브 %d까지 버텼습니다!" % summary.wave
 	var headline := UI.label(text, 30, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(headline)
 	if battle.endless:
-		var record := "최고 기록 경신!" if summary.new_record else "최고 기록: 웨이브 %d" % Save.user.endless_best
+		var record := "최고 기록 경신!" if summary.new_record else "최고 기록: %d라운드" % Save.user.get("round_best", 0)
 		v.add_child(UI.label(record, 28, UI.GOLD if summary.new_record else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var stats := UI.panel(UI.CARD, 16, 18)
 	var grid := GridContainer.new()
