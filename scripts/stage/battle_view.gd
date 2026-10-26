@@ -50,7 +50,8 @@ func setup(p_battle: Battle) -> void:
 	_bolt_tex = load("res://assets/tower/projectile.png")
 	for row in battle.map.size():
 		for col in battle.map[row].size():
-			if float(battle.map[row][col]) >= 1.0:
+			var v := float(battle.map[row][col])
+			if v >= 1.0 and v != StageDefs.BOSS_ROOM:
 				_path_cells[Vector2i(col, row)] = true
 	_dyn = Node2D.new()
 	add_child(_dyn)
@@ -167,6 +168,16 @@ func _draw() -> void:
 		_rounded(Rect2(r.position + Vector2(0, c * 0.06), r.size), Color(0, 0, 0, 0.25))
 		_rounded(r, DESK_SIDE)
 		_rounded(Rect2(r.position, r.size - Vector2(0, c * 0.08)), DESK_TOP)
+	# 보스방: 붉은 카펫을 깐 회의실
+	if battle.has_boss_room:
+		var room := Rect2(battle.boss_cells[0].x * c, battle.boss_cells[0].y * c, 0, 0)
+		for cell: Vector2i in battle.boss_cells:
+			room = room.merge(Rect2(cell.x * c, cell.y * c, c, c))
+		room = room.grow(-c * 0.06)
+		_rounded(room, Color("5a2430"), 14)
+		_rounded(room.grow(-c * 0.12), Color("7a3040"), 10)
+		_outline(room, Color(UI.DANGER, 0.7), 14, 3)
+		_text(room.get_center() + Vector2(0, c * 0.62), "보스방", int(c * 0.26), Color(1, 0.8, 0.8, 0.8))
 
 
 # ------------------------------------------------------------------ 동적 레이어
@@ -324,6 +335,9 @@ func _draw_enemy(e: Enemy) -> void:
 		mod = mod.darkened(0.4)
 	if e.hit_flash > 0:
 		mod = mod.lerp(Color(2, 2, 2), 0.5)
+	# 보스방 보스가 버티는 동안 공격할 수 없는 적은 흐리게
+	if battle.boss_blocking and not e.anchored:
+		mod = Color(mod.darkened(0.3), 0.45)
 	# 전화기는 벨이 울리기 직전에 부르르 떤다
 	if e.type.has("ring") and e.ability_timer < 0.8 and e.stun_left <= 0:
 		p.x += sin(Time.get_ticks_msec() / 18.0) * s * 0.05

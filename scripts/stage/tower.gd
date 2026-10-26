@@ -117,7 +117,7 @@ func _find_target() -> Enemy:
 	var best_value := 0.0
 	var c := center()
 	for enemy: Enemy in battle.enemies:
-		if enemy.dead:
+		if not battle.can_target(enemy):
 			continue
 		var distance := enemy.pos.distance_to(c)
 		if distance > range_px:
@@ -134,7 +134,7 @@ func _find_target() -> Enemy:
 
 
 func _in_range(enemy: Enemy) -> bool:
-	return enemy != null and not enemy.dead and enemy.pos.distance_to(center()) <= range_px
+	return enemy != null and battle.can_target(enemy) and enemy.pos.distance_to(center()) <= range_px
 
 
 func stun(duration: float) -> void:

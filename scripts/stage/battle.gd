@@ -31,6 +31,7 @@ var cell := 72.0
 var map: Array
 var path: Array[Vector2] = []
 var desk_cells: Array[Vector2i] = []
+var boss_cells: Array[Vector2i] = []
 
 var enemies: Array = []    # Array[Enemy]
 var towers: Array = []     # Array[Tower]
@@ -53,6 +54,9 @@ var max_enemies := 0
 var round_sec := 0.0
 var round_left := 0.0      # 다음 라운드까지 남은 시간
 var _crowd_warned := false
+var boss_room := Vector2.ZERO  # 보스방 가운데 (고리 맵에 보스방이 있으면)
+var has_boss_room := false
+var boss_blocking := false  # 보스방 보스가 살아 있음 → 직원은 보스만 공격
 var selected: Tower
 
 var wave_index := 0          # 진행 중이거나 다음에 시작할 웨이브
@@ -79,6 +83,12 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 		for col in map[row].size():
 			if float(map[row][col]) == 0.0:
 				desk_cells.append(Vector2i(col, row))
+			elif float(map[row][col]) == StageDefs.BOSS_ROOM:
+				boss_cells.append(Vector2i(col, row))
+	if not boss_cells.is_empty():
+		has_boss_room = true
+		for c in boss_cells:
+			boss_room += cell_center(c) / boss_cells.size()
 	var user: Dictionary = Save.user
 	coins = int(def.start_coins) + GameData.start_coin_bonus(user)
 	speed = Save.game_speed()
@@ -143,6 +153,7 @@ func _process(delta: float) -> void:
 		e.update(dt)
 	if loop:
 		_check_crowd()
+	_update_blocking()
 	for t: Tower in towers.duplicate():
 		t.update(dt)
 	_update_projectiles(dt)
@@ -168,6 +179,10 @@ func _update_wave(dt: float) -> void:
 		if _since_spawn >= _spawn_delay:
 			var spawn: Array = _pending.pop_front()
 			var e := Enemy.new(spawn[0], spawn[1], self)
+			if has_boss_room and e.is_boss():
+				e.anchor(boss_room)
+				message.emit("보스 등장! 보스를 잡기 전엔
+일반 적을 공격할 수 없어요", UI.DANGER)
 			enemies.append(e)
 			enemy_spawned.emit(e)
 			_since_spawn = 0.0
@@ -258,6 +273,8 @@ func on_enemy_damaged(e: Enemy, amount: float, magic_share: float) -> void:
 
 func on_enemy_killed(e: Enemy) -> void:
 	enemies.erase(e)
+	if e.anchored:
+		_update_blocking()
 	enemy_died.emit(e)
 	kills += 1
 	coins += int(e.type.reward)
@@ -544,3 +561,19 @@ func _end(p_won: bool) -> void:
 func set_speed(value: float) -> void:
 	speed = value
 	Save.set_game_speed(value)
+
+
+# ------------------------------------------------------------------ 보스방 (고리 맵)
+
+## 보스방에 보스가 버티고 있는 동안에는 보스만 공격할 수 있다 (프레임마다 한 번 계산해 둔다)
+func _update_blocking() -> void:
+	boss_blocking = false
+	if has_boss_room:
+		for e: Enemy in enemies:
+			if not e.dead and e.anchored:
+				boss_blocking = true
+				return
+
+
+func can_target(e: Enemy) -> bool:
+	return not e.dead and (e.anchored or not boss_blocking)

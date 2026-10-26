@@ -26,6 +26,7 @@ var shield := 0.0
 var ability_timer := 0.0  # 회복/전화벨 주기
 var ability_flash := 0.0  # 능력을 쓴 직후 연출용 (그리기 전용)
 var hold := 0.0           # 분열로 태어난 적이 겹치지 않게 잠깐 멈춰 있는 시간
+var anchored := false     # 보스방 보스: 움직이지 않는다
 var _since_hit := 0.0
 var _path_index := 0
 var _bob := randf() * TAU
@@ -45,6 +46,12 @@ func _init(p_type_id: String, health: float, p_battle) -> void:
 	max_shield = health * type.get("shield", 0.0)
 	shield = max_shield
 	ability_timer = type.get("interval", 0.0) * randf_range(0.5, 1.0)
+
+
+## 보스방 보스: 그 자리에 서서 버틴다
+func anchor(at: Vector2) -> void:
+	pos = at
+	anchored = true
 
 
 ## 분열로 생긴 적: 부모 자리에서 이어서 출발한다
@@ -103,6 +110,8 @@ func update(delta: float) -> void:
 		stun_left -= delta
 		return
 	_update_ability(delta)
+	if anchored:
+		return
 	if hold > 0:
 		hold -= delta
 		return

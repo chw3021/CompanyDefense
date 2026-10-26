@@ -50,11 +50,11 @@ func use(tower: Tower) -> void:
 
 func _in_range(tower: Tower, radius: float) -> Array:
 	var c := tower.center()
-	return battle.enemies.filter(func(e: Enemy): return not e.dead and e.pos.distance_to(c) <= radius)
+	return battle.enemies.filter(func(e: Enemy): return battle.can_target(e) and e.pos.distance_to(c) <= radius)
 
 
 func _alive() -> Array:
-	return battle.enemies.filter(func(e: Enemy): return not e.dead)
+	return battle.enemies.filter(func(e: Enemy): return battle.can_target(e))
 
 
 func _effect(at: Vector2, size: float) -> void:
