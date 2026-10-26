@@ -35,6 +35,7 @@ var attack_elapsed := 0.0
 var attack_duration := 0.0
 var spawn_anim := 0.0   # 배치 직후 튀어나오는 연출
 var buff_glow := 0.0
+var stun_left := 0.0    # 전화기 벨소리에 통화 중 (공격도 스킬도 못 한다)
 
 
 func _init(p_id: String, template: Dictionary, p_battle, p_cell: Vector2i) -> void:
@@ -136,11 +137,19 @@ func _in_range(enemy: Enemy) -> bool:
 	return enemy != null and not enemy.dead and enemy.pos.distance_to(center()) <= range_px
 
 
+func stun(duration: float) -> void:
+	stun_left = maxf(stun_left, duration)
+	attacking = false
+
+
 func update(delta: float) -> void:
 	spawn_anim = maxf(0.0, spawn_anim - delta * 4.0)
 	buff_glow = maxf(0.0, buff_glow - delta)
 	attack_cooldown -= delta
 	skill.update(delta)
+	if stun_left > 0:
+		stun_left -= delta
+		return
 	if attacking:
 		attack_elapsed += delta
 		if attack_elapsed >= attack_duration:
@@ -170,7 +179,7 @@ func _resolve_attack() -> void:
 	if melee:
 		target.damage(physical, magic)
 	else:
-		battle.add_projectile(center(), target, physical, magic, null, battle.cell * 0.4, 0.5)
+		battle.add_projectile(center(), target, physical, magic, null, battle.cell * 0.4, 0.5, team, grade)
 
 
 func attack_progress() -> float:

@@ -236,6 +236,19 @@ func record_stage_result(stage_id: int, won: bool, score: int, gold_reward: int)
 
 
 ## 무한 모드에서 버틴 웨이브 수 기록. 최고 기록을 넘었으면 true (저장은 record_stage_result 가 한다)
+## 처음 만나는 적이면 기록하고 true (적 소개를 한 번만 보여 주려고)
+func mark_enemy_seen(type_id: String) -> bool:
+	if user.is_empty():
+		return false
+	var seen: Array = user.get("seen_enemies", [])
+	if seen.has(type_id):
+		return false
+	seen.append(type_id)
+	user["seen_enemies"] = seen
+	save()
+	return true
+
+
 func record_endless_wave(waves: int) -> bool:
 	if user.is_empty() or waves <= int(user.get("endless_best", 0)):
 		return false

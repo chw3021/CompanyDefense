@@ -13,9 +13,12 @@ signal enemy_spawned(e: Enemy)
 signal enemy_damaged(e: Enemy, amount: float, magic_share: float)
 signal enemy_died(e: Enemy)
 signal enemy_escaped(e: Enemy)
+signal enemy_ability(e: Enemy)  # 정수기 회복, 전화벨
+signal enemy_split(parent: Enemy, children: Array)
 signal tower_placed(t: Tower, promoted: bool)
 signal tower_attacked(t: Tower, target: Enemy, melee: bool)
 signal skill_cast(t: Tower)
+signal projectile_hit(p: Dictionary)
 
 const SPAWN_COST := 100
 const TRADE_CHANCE := 0.3
@@ -151,6 +154,8 @@ func _update_wave(dt: float) -> void:
 			enemies.append(e)
 			enemy_spawned.emit(e)
 			_since_spawn = 0.0
+			if e.type.has("desc") and Save.mark_enemy_seen(e.type_id):
+				message.emit("새로운 적: %s\n%s" % [e.type.name, e.type.desc], UI.WARN)
 	elif enemies.is_empty():
 		_on_wave_cleared()
 
@@ -200,7 +205,25 @@ func on_enemy_killed(e: Enemy) -> void:
 	coins += int(e.type.reward)
 	score += 200 if e.is_boss() else 10
 	floating.emit("+%d" % int(e.type.reward), e.pos, UI.GOLD)
+	if e.type.has("split"):
+		_split(e)
 	hud_changed.emit()
+
+
+## 택배 상자: 부모 자리에서 작은 적들이 조금씩 시차를 두고 출발한다
+func _split(parent: Enemy) -> void:
+	var rule: Array = parent.type.split
+	var children := []
+	for i in int(rule[2]):
+		var child := Enemy.new(rule[0], parent.max_hp * float(rule[1]), self)
+		child.follow(parent, i * 0.3)
+		enemies.append(child)
+		children.append(child)
+	enemy_split.emit(parent, children)
+
+
+func on_enemy_ability(e: Enemy) -> void:
+	enemy_ability.emit(e)
 
 
 func on_enemy_leaked(e: Enemy) -> void:
@@ -363,12 +386,12 @@ func on_skill_used(t: Tower) -> void:
 	skill_cast.emit(t)
 
 
-## 투사체. sheet 가 null 이면 기본 공격 이미지, 아니면 스프라이트 시트의 가운데 프레임
-func add_projectile(from: Vector2, target: Enemy, physical: float, magic: float, sheet, size: float, lifetime: float) -> void:
+## 투사체. sheet 가 null 이면 기본 공격 (team 모양, grade 가 높을수록 크게), 아니면 스킬 스프라이트 시트의 가운데 프레임
+func add_projectile(from: Vector2, target: Enemy, physical: float, magic: float, sheet, size: float, lifetime: float, team := "", grade := 1) -> void:
 	var life_time := maxf(0.2, lifetime)
 	projectiles.append({
 		"pos": from, "target": target, "physical": physical, "magic": magic,
-		"sheet": sheet, "size": size, "life": life_time, "age": 0.0,
+		"sheet": sheet, "size": size, "life": life_time, "age": 0.0, "team": team, "grade": grade,
 		"speed": maxf(cell * 8.0, from.distance_to(target.pos) / (life_time * 0.8)),
 		"dir": (target.pos - from).normalized(),
 	})
@@ -384,6 +407,7 @@ func _update_projectiles(dt: float) -> void:
 		var distance: float = p.pos.distance_to(target.pos)
 		var step: float = p.speed * dt
 		if distance <= maxf(step, p.size * 0.5) or p.age >= p.life:
+			projectile_hit.emit(p)
 			target.damage(p.physical, p.magic)
 			projectiles.erase(p)
 			continue
