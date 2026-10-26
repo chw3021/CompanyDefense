@@ -25,8 +25,8 @@ func run(p_dev) -> void:
 	for i in kinds.size():
 		var e := Enemy.new(kinds[i], 400.0, battle)
 		e.progress = 0.0
-		e._path_index = 1 + i
-		e.pos = battle.path[e._path_index - 1].lerp(battle.path[e._path_index], 0.5)
+		e._path_index = 1 + i % (battle.path.size() - 1)
+		e.pos = battle.path[e._path_index - 1].lerp(battle.path[e._path_index], 0.3 + 0.4 * float(i / (battle.path.size() - 1)))
 		battle.enemies.append(e)
 		Save.mark_enemy_seen(kinds[i])
 	for t: Tower in battle.towers:
