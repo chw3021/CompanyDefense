@@ -18,6 +18,7 @@ var stun_left := 0.0
 var slow_left := 0.0
 var slow_factor := 0.0
 var hit_flash := 0.0
+var hp_trail := 1.0  # 체력바에서 하얗게 남았다가 천천히 줄어드는 부분 (그리기 전용)
 var _path_index := 0
 var _bob := randf() * TAU
 
@@ -88,9 +89,13 @@ func update(delta: float) -> void:
 func damage(physical: float, magic: float) -> void:
 	if dead:
 		return
-	var total := physical * (1.0 - pdef / (pdef + 100.0)) + magic * (1.0 - mdef / (mdef + 100.0))
-	hp = maxf(0.0, hp - total)
+	var p := physical * (1.0 - pdef / (pdef + 100.0))
+	var m := magic * (1.0 - mdef / (mdef + 100.0))
+	var total := minf(p + m, hp)
+	hp = maxf(0.0, hp - (p + m))
 	hit_flash = 0.12
+	if total > 0:
+		battle.on_enemy_damaged(self, total, m / (p + m))
 	if hp <= 0:
 		kill()
 

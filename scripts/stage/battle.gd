@@ -8,6 +8,14 @@ signal floating(text: String, at: Vector2, color: Color)
 signal tower_selected(tower: Tower)
 signal wave_started(index: int)
 signal game_over(won: bool, summary: Dictionary)
+# 연출용 신호 (BattleView 가 받는다. 시뮬레이션에서는 아무도 듣지 않는다)
+signal enemy_spawned(e: Enemy)
+signal enemy_damaged(e: Enemy, amount: float, magic_share: float)
+signal enemy_died(e: Enemy)
+signal enemy_escaped(e: Enemy)
+signal tower_placed(t: Tower, promoted: bool)
+signal tower_attacked(t: Tower, target: Enemy, melee: bool)
+signal skill_cast(t: Tower)
 
 const SPAWN_COST := 100
 const TRADE_CHANCE := 0.3
@@ -124,7 +132,9 @@ func _update_wave(dt: float) -> void:
 		_since_spawn += dt
 		if _since_spawn >= _spawn_delay:
 			var spawn: Array = _pending.pop_front()
-			enemies.append(Enemy.new(spawn[0], spawn[1], self))
+			var e := Enemy.new(spawn[0], spawn[1], self)
+			enemies.append(e)
+			enemy_spawned.emit(e)
 			_since_spawn = 0.0
 	elif enemies.is_empty():
 		_on_wave_cleared()
@@ -164,8 +174,13 @@ func _on_wave_cleared() -> void:
 
 # ------------------------------------------------------------------ 적
 
+func on_enemy_damaged(e: Enemy, amount: float, magic_share: float) -> void:
+	enemy_damaged.emit(e, amount, magic_share)
+
+
 func on_enemy_killed(e: Enemy) -> void:
 	enemies.erase(e)
+	enemy_died.emit(e)
 	kills += 1
 	coins += int(e.type.reward)
 	score += 200 if e.is_boss() else 10
@@ -175,6 +190,7 @@ func on_enemy_killed(e: Enemy) -> void:
 
 func on_enemy_leaked(e: Enemy) -> void:
 	enemies.erase(e)
+	enemy_escaped.emit(e)
 	life = 0 if e.is_boss() else life - 1
 	floating.emit("보스 탈출!" if e.is_boss() else "-1", path[path.size() - 1], UI.DANGER)
 	hud_changed.emit()
@@ -223,7 +239,7 @@ func hire() -> void:
 		message.emit("소환할 수 있는 직원이 없습니다", UI.DANGER)
 		return
 	coins -= SPAWN_COST
-	_place(candidates.pick_random(), free.pick_random())
+	tower_placed.emit(_place(candidates.pick_random(), free.pick_random()), false)
 	hud_changed.emit()
 
 
@@ -238,6 +254,7 @@ func merge(dragged: Tower, target: Tower) -> void:
 	_remove(dragged)
 	_remove(target)
 	var merged := _place(upgrades.pick_random(), c)
+	tower_placed.emit(merged, true)
 	floating.emit("승진!", merged.center() + Vector2(0, -cell * 0.5), GameData.grade_color(merged.grade))
 	select(merged)
 	hud_changed.emit()
@@ -276,6 +293,7 @@ func trade(t: Tower) -> void:
 		if candidates.is_empty():
 			candidates = GameData.towers_of_grade(t.grade)
 		var swapped := _place(candidates.pick_random(), c)
+		tower_placed.emit(swapped, false)
 		floating.emit("협상 성공!", swapped.center() + Vector2(0, -cell * 0.5), UI.SUCCESS)
 		select(swapped)
 	else:
@@ -326,8 +344,8 @@ func floating_text(text: String, at: Vector2, color: Color) -> void:
 	floating.emit(text, at, color)
 
 
-func on_skill_used(_t: Tower) -> void:
-	pass
+func on_skill_used(t: Tower) -> void:
+	skill_cast.emit(t)
 
 
 ## 투사체. sheet 가 null 이면 기본 공격 이미지, 아니면 스프라이트 시트의 가운데 프레임
@@ -337,6 +355,7 @@ func add_projectile(from: Vector2, target: Enemy, physical: float, magic: float,
 		"pos": from, "target": target, "physical": physical, "magic": magic,
 		"sheet": sheet, "size": size, "life": life_time, "age": 0.0,
 		"speed": maxf(cell * 8.0, from.distance_to(target.pos) / (life_time * 0.8)),
+		"dir": (target.pos - from).normalized(),
 	})
 
 
@@ -353,7 +372,8 @@ func _update_projectiles(dt: float) -> void:
 			target.damage(p.physical, p.magic)
 			projectiles.erase(p)
 			continue
-		p.pos += (target.pos - p.pos).normalized() * step
+		p.dir = (target.pos - p.pos).normalized()
+		p.pos += p.dir * step
 
 
 ## 스킬 이펙트 애니메이션 (게임 시간 기준으로 재생/삭제)

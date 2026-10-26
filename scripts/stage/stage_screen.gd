@@ -24,6 +24,7 @@ var _upgrade_labels := {}
 var _upgrade_costs := {}
 var _card_widgets := {}
 var _pause_modal: Control
+var _last_life := 0
 
 
 func _ready() -> void:
@@ -37,6 +38,8 @@ func _ready() -> void:
 	battle.floating.connect(_show_floating)
 	battle.tower_selected.connect(_on_tower_selected)
 	battle.game_over.connect(_on_game_over)
+	battle.wave_started.connect(_show_wave_banner)
+	_last_life = battle.life
 	_refresh_hud()
 	_show_banner()
 
@@ -242,6 +245,9 @@ func _build_tower_card() -> PanelContainer:
 
 func _refresh_hud() -> void:
 	_life_label.text = str(battle.life)
+	if battle.life < _last_life:
+		_pulse(_life_label, UI.DANGER)
+	_last_life = battle.life
 	_coin_label.text = str(battle.coins)
 	_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
 	_speed_button.text = "x%d" % int(battle.speed)
@@ -306,6 +312,42 @@ func _show_message(text: String, color: Color) -> void:
 	tw.tween_interval(1.1)
 	tw.tween_property(l, "modulate:a", 0.0, 0.4)
 	tw.tween_callback(l.queue_free)
+
+
+## 목숨이 줄면 숫자가 빨갛게 튀어 오른다
+func _pulse(label: Label, color: Color) -> void:
+	label.pivot_offset = label.size / 2
+	label.add_theme_color_override("font_color", color)
+	var tw := label.create_tween()
+	tw.tween_property(label, "scale", Vector2(1.5, 1.5), 0.08)
+	tw.tween_property(label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func(): label.remove_theme_color_override("font_color"))
+
+
+## 웨이브 시작: 띠가 옆에서 밀려 들어왔다가 빠진다. 보스 웨이브는 빨간 띠
+func _show_wave_banner(index: int) -> void:
+	var boss := false
+	for group in battle.def.waves[index][1]:
+		if StageDefs.ENEMIES[group[0]].boss:
+			boss = true
+	var band := UI.panel(Color(UI.DANGER, 0.88) if boss else Color(0.05, 0.06, 0.08, 0.82), 0, 14)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.custom_minimum_size.x = MAP_CELL * 10
+	var v := UI.vbox(0)
+	band.add_child(v)
+	var last := index + 1 == battle.wave_count()
+	v.add_child(UI.label("WAVE %d / %d" % [index + 1, battle.wave_count()], 44, UI.GOLD if not boss else UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	if boss or last:
+		v.add_child(UI.label("보스 등장!" if boss else "마지막 웨이브!", 26, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	_float_layer.add_child(band)
+	band.reset_size()
+	var y := MAP_CELL * 2.2 - band.size.y / 2
+	band.position = Vector2(-MAP_CELL * 10, y)
+	var tw := band.create_tween()
+	tw.tween_property(band, "position:x", 0.0, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.9)
+	tw.tween_property(band, "position:x", MAP_CELL * 10, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_callback(band.queue_free)
 
 
 func _show_banner() -> void:

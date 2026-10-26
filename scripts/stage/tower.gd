@@ -165,10 +165,12 @@ func _resolve_attack() -> void:
 		target = _find_target()
 		if target == null:
 			return
-	if range_px >= RANGED_THRESHOLD * battle.cell:
-		battle.add_projectile(center(), target, physical, magic, null, battle.cell * 0.4, 0.5)
-	else:
+	var melee: bool = range_px < RANGED_THRESHOLD * battle.cell
+	battle.tower_attacked.emit(self, target, melee)
+	if melee:
 		target.damage(physical, magic)
+	else:
+		battle.add_projectile(center(), target, physical, magic, null, battle.cell * 0.4, 0.5)
 
 
 func attack_progress() -> float:
