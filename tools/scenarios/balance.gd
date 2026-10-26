@@ -16,6 +16,7 @@ const PROFILES := {
 }
 
 var dev
+var hp_scale := 0.0  # --dev-hp-scale=1.3 으로 스테이지의 hp_scale 을 덮어쓴다 (0 이면 그대로)
 
 
 func run(p_dev) -> void:
@@ -31,6 +32,8 @@ func run(p_dev) -> void:
 			stages = Array(arg.trim_prefix("--dev-stages=").split(",")).map(func(s): return int(s))
 		elif arg.begins_with("--dev-profiles="):
 			profiles = Array(arg.trim_prefix("--dev-profiles=").split(","))
+		elif arg.begins_with("--dev-hp-scale="):
+			hp_scale = float(arg.trim_prefix("--dev-hp-scale="))
 		elif arg.begins_with("--dev-bots="):
 			bots = Array(arg.trim_prefix("--dev-bots=").split(","))
 	Save.reset()
@@ -103,6 +106,9 @@ func _play(stage_id: int, profile: String, bot: String) -> Dictionary:
 	add_child(battle)
 	battle.setup(stage_id, 72.0)
 	battle.speed = 1.0
+	if hp_scale > 0:
+		battle.def = battle.def.duplicate()
+		battle.def.hp_scale = hp_scale
 	var leaks := []
 	leaks.resize(battle.wave_count())
 	leaks.fill(0)
@@ -124,15 +130,30 @@ func _play(stage_id: int, profile: String, bot: String) -> Dictionary:
 
 ## casual: 고용과 승진만 한다 (처음 해보는 사람)
 ## smart: 승진 > 고용 > 직원이 많은 팀부터 팀 업그레이드
+## only_dv, only_hr_sl 등: casual 이지만 고용과 승진 결과를 그 팀들로만 고정 (팀 성능 비교용)
+## noskill: casual 이지만 스킬을 쓰지 않는다 (스킬 기여도 측정용)
 func _act(battle: Battle, bot: String) -> void:
+	var teams: Array = Array(bot.trim_prefix("only_").split("_")) if bot.begins_with("only_") else []
 	for a: Tower in battle.towers:
 		for b: Tower in battle.towers:
 			if a.can_merge_with(b):
-				battle.merge(a, b)
+				if teams.is_empty():
+					battle.merge(a, b)
+				else:
+					_merge_team(battle, a, b, teams)
 				return
 	var free := battle.towers.size() < battle.desk_cells.size()
 	if battle.coins >= Battle.SPAWN_COST and free:
-		battle.hire()
+		if teams.is_empty():
+			battle.hire()
+		else:
+			battle.coins -= Battle.SPAWN_COST
+			_place(battle, _of_team(1, teams), battle._free_desks().pick_random())
+	if bot == "noskill":
+		for t: Tower in battle.towers:
+			if t.skill.base_cooldown != INF:
+				t.skill.base_cooldown = INF
+				t.recalculate()
 	elif bot == "smart":
 		var counts := {"hr": 0, "dv": 0, "sl": 0}
 		for t: Tower in battle.towers:
@@ -142,3 +163,18 @@ func _act(battle: Battle, bot: String) -> void:
 			battle.upgrade_team(best)
 	if battle.can_start_wave():
 		battle.start_wave()
+
+
+func _of_team(grade: int, teams: Array) -> String:
+	return GameData.towers_of_grade(grade).filter(func(id): return GameData.towers[id].team in teams).pick_random()
+
+
+func _place(battle: Battle, tower_id: String, c: Vector2i) -> Tower:
+	return battle._place(tower_id, c)
+
+
+func _merge_team(battle: Battle, a: Tower, b: Tower, teams: Array) -> void:
+	var c := b.cell
+	battle._remove(a)
+	battle._remove(b)
+	_place(battle, _of_team(b.grade + 1, teams), c)

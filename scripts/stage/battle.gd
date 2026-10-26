@@ -138,7 +138,7 @@ func start_wave() -> void:
 	_since_spawn = _spawn_delay  # 첫 적은 바로 나온다
 	_pending.clear()
 	for group in wave[1]:
-		var hp: float = float(group[1]) * StageDefs.ENEMIES[group[0]].hp_mult
+		var hp: float = float(group[1]) * StageDefs.ENEMIES[group[0]].hp_mult * float(def.get("hp_scale", 1.0))
 		for i in int(group[2]):
 			_pending.append([group[0], hp])
 	wave_running = true
