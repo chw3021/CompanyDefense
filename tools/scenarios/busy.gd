@@ -29,6 +29,11 @@ func run(p_dev) -> void:
 					break
 			if merged:
 				break
+	# 높은 등급도 한 명씩 앉혀 등급 표시를 비교한다
+	for g in [3, 4, 5, 5]:
+		var free := battle._free_desks()
+		if not free.is_empty():
+			battle._place(GameData.towers_of_grade(g).pick_random(), free.pick_random()).spawn_anim = 0.0
 	battle.select(null)
 	battle.start_wave()
 	battle.speed = 2.0

@@ -260,12 +260,10 @@ func _draw_tower(t: Tower) -> void:
 	var portrait := tex(GameData.asset(t.data.towerImagePath))
 	var team_color: Color = GameData.TEAM_COLORS[t.team]
 	var grade_color := GameData.grade_color(t.grade)
-	# 책상 윗면을 팀 색으로 칠하고, 2등급부터는 등급 색 테두리 (멀리서도 팀/등급이 보이게)
+	# 부서 = 책상 색, 등급 = 얼굴 테두리 색과 아래 별 개수 (두 가지 색이 섞이지 않게 역할을 나눈다)
 	var m := c * 0.1
 	var top := Rect2(base.x + m, base.y + m, c - m * 2, c - m * 2 - c * 0.08)
-	_rounded(top, Color(team_color, 0.55), 10)
-	if t.grade >= 2:
-		_outline(top.grow(1), grade_color, 10, 3 + t.grade / 2)
+	_rounded(top, Color(team_color, 0.6), 10)
 	var alpha := 0.35 if (_dragging and _press_tower == t) else 1.0
 	var shade := 0.55 if t.stun_left > 0 else 1.0  # 통화 중이면 어둡게
 	# 공격하는 동안 대상 쪽으로 살짝 몸을 내민다
@@ -274,12 +272,17 @@ func _draw_tower(t: Tower) -> void:
 	if progress >= 0 and t.target != null and not t.target.dead:
 		lunge = (t.target.pos - t.center()).normalized() * c * 0.07 * sin(progress * PI)
 	# 전신 대신 얼굴 토큰: 직원이 많아져도 누가 누군지 얼굴로 알아보게
-	var radius := c * 0.36 * (1.0 + 0.25 * t.spawn_anim)
-	var at := Vector2(center_x, base.y + c * 0.45) + lunge
+	var radius := c * 0.34 * (1.0 + 0.25 * t.spawn_anim)
+	var at := Vector2(center_x, base.y + c * 0.42) + lunge
 	ci.draw_circle(at + Vector2(0, c * 0.04), radius + 3, Color(0, 0, 0, 0.35 * alpha))
 	ci.draw_circle(at, radius + 2, Color(team_color.darkened(0.45), alpha))
 	_draw_face(t.id, portrait, at, radius - 1, Color(shade, shade, shade, alpha))
-	ci.draw_arc(at, radius, 0, TAU, 32, Color(team_color, alpha), 4, true)
+	# 등급 테두리: 등급이 높을수록 두껍고, 4등급부터는 바깥에 반짝이는 고리
+	ci.draw_arc(at, radius + 1, 0, TAU, 32, Color(0.08, 0.06, 0.12, alpha), 7 + t.grade, true)
+	ci.draw_arc(at, radius + 1, 0, TAU, 32, Color(grade_color, alpha), 3 + t.grade, true)
+	if t.grade >= 4:
+		var shine := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 220.0 + t.cell.x)
+		ci.draw_arc(at, radius + 5 + t.grade, 0, TAU, 32, Color(grade_color.lightened(0.3), (0.35 + 0.4 * shine) * alpha), 2.5, true)
 	if t.buff_glow > 0:
 		ci.draw_arc(at, radius + 5, 0, TAU, 32, Color(UI.GOLD, 0.7), 3, true)
 	if t.stun_left > 0:
@@ -288,13 +291,25 @@ func _draw_tower(t: Tower) -> void:
 	# 공격 모션은 오른쪽 위에 팀마다 다른 모양으로
 	if progress >= 0:
 		_draw_attack_motion(t, Vector2(base.x + c * 0.8, base.y + c * 0.12), progress)
-	# 등급 배지: 왼쪽 아래 등급 색 동그라미에 숫자
-	var badge := Vector2(base.x + c * 0.2, base.y + c * 0.78)
-	ci.draw_circle(badge, c * 0.15, Color(0.08, 0.06, 0.12, 0.85))
-	ci.draw_circle(badge, c * 0.12, grade_color)
-	_text(badge, str(t.grade), int(c * 0.22))
+	# 등급 별: 얼굴 아래 어두운 띠 위에 등급 수만큼
+	var star_r := c * 0.075
+	var gap := star_r * 2.1
+	var row := Vector2(center_x, base.y + c * 0.8) + lunge
+	var band_w := gap * t.grade + star_r * 0.6
+	_rounded(Rect2(row - Vector2(band_w / 2, star_r * 1.35), Vector2(band_w, star_r * 2.7)), Color(0.08, 0.06, 0.12, 0.85 * alpha), int(star_r * 1.3))
+	for i in t.grade:
+		_star(row + Vector2((i - (t.grade - 1) / 2.0) * gap, 0), star_r, Color(grade_color.lightened(0.15), alpha))
 	if battle.selected == t:
 		_outline(Rect2(base, Vector2(c, c)).grow(-2), UI.TEXT, 12, 3)
+
+
+## 다섯 꼭지 별
+func _star(at: Vector2, r: float, color: Color) -> void:
+	var points := PackedVector2Array()
+	for i in 10:
+		var radius := r if i % 2 == 0 else r * 0.45
+		points.append(at + Vector2.from_angle(-PI / 2 + i * PI / 5) * radius)
+	ci.draw_colored_polygon(points, color)
 
 
 ## 직원 그림(350x512)에서 얼굴이 있는 곳: [가운데 x, 머리 꼭대기 y]. 여기서 190px 정사각형을 잘라 쓴다
