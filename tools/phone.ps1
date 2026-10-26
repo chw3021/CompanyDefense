@@ -9,6 +9,7 @@ $ErrorActionPreference = "Continue"
 $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 $pkg = "io.github.chw3021.companydefense"
 
+& $adb start-server 2>&1 | Out-Null   # 서버 시작 메시지가 상태값에 섞이지 않게 먼저 띄운다
 $state = (& $adb -d get-state 2>&1 | Out-String).Trim()
 if ($state -ne "device") {
     Write-Host "폰이 안 보입니다 ($state). USB 디버깅을 켜고, 폰에 뜨는 'USB 디버깅 허용'을 눌러 주세요."
