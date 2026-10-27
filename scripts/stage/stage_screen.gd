@@ -236,6 +236,7 @@ func _build_tower_card() -> PanelContainer:
 	var portrait := TextureRect.new()
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	portrait.custom_minimum_size = Vector2(96, 120)
 	portrait_bg.add_child(portrait)
 	top.add_child(portrait_bg)

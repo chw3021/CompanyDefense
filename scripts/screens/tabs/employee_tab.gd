@@ -47,6 +47,7 @@ func _card(id: String) -> Control:
 	var frame := UI.panel(Color(GameData.TEAM_COLORS[t.team], 0.22), 14, 6)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait := UI.icon(GameData.asset(t.towerImagePath), 150)
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	frame.add_child(portrait)
 	v.add_child(frame)
 	var name_label := UI.label(t.towerName, 24, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
@@ -80,7 +81,14 @@ func _open(id: String) -> void:
 
 	var top := UI.hbox(20)
 	var frame := UI.panel(Color(GameData.TEAM_COLORS[t.team], 0.25), 18, 8)
-	frame.add_child(UI.icon(GameData.asset(t.towerImagePath), 200))
+	var portrait := UI.icon(GameData.asset(t.towerImagePath), 200)
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	frame.add_child(portrait)
+	# 초상화를 누르면 크게 본다
+	frame.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	frame.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_zoom(portrait.texture))
 	top.add_child(frame)
 	var info := UI.vbox(8)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -127,3 +135,10 @@ func _open(id: String) -> void:
 		_set_filter(_filter))
 	refresh.call()
 	UI.modal(t.towerName, v, [["닫기", UI.CARD_HI]], main)
+
+
+func _zoom(texture: Texture2D) -> void:
+	var big := UI.icon_texture(texture, 0)
+	big.custom_minimum_size = Vector2(540, 720)
+	big.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	UI.modal("", big, [["닫기", UI.CARD_HI]], main)
