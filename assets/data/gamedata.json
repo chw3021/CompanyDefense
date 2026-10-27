@@ -525,51 +525,51 @@
     "coffee": {
       "eqId": "coffee",
       "eqName": "아이스 커피",
-      "eqDescription": "모든 타워의 공격 속도가 레벨당 3% 증가합니다.",
+      "eqDescription": "모든 타워의 공격 속도가 레벨당 0.3% 증가합니다.",
       "eqImagePath": "icons/iced-coffee.png",
       "team": "all",
       "stat": "speed",
-      "perLevel": 0.03,
+      "perLevel": 0.003,
       "baseCost": 300
     },
     "energy": {
       "eqId": "energy",
       "eqName": "에너지 드링크",
-      "eqDescription": "모든 타워의 공격력이 레벨당 3% 증가합니다.",
+      "eqDescription": "모든 타워의 공격력이 레벨당 0.3% 증가합니다.",
       "eqImagePath": "icons/energy-drink.png",
       "team": "all",
       "stat": "attack",
-      "perLevel": 0.03,
+      "perLevel": 0.003,
       "baseCost": 300
     },
     "keyboard": {
       "eqId": "keyboard",
       "eqName": "기계식 키보드",
-      "eqDescription": "개발팀 타워의 공격력이 레벨당 6% 증가합니다.",
+      "eqDescription": "개발팀 타워의 공격력이 레벨당 0.6% 증가합니다.",
       "eqImagePath": "icons/upgrade.png",
       "team": "dv",
       "stat": "attack",
-      "perLevel": 0.06,
+      "perLevel": 0.006,
       "baseCost": 200
     },
     "badge": {
       "eqId": "badge",
       "eqName": "사원증",
-      "eqDescription": "인사팀 타워의 스킬 쿨타임이 레벨당 4% 감소합니다.",
+      "eqDescription": "인사팀 타워의 스킬 쿨타임이 레벨당 0.4% 감소합니다.",
       "eqImagePath": "icons/recruitment.png",
       "team": "hr",
       "stat": "cooldown",
-      "perLevel": 0.04,
+      "perLevel": 0.004,
       "baseCost": 200
     },
     "contract": {
       "eqId": "contract",
       "eqName": "계약서",
-      "eqDescription": "영업팀 타워의 공격력이 레벨당 6% 증가합니다.",
+      "eqDescription": "영업팀 타워의 공격력이 레벨당 0.6% 증가합니다.",
       "eqImagePath": "icons/negociation.svg",
       "team": "sl",
       "stat": "attack",
-      "perLevel": 0.06,
+      "perLevel": 0.006,
       "baseCost": 200
     }
   }

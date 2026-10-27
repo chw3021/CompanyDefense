@@ -108,6 +108,11 @@ func _normalize() -> void:
 	for key in ["towers", "hobbies", "equipment", "best_scores"]:
 		for id in user[key]:
 			user[key][id] = int(user[key][id])
+	# 사무용품 레벨당 효과가 1/10 로 줄어든 버전: 기존 레벨을 10배로 옮겨 효과를 유지한다
+	if int(user.get("equipment_version", 1)) < 2:
+		for id in user.equipment:
+			user.equipment[id] = mini(user.equipment[id] * 10, GameData.MAX_EQUIPMENT_LEVEL)
+		user["equipment_version"] = 2
 	for key in ["gold", "time", "last_refill", "max_cleared", "round_best", "high_score", "games_played", "games_won"]:
 		user[key] = int(user.get(key, 0))
 	if String(user.get("name", "")).strip_edges() == "":

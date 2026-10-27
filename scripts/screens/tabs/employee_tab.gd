@@ -1,4 +1,4 @@
-# 직원 탭: 18명의 직원 카드와 레벨 업
+# 직원 탭: 18명의 직원 카드와 레벨 업, 신화 카드와 해금 현황
 extends VBoxContainer
 
 var main
@@ -31,7 +31,7 @@ func _set_filter(team: String) -> void:
 		UI.recolor(_filter_buttons[key], UI.PRIMARY if key == team else UI.CARD)
 	for child in _grid.get_children():
 		child.queue_free()
-	for id in GameData.tower_ids:
+	for id in GameData.tower_ids + GameData.MYTHICS.keys():
 		if team == "" or GameData.towers[id].team == team:
 			_grid.add_child(_card(id))
 
@@ -39,6 +39,7 @@ func _set_filter(team: String) -> void:
 func _card(id: String) -> Control:
 	var t: Dictionary = GameData.towers[id]
 	var grade := int(t.towerGrade)
+	var locked := GameData.MYTHICS.has(id) and not GameData.mythic_unlocked(Save.user, id)
 	var parts := UI.card_button(UI.CARD, _open.bind(id))
 	var b: Button = parts[0]
 	var v: VBoxContainer = parts[1]
@@ -49,6 +50,12 @@ func _card(id: String) -> Control:
 	var portrait := UI.icon(GameData.asset(t.towerImagePath), 150)
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	frame.add_child(portrait)
+	if locked:
+		portrait.modulate = Color(0.18, 0.18, 0.22)
+		var p := GameData.mythic_progress(Save.user, id)
+		var lock := UI.label("잠김\n%d/%d명" % [p[0], p[1]], 26, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+		lock.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		frame.add_child(lock)
 	v.add_child(frame)
 	var name_label := UI.label(t.towerName, 24, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	name_label.clip_text = true
@@ -56,7 +63,10 @@ func _card(id: String) -> Control:
 	var info := UI.hbox(6)
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info.add_child(UI.label("Lv.%d" % Save.user.towers[id], 22, UI.GOLD))
+	if locked:
+		info.add_child(UI.label("해금 필요", 22, UI.DANGER))
+	else:
+		info.add_child(UI.label("Lv.%d" % Save.user.towers[GameData.level_source(id)], 22, UI.GOLD))
 	info.add_child(UI.label(GameData.GRADE_NAMES[grade - 1], 22, GameData.grade_color(grade)))
 	v.add_child(info)
 	return b
@@ -106,11 +116,19 @@ func _open(id: String) -> void:
 	var sv := UI.vbox(8)
 	skill_box.add_child(sv)
 	var skill_head := UI.hbox(12)
-	skill_head.add_child(UI.icon(GameData.asset(skill.skillImagePath), 56))
+	if skill.has("skillImagePath"):
+		skill_head.add_child(UI.icon(GameData.asset(skill.skillImagePath), 56))
 	skill_head.add_child(UI.label("스킬: " + skill.skillName, 30, Color("9fc3ff")))
 	sv.add_child(skill_head)
-	sv.add_child(UI.wrap_label("%s\n(쿨타임 %d초)" % [skill.skillDescription, int(skill.cooldown)], 24, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	# 신화 스킬은 GameData.MYTHICS 에 정의되어 설명 키가 description 이다
+	var description: String = skill.get("skillDescription", skill.get("description", ""))
+	sv.add_child(UI.wrap_label("%s\n(쿨타임 %d초)" % [description, int(skill.cooldown)], 24, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(skill_box)
+
+	if GameData.MYTHICS.has(id):
+		_fill_mythic(id, v, level_label, stats)
+		UI.modal(t.towerName, v, [["닫기", UI.CARD_HI]], main)
+		return
 
 	var level_up := UI.button("", UI.SUCCESS)
 	level_up.custom_minimum_size.y = 90
@@ -135,6 +153,28 @@ func _open(id: String) -> void:
 		_set_filter(_filter))
 	refresh.call()
 	UI.modal(t.towerName, v, [["닫기", UI.CARD_HI]], main)
+
+
+## 신화 상세: 레벨은 바탕 직원을 따르고 레벨 업 대신 조합식과 해금 조건을 보여 준다
+func _fill_mythic(id: String, v: VBoxContainer, level_label: Label, stats: Label) -> void:
+	var m: Dictionary = GameData.MYTHICS[id]
+	var source := GameData.level_source(id)
+	var level: int = Save.user.towers[source]
+	level_label.text = "레벨 %d" % level
+	stats.text = stats_text(id, level) + "\n(%s의 레벨을 따릅니다)" % GameData.towers[source].towerName
+	var box := UI.panel(UI.CARD, 16, 16)
+	var bv := UI.vbox(8)
+	box.add_child(bv)
+	var names: Array = ([m.base] + m.recipe).map(func(n): return GameData.towers[n].towerName)
+	bv.add_child(UI.label("조합식", 28, GameData.grade_color(GameData.MYTHIC_GRADE)))
+	bv.add_child(UI.wrap_label(" + ".join(names), 24, UI.TEXT, HORIZONTAL_ALIGNMENT_LEFT))
+	bv.add_child(UI.wrap_label("전투에서 %s을(를) 누르고 '신화 각성'을 누르면 각성합니다." % names[0], 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	if GameData.mythic_unlocked(Save.user, id):
+		bv.add_child(UI.label("해금 완료", 26, UI.SUCCESS))
+	else:
+		bv.add_child(UI.label("잠김", 26, UI.DANGER))
+		bv.add_child(UI.wrap_label(GameData.mythic_lock_text(Save.user, id) + "\n해금 전에는 전투에서 각성할 수 없습니다.", 22, UI.DANGER, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(box)
 
 
 func _zoom(texture: Texture2D) -> void:

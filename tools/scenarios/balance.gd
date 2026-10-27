@@ -11,11 +11,11 @@ const ENDLESS_SLOTS := 80    # 무한 모드에서 웨이브별 누수를 셀 �
 ## after1/after2 는 앞 스테이지를 깬 뒤 번 골드(약 2,700 / 5,000)로 현실적으로 올릴 수 있는 정도
 const PROFILES := {
 	"new": {"towers": [1, 1, 1, 1, 1], "hobbies": 1, "equipment": 0},
-	"after1": {"towers": [5, 2, 1, 1, 1], "hobbies": 2, "equipment": 1},
-	"after2": {"towers": [8, 4, 2, 1, 1], "hobbies": 3, "equipment": 2},
-	"mid": {"towers": [5, 5, 5, 5, 5], "hobbies": 5, "equipment": 3},
-	"veteran": {"towers": [15, 12, 10, 8, 6], "hobbies": 10, "equipment": 7},
-	"max": {"towers": [30, 30, 30, 30, 30], "hobbies": 10, "equipment": 10},  # 모든 강화를 끝까지
+	"after1": {"towers": [5, 2, 1, 1, 1], "hobbies": 2, "equipment": 10},
+	"after2": {"towers": [8, 4, 2, 1, 1], "hobbies": 3, "equipment": 20},
+	"mid": {"towers": [5, 5, 5, 5, 5], "hobbies": 5, "equipment": 30},
+	"veteran": {"towers": [15, 12, 10, 8, 6], "hobbies": 10, "equipment": 70},
+	"max": {"towers": [30, 30, 30, 30, 30], "hobbies": 10, "equipment": 100},  # 모든 강화를 끝까지
 }
 
 var dev

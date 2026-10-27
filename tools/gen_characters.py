@@ -773,6 +773,16 @@ CHARACTERS = {
     "sl7": dict(skin=TAN, hair="#f0c64a", hair_style="slicked", glasses="sun", mouth="grin",
                 top=("suit", "#f4f1e8", "#1e1c24", "#e8b52a"), bottom=("pants", "#f4f1e8"), shoes="#8a5a2a", pocket_square=True,
                 arms=("down", "hip"), props=["money_bag"], sparkle=True, watch=True),
+    # 신화 (특수 직원 + 다른 팀 전설 2명으로 각성)
+    "dv6_3": dict(skin=WARM, hair="#cfd4de", hair_style="slicked", eyes="glow", mouth="smirk", beard=True,
+                  top=("suit", "#1f2a44", "#e8f4ff", "#38e8ff"), bottom=("pants", "#1f2a44"), shoes="#141a2a",
+                  arms=("down", "raise"), hologram=True, monitors=True, sparkle=True),
+    "hr6_3": dict(skin=LIGHT, hair="#2a1420", hair_style="long_straight", glasses="sun", mouth="lips", necklace=True,
+                  top=("blazer_f", "#5a1430", "#f4e6ee"), bottom=("skirt", "#2a0e1c"), tights="#2a1e24", shoe_kind="heel",
+                  arms=("hip", "raise"), props=["card"], sparkle=True),
+    "sl6_3": dict(skin=TAN, hair="#ececf2", hair_style="side_part", glasses="square", iris="#3a2a22", mouth="grin", beard=True,
+                  top=("suit", "#1a1a22", "#f4f4f4", "#e8b52a", "stripe"), bottom=("pants", "#1a1a22"), shoes="#6a3a1a",
+                  pocket_square=True, arms=("down", "hip"), props=["money_bag"], sparkle=True, watch=True),
 }
 
 

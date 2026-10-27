@@ -10,6 +10,10 @@ func run(p_dev) -> void:
 	Save.reset()
 	Save.create_user("테스터")
 	Save.user.max_cleared = 3
+	# 개발팀만 잠긴 상태로 시작한다 (조합표와 카드의 잠김 표시 확인)
+	for id in Save.user.towers:
+		if GameData.towers[id].team != "dv":
+			Save.user.towers[id] = GameData.MYTHIC_UNLOCK_LEVEL
 	await UI.go("res://scenes/stage.tscn", func(s): s.stage_id = 3)
 	await dev.wait(2.6)
 	var screen := get_tree().current_scene
@@ -30,6 +34,14 @@ func run(p_dev) -> void:
 	await dev.wait(0.3)
 	await dev.shot("my_01_missing")
 	_place("tower_sl5_2", Vector2i(3, 5))
+	battle.select(null)
+	battle.select(cto)
+	await dev.wait(0.3)
+	await dev.shot("my_02_locked")
+	for id in Save.user.towers:
+		Save.user.towers[id] = GameData.MYTHIC_UNLOCK_LEVEL
+	battle.select(null)
+	battle.select(cto)
 	await dev.wait(0.3)
 	await dev.shot("my_02_ready")
 	battle.awaken(cto)

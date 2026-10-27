@@ -104,8 +104,7 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 	# 신화와 특수 직원은 바탕이 된 전설의 레벨을 따른다
 	for list in [GameData.MYTHICS, GameData.SPECIALS]:
 		for id in list:
-			var base: String = list[id].base
-			var level: int = user.get("towers", {}).get(base, 1)
+			var level: int = user.get("towers", {}).get(GameData.level_source(id), 1)
 			templates[id] = Tower.make_template(id, level, GameData.stat_bonus(user, GameData.towers[id].team))
 
 
@@ -511,7 +510,13 @@ func recipe_towers(t: Tower) -> Array:
 
 func can_awaken(t: Tower) -> bool:
 	var parts := recipe_towers(t)
-	return not finished and not parts.is_empty() and not parts.has(null)
+	return not finished and not parts.is_empty() and not parts.has(null) and mythic_unlocked(t)
+
+
+## 직원 관리에서 해금한 신화만 각성할 수 있다
+func mythic_unlocked(t: Tower) -> bool:
+	var mythic := mythic_for(t)
+	return mythic != "" and GameData.mythic_unlocked(Save.user, mythic)
 
 
 ## 전설 t 와 재료를 써서 t 자리에 신화를 앉힌다

@@ -12,7 +12,8 @@ const MYTHIC_GRADE := 6   # 신화: 전설 + 조합 재료로만 각성
 
 ## 신화 직원. 전설(base)과 다른 두 팀의 전설 한 명씩, 전설 셋을 모으면 base 가 신화로 각성한다.
 ## 만들기가 아주 어려운 만큼 능력치는 전설의 MYTHIC_STAT_MULT 배, 스킬은 맵 전체급.
-## 그림은 base 전설의 것을 쓰고, 능력치는 base 의 배율, 레벨은 base 의 레벨을 따른다
+## 그림은 image 가 있으면 그것을, 없으면 base 의 것을 쓴다. 능력치와 레벨은 level_source(base) 전설을 따른다
+## 신화는 그 팀 직원이 모두 MYTHIC_UNLOCK_LEVEL 이상이어야 해금된다 (해금 전에는 각성 불가)
 const MYTHICS := {
 	"tower_dv6_1": {"base": "tower_dv5_1", "name": "천재 개발자", "recipe": ["tower_hr5_1", "tower_sl5_2"],
 			"skill": {"skillName": "전체 리팩토링", "mult": 5.0, "cooldown": 12.0, "duration": 0.8, "range": 0.0,
@@ -32,8 +33,19 @@ const MYTHICS := {
 	"tower_sl6_2": {"base": "tower_sl5_2", "name": "글로벌 영업왕", "recipe": ["tower_dv5_2", "tower_hr5_1"],
 			"skill": {"skillName": "해외 수주", "mult": 4.0, "cooldown": 10.0, "duration": 3.0, "range": 4.0,
 			"description": "사거리 4칸 안의 적에게 물리 공격력의 400% 피해를 주고 3초 동안 60% 느리게 만들며 코인 30개를 얻습니다."}},
+	# 특수 직원(유물)이 base 인 신화
+	"tower_dv6_3": {"base": "tower_dv7", "name": "AI 연구소장", "recipe": ["tower_hr5_1", "tower_sl5_1"], "image": "tower/dv/dv6_3",
+			"skill": {"skillName": "특이점", "mult": 7.0, "cooldown": 10.0, "duration": 2.0, "range": 0.0,
+			"description": "체력이 가장 많은 적 5명에게 마법 공격력의 700% 피해를 주고 2초 동안 기절시킵니다. (보스는 기절하지 않음)"}},
+	"tower_hr6_3": {"base": "tower_hr7", "name": "헤드헌팅 대표", "recipe": ["tower_dv5_2", "tower_sl5_2"], "image": "tower/hr/hr6_3",
+			"skill": {"skillName": "인재 쟁탈전", "mult": 0.6, "cooldown": 14.0, "duration": 6.0, "range": 0.0,
+			"description": "모든 적의 방어력을 6초 동안 50 낮추고, 모든 아군의 공격 속도를 6초 동안 60% 올립니다."}},
+	"tower_sl6_3": {"base": "tower_sl7", "name": "벤처 캐피털리스트", "recipe": ["tower_dv5_1", "tower_hr5_1"], "image": "tower/sl/sl6_3",
+			"skill": {"skillName": "유니콘 투자", "mult": 3.0, "cooldown": 12.0, "duration": 1.0, "range": 0.0,
+			"description": "맵 위의 모든 적에게 물리 공격력의 300% 피해를 주고, 맞힌 적 한 마리당 코인 2개를 얻습니다. (최대 40개)"}},
 }
 const MYTHIC_STAT_MULT := 4.0
+const MYTHIC_UNLOCK_LEVEL := 5
 
 ## 특수 직원. 보스를 잡으면 떨어지는 유물로만 뽑을 수 있다 (고용, 승진, 협상, 직원 탭 대상이 아님).
 ## 능력치는 base 전설의 SPECIAL_STAT_MULT 배, 레벨은 base 의 레벨을 따른다. 그림은 image(.svg / _sprite.svg)
@@ -51,7 +63,7 @@ const SPECIALS := {
 const SPECIAL_STAT_MULT := 1.6
 const SPECIAL_COLOR := Color("3ee6c8")
 const MAX_TOWER_LEVEL := 30
-const MAX_EQUIPMENT_LEVEL := 10
+const MAX_EQUIPMENT_LEVEL := 100
 ## 스킬 쿨타임은 최대 50% 까지만 줄어든다
 const MIN_COOLDOWN_MULT := 0.5
 
@@ -87,10 +99,15 @@ func _init() -> void:
 func _add_mythics() -> void:
 	for id in MYTHICS:
 		var m: Dictionary = MYTHICS[id]
-		var t: Dictionary = towers[m.base].duplicate()
+		var source := level_source(m.base)
+		var t: Dictionary = towers[source].duplicate()
 		t.towerId = id
 		t.towerName = m.name
 		t.towerGrade = MYTHIC_GRADE
+		if m.has("image"):
+			t.towerImagePath = m.image + ".png"
+			t.towerPortraitPath = t.towerImagePath
+			t.towerSpritePath = m.image + "_sprite.svg"
 		t.towerPhysicalAttack = float(t.towerPhysicalAttack) * MYTHIC_STAT_MULT
 		t.towerMagicAttack = float(t.towerMagicAttack) * MYTHIC_STAT_MULT
 		t.towerAttackSpeed = float(t.towerAttackSpeed) * 1.2
@@ -100,9 +117,37 @@ func _add_mythics() -> void:
 		var skill: Dictionary = m.skill.duplicate()
 		var key: String = id.trim_prefix("tower_")
 		skill.skillId = key
-		skill.summoneeImagePath = skills[String(m.base).trim_prefix("tower_")].get("summoneeImagePath", "")
+		skill.summoneeImagePath = skills[source.trim_prefix("tower_")].get("summoneeImagePath", "")
 		skills[key] = skill
 		mythic_of[m.base] = id
+
+
+## 레벨(과 신화 능력치)을 따라가는 직원 탭의 전설. 신화와 특수 직원은 base 를 거슬러 올라간다
+static func level_source(id: String) -> String:
+	while MYTHICS.has(id) or SPECIALS.has(id):
+		id = MYTHICS[id].base if MYTHICS.has(id) else SPECIALS[id].base
+	return id
+
+
+## 신화가 속한 팀에서 MYTHIC_UNLOCK_LEVEL 이상인 직원 수와 팀 전체 직원 수 [ready, total]
+func mythic_progress(user: Dictionary, mythic_id: String) -> Array:
+	var team: String = towers[mythic_id].team
+	var members := tower_ids.filter(func(id): return towers[id].team == team)
+	var levels: Dictionary = user.get("towers", {})
+	var ready := members.filter(func(id): return int(levels.get(id, 1)) >= MYTHIC_UNLOCK_LEVEL).size()
+	return [ready, members.size()]
+
+
+func mythic_unlocked(user: Dictionary, mythic_id: String) -> bool:
+	var p := mythic_progress(user, mythic_id)
+	return p[0] >= p[1]
+
+
+## 잠긴 신화의 해금 안내 문구
+func mythic_lock_text(user: Dictionary, mythic_id: String) -> String:
+	var p := mythic_progress(user, mythic_id)
+	return "%s팀 직원 %d명을 모두 레벨 %d 이상으로 올리면 해금됩니다. (현재 %d/%d명)" % [
+			team_name(towers[mythic_id].team), p[1], MYTHIC_UNLOCK_LEVEL, p[0], p[1]]
 
 
 ## 특수 직원을 전설 데이터에서 만들어 towers / skills 에 넣는다 (tower_ids 에는 넣지 않는다)
@@ -187,9 +232,9 @@ func equipment_effect_text(eq: Dictionary, level: int) -> String:
 	var value := float(eq["perLevel"]) * level * 100
 	var target := "모든 직원" if eq["team"] == "all" else team_name(eq["team"]) + "팀"
 	match eq["stat"]:
-		"attack": return "%s 공격력 +%d%%" % [target, roundi(value)]
-		"speed": return "%s 공격 속도 +%d%%" % [target, roundi(value)]
-		"cooldown": return "%s 스킬 쿨타임 -%d%%" % [target, roundi(value)]
+		"attack": return "%s 공격력 +%.1f%%" % [target, value]
+		"speed": return "%s 공격 속도 +%.1f%%" % [target, value]
+		"cooldown": return "%s 스킬 쿨타임 -%.1f%%" % [target, value]
 	return ""
 
 
@@ -236,5 +281,6 @@ static func tower_upgrade_cost(tower: Dictionary, current_level: int) -> int:
 	return 50 * int(tower["towerGrade"]) * (current_level + 1)
 
 
+## 최대 레벨(100)까지 총비용은 baseCost 의 약 277배 (최대 레벨 10 시절 55배의 약 5배)
 static func equipment_cost(eq: Dictionary, level: int) -> int:
-	return int(eq["baseCost"]) * (level + 1)
+	return roundi(int(eq["baseCost"]) * (1.0 + level / 28.0))

@@ -805,6 +805,32 @@ func _on_skill_cast(t: Tower) -> void:
 			for i in 16:
 				_add_fx("coin", at + Vector2(0, -c * 0.2), 1.0, c * 0.13, UI.GOLD, Vector2(randf_range(-1.2, 1.2), randf_range(-3, -1.8)) * c * 1.5, 0, randf_range(4, 10))
 			_shake_screen(0.4)
+		"dv6_3":  # 특이점: 화면이 하얗게 번쩍이고 가장 강한 적 다섯에게 광선
+			_add_fx("flash", Vector2.ZERO, 0.6, 0, Color(0.7, 0.95, 1, 0.4))
+			var strong: Array = _enemies_near(at, INF)
+			strong.sort_custom(func(a: Enemy, b: Enemy): return a.hp > b.hp)
+			for e: Enemy in strong.slice(0, 5):
+				_add_fx("ray", at, 0.5, at.distance_to(e.pos), Color(0.5, 1, 1), Vector2.ZERO, (e.pos - at).angle())
+				_add_fx("ring", e.pos, 0.6, c * 0.6, Color(0.5, 1, 1))
+				_add_fx("glyph", e.pos + Vector2(0, -e.size * 0.6), 0.9, 22, Color(0.7, 1, 1), Vector2(0, -c * 0.6), 0, 0, "AI")
+			_add_fx("text", at + Vector2(0, c * 0.05), 1.0, 26, Color(0.7, 1, 1), Vector2(0, -c * 0.5), 0, 0, "특이점!")
+			_shake_screen(0.6)
+		"hr6_3":  # 인재 쟁탈전: 맵 전체 보라 장판, 아군마다 명함이 솟는다
+			_add_fx("flash", Vector2.ZERO, 0.5, 0, Color(0.85, 0.3, 0.6, 0.3))
+			_add_fx("zone", Vector2(map_size, map_size) / 2, 0.8, map_size * 0.7, Color(0.85, 0.3, 0.6))
+			for ally: Tower in battle.towers:
+				_add_fx("card", ally.center(), 0.8, c * 0.14, Color.WHITE, Vector2(0, -c * 1.2), randf() * TAU, randf_range(-8, 8))
+			for e: Enemy in _enemies_near(at, INF):
+				_add_fx("spark", e.pos, 0.7, c * 0.12, Color(1, 0.5, 0.8), Vector2(0, -c))
+			_add_fx("text", at + Vector2(0, c * 0.05), 1.0, 26, Color(1, 0.7, 0.85), Vector2(0, -c * 0.5), 0, 0, "인재 쟁탈전!")
+		"sl6_3":  # 유니콘 투자: 금빛 번쩍임, 모든 적 위로 동전
+			_add_fx("flash", Vector2.ZERO, 0.5, 0, Color(1, 0.85, 0.3, 0.3))
+			for e: Enemy in _enemies_near(at, INF):
+				_add_fx("coin", e.pos, 0.9, c * 0.13, UI.GOLD, Vector2(randf_range(-0.6, 0.6), randf_range(-2.4, -1.4)) * c * 1.5, 0, randf_range(4, 10))
+			for i in 3:
+				_add_fx("ring", at, 0.5 + i * 0.2, map_size * (0.25 + i * 0.2), UI.GOLD)
+			_add_fx("text", at + Vector2(0, c * 0.05), 1.0, 26, UI.GOLD, Vector2(0, -c * 0.5), 0, 0, "유니콘!")
+			_shake_screen(0.5)
 		# ---- 특수 (보스 유물)
 		"dv7":  # 딥러닝: 체력이 가장 많은 적 3명에게 하늘색 광선과 조준선
 			var strong: Array = _enemies_near(at, INF)

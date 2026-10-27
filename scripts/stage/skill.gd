@@ -270,6 +270,35 @@ func _apply(t: Tower) -> bool:
 			battle.add_coins(30)
 			battle.floating_text("+30", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
 			return true
+		"dv6_3":  # 특이점: 체력이 가장 많은 적 5명에게 큰 마법 피해 + 기절
+			var targets := _alive()
+			if targets.is_empty():
+				return false
+			targets.sort_custom(func(a: Enemy, b: Enemy): return a.hp > b.hp)
+			for e: Enemy in targets.slice(0, 5):
+				e.damage(0, t.magic * mult)
+				if not e.is_boss():
+					e.stun(duration)
+			return true
+		"hr6_3":  # 인재 쟁탈전: 모든 적 방어력 감소, 모든 아군 공격 속도 증가
+			var targets := _alive()
+			if targets.is_empty():
+				return false
+			for e: Enemy in targets:
+				e.reduce_defense(50, 50, duration)
+			for ally: Tower in battle.towers:
+				ally.buff_speed(mult, duration)
+			return true
+		"sl6_3":  # 유니콘 투자: 맵 전체 물리 피해, 맞힌 적 수만큼 코인 (최대 40)
+			var targets := _alive()
+			if targets.is_empty():
+				return false
+			for e: Enemy in targets:
+				e.damage(t.physical * mult, 0)
+			var coins := mini(targets.size() * 2, 40)
+			battle.add_coins(coins)
+			battle.floating_text("+%d" % coins, t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
+			return true
 		# ---- 특수 (보스 유물)
 		"dv7":  # 딥러닝: 체력이 가장 많은 적 3명에게 마법 피해
 			var targets := _alive()

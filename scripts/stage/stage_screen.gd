@@ -293,10 +293,14 @@ func _fill_recipe(t: Tower) -> void:
 	var recipe: Array = GameData.MYTHICS[mythic].recipe
 	for i in recipe.size():
 		names.append("%s %s" % [GameData.towers[recipe[i]].towerName, "(보유)" if parts[i] != null else "(없음)"])
-	_card_widgets.recipe.text = "→ %s\n재료: %s" % [GameData.MYTHICS[mythic].name, " + ".join(names)]
+	var unlocked := battle.mythic_unlocked(t)
+	_card_widgets.recipe.text = "→ %s%s\n재료: %s" % [GameData.MYTHICS[mythic].name, "" if unlocked else " (잠김)", " + ".join(names)]
+	if not unlocked:
+		_card_widgets.recipe.text += "\n" + GameData.mythic_lock_text(Save.user, mythic)
 	var ok := battle.can_awaken(t)
-	_card_widgets.recipe.add_theme_color_override("font_color", UI.GOLD if ok else UI.MUTED)
+	_card_widgets.recipe.add_theme_color_override("font_color", UI.GOLD if ok else (UI.MUTED if unlocked else UI.DANGER))
 	_card_widgets.awaken.disabled = not ok
+	_card_widgets.awaken.text = "신화 각성" if unlocked else "잠김"
 
 
 ## 신화 조합표: 신화마다 재료와 지금 필드에 있는지
@@ -309,15 +313,20 @@ func _open_recipes() -> void:
 		var card := UI.panel(UI.CARD, 16, 16)
 		var v := UI.vbox(6)
 		card.add_child(v)
+		var unlocked := GameData.mythic_unlocked(Save.user, id)
 		var head := UI.hbox(10)
 		head.add_child(UI.label(m.name, 30, GameData.grade_color(GameData.MYTHIC_GRADE)))
 		head.add_child(UI.label("%s팀 신화" % GameData.team_name(GameData.towers[id].team), 22, UI.MUTED))
+		if not unlocked:
+			head.add_child(UI.label("잠김", 22, UI.DANGER))
 		v.add_child(head)
+		if not unlocked:
+			v.add_child(UI.wrap_label(GameData.mythic_lock_text(Save.user, id), 20, UI.DANGER, HORIZONTAL_ALIGNMENT_LEFT))
 		var parts := UI.hbox(8)
 		for need in [m.base] + m.recipe:
 			var t: Dictionary = GameData.towers[need]
 			var have: bool = on_field.call(need)
-			var chip := UI.label("%s (%s)" % [t.towerName, GameData.GRADE_NAMES[int(t.towerGrade) - 1]], 20,
+			var chip := UI.label("%s (%s)" % [t.towerName, GameData.grade_label(t)], 20,
 					UI.SUCCESS if have else UI.MUTED)
 			chip.add_theme_stylebox_override("normal", UI.box(Color(UI.SUCCESS, 0.15) if have else Color(0, 0, 0, 0.25), 10, 6))
 			parts.add_child(chip)
@@ -327,7 +336,7 @@ func _open_recipes() -> void:
 	var scroll := UI.scroll(list)
 	scroll.custom_minimum_size = Vector2(640, 760)
 	var v := UI.vbox(10)
-	v.add_child(UI.wrap_label("세 팀의 전설 3명을 모으면 신화로 각성! 전설을 누르고 '신화 각성'.\n재료로 쓴 전설은 사라집니다. 초록색은 지금 필드에 있는 직원.", 22, UI.MUTED))
+	v.add_child(UI.wrap_label("세 팀의 전설 3명(또는 특수 직원 + 전설 2명)을 모으면 신화로 각성! 첫 번째 직원을 누르고 '신화 각성'.\n재료로 쓴 직원은 사라집니다. 초록색은 지금 필드에 있는 직원.\n신화는 직원 관리에서 그 팀 직원을 모두 레벨 %d 이상으로 올려야 해금됩니다." % GameData.MYTHIC_UNLOCK_LEVEL, 22, UI.MUTED))
 	v.add_child(scroll)
 	UI.modal("신화 조합표", v, [["닫기", UI.CARD_HI]], self)
 
