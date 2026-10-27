@@ -783,6 +783,25 @@ CHARACTERS = {
     "sl6_3": dict(skin=TAN, hair="#ececf2", hair_style="side_part", glasses="square", iris="#3a2a22", mouth="grin", beard=True,
                   top=("suit", "#1a1a22", "#f4f4f4", "#e8b52a", "stripe"), bottom=("pants", "#1a1a22"), shoes="#6a3a1a",
                   pocket_square=True, arms=("down", "hip"), props=["money_bag"], sparkle=True, watch=True),
+    # 신화 (전설 + 다른 팀 전설 2명으로 각성)
+    "dv6_1": dict(skin=LIGHT, hair="#141318", hair_style="ponytail", glasses="round", iris="#3a2a22", mouth="smirk",
+                  top=("suit", "#1f2a3a", "#16151b"), bottom=("pants", "#16151b"), shoes="#f2f2f4", shoe_kind="sneaker",
+                  arms=("pocket", "raise"), hologram=True, sparkle=True),
+    "dv6_2": dict(skin=LIGHT, hair="#dfe3ea", hair_style="bob_messy", eyes="sharp", iris="#2fb3c4", mouth="smirk",
+                  top=("hoodie", "#f2f3f6", "#1e1c24"), bottom=("pants", "#1e1c24"), shoes="#f2f2f4", shoe_kind="sneaker",
+                  arms=("hip", "raise"), hologram=True, sparkle=True),
+    "hr6_1": dict(skin=WARM, hair="#2a2830", hair_style="side_part", mouth="smile",
+                  top=("suit", "#6a1e2a", "#f4f6fa", "#d9b23a"), bottom=("pants", "#6a1e2a"), shoes="#6a3a1a", pocket_square=True,
+                  arms=("pocket", "raise"), props=["card"], sparkle=True),
+    "hr6_2": dict(skin=LIGHT, hair="#d9b46a", hair_style="long_wavy", eyes="happy", mouth="smile", blush=True,
+                  top=("blazer_f", "#e8dccb", "#f2b8c6"), bottom=("long", "#d98f9c"), shoes="#d9c2a6", shoe_kind="heel",
+                  arms=("front", "front"), sparkle=True),
+    "sl6_1": dict(skin=WARM, hair="#c9ccd4", hair_style="slicked", eyes="sharp", iris="#3a2a22", mouth="smirk", beard=True,
+                  top=("suit", "#1a1a20", "#f4f6fa", "#d9a92a"), bottom=("pants", "#1a1a20"), pocket_square=True,
+                  arms=("front", "raise"), props=["pen_note"], sparkle=True, watch=True),
+    "sl6_2": dict(skin=LIGHT, hair="#4a2e22", hair_style="ponytail", eyes="happy", mouth="smile",
+                  top=("blazer_f", "#f4f2ee", "#f4f6fa", "#2a3a6a"), bottom=("pants", "#f4f2ee"), shoes="#f4f4f4", shoe_kind="heel",
+                  arms=("down", "raise"), props=["card"], sparkle=True),
 }
 
 

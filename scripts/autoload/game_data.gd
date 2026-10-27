@@ -15,22 +15,22 @@ const MYTHIC_GRADE := 6   # 신화: 전설 + 조합 재료로만 각성
 ## 그림은 image 가 있으면 그것을, 없으면 base 의 것을 쓴다. 능력치와 레벨은 level_source(base) 전설을 따른다
 ## 신화는 그 팀 직원이 모두 MYTHIC_UNLOCK_LEVEL 이상이어야 해금된다 (해금 전에는 각성 불가)
 const MYTHICS := {
-	"tower_dv6_1": {"base": "tower_dv5_1", "name": "천재 개발자", "recipe": ["tower_hr5_1", "tower_sl5_2"],
+	"tower_dv6_1": {"base": "tower_dv5_1", "name": "천재 개발자", "recipe": ["tower_hr5_1", "tower_sl5_2"], "image": "tower/dv/dv6_1",
 			"skill": {"skillName": "전체 리팩토링", "mult": 5.0, "cooldown": 12.0, "duration": 0.8, "range": 0.0,
 			"description": "맵 위의 모든 적에게 마법 공격력의 500% 피해를 주고 0.8초 동안 기절시킵니다. (보스는 기절하지 않음)"}},
-	"tower_dv6_2": {"base": "tower_dv5_2", "name": "화이트 해커", "recipe": ["tower_hr5_2", "tower_sl5_1"],
+	"tower_dv6_2": {"base": "tower_dv5_2", "name": "화이트 해커", "recipe": ["tower_hr5_2", "tower_sl5_1"], "image": "tower/dv/dv6_2",
 			"skill": {"skillName": "방화벽 구축", "mult": 0.25, "cooldown": 15.0, "duration": 6.0, "range": 0.0,
 			"description": "맵 위의 모든 적에게 6초 동안 0.1초마다 마법 공격력의 25% 피해를 주고 30% 느리게 만듭니다."}},
-	"tower_hr6_1": {"base": "tower_hr5_1", "name": "인사 부사장", "recipe": ["tower_dv5_2", "tower_sl5_1"],
+	"tower_hr6_1": {"base": "tower_hr5_1", "name": "인사 부사장", "recipe": ["tower_dv5_2", "tower_sl5_1"], "image": "tower/hr/hr6_1",
 			"skill": {"skillName": "성과급 지급", "mult": 1.0, "cooldown": 15.0, "duration": 6.0, "range": 0.0,
 			"description": "가장 강한 아군 3명의 공격력과 공격 속도를 6초 동안 100% 올리고 스킬을 바로 쓸 수 있게 합니다."}},
-	"tower_hr6_2": {"base": "tower_hr5_2", "name": "복지의 여신", "recipe": ["tower_dv5_1", "tower_sl5_2"],
+	"tower_hr6_2": {"base": "tower_hr5_2", "name": "복지의 여신", "recipe": ["tower_dv5_1", "tower_sl5_2"], "image": "tower/hr/hr6_2",
 			"skill": {"skillName": "전사 워크숍", "mult": 0.5, "cooldown": 18.0, "duration": 6.0, "range": 0.0,
 			"description": "모든 아군의 공격력과 공격 속도를 6초 동안 50% 올리고, 모든 적을 0.6초 동안 기절시킵니다. (보스는 기절하지 않음)"}},
-	"tower_sl6_1": {"base": "tower_sl5_1", "name": "대표이사", "recipe": ["tower_dv5_1", "tower_hr5_2"],
+	"tower_sl6_1": {"base": "tower_sl5_1", "name": "대표이사", "recipe": ["tower_dv5_1", "tower_hr5_2"], "image": "tower/sl/sl6_1",
 			"skill": {"skillName": "인수합병", "mult": 0.4, "cooldown": 12.0, "duration": 1.0, "range": 0.0,
 			"description": "맵 위에서 체력이 40% 이하인 일반 적을 모두 즉시 처치하고 한 마리당 코인 2개를 얻습니다. (보스는 물리 공격력의 800% 피해)"}},
-	"tower_sl6_2": {"base": "tower_sl5_2", "name": "글로벌 영업왕", "recipe": ["tower_dv5_2", "tower_hr5_1"],
+	"tower_sl6_2": {"base": "tower_sl5_2", "name": "글로벌 영업왕", "recipe": ["tower_dv5_2", "tower_hr5_1"], "image": "tower/sl/sl6_2",
 			"skill": {"skillName": "해외 수주", "mult": 4.0, "cooldown": 10.0, "duration": 3.0, "range": 4.0,
 			"description": "사거리 4칸 안의 적에게 물리 공격력의 400% 피해를 주고 3초 동안 60% 느리게 만들며 코인 30개를 얻습니다."}},
 	# 특수 직원(유물)이 base 인 신화

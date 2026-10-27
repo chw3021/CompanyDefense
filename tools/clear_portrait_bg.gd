@@ -5,6 +5,7 @@
 # 3) 지운 영역에 맞닿은 테두리는 바로 안쪽 그림 색과 흰색이 섞인 것으로 보고,
 #    그 비율만큼 투명하게 하고 색은 안쪽 색으로 바꿔 흰 테두리가 남지 않게 한다.
 # 실행: godot --headless --path . --script res://tools/clear_portrait_bg.gd
+# 일부만: godot --headless --path . --script res://tools/clear_portrait_bg.gd -- dv6_1.png hr6_1.png
 extends SceneTree
 
 const WHITE_MIN := 0.9         # 이보다 밝고
@@ -22,10 +23,12 @@ const KEEP_WHITE := {
 
 func _init() -> void:
 	var regex := RegEx.create_from_string("^(hr|dv|sl)\\d(_\\d)?\\.png$")
+	# 이미 배경을 지운 파일을 다시 돌리면 테두리가 또 깎이므로, 파일 이름을 주면 그것만 처리한다
+	var only := OS.get_cmdline_user_args()
 	for team in ["hr", "dv", "sl"]:
 		var dir: String = "res://assets/tower/" + team
 		for file in DirAccess.get_files_at(dir):
-			if regex.search(file):
+			if regex.search(file) and (only.is_empty() or file in only):
 				_clear(ProjectSettings.globalize_path(dir.path_join(file)))
 	quit()
 
