@@ -1,8 +1,8 @@
-"""직원 그림(SVG) 생성기.
+"""직원 전투 스프라이트(SVG) 생성기.
 
-직원마다 머리 모양, 얼굴, 옷, 소품을 조합해 두 가지 그림을 만든다.
-  assets/tower/<팀>/<id>.svg         직원 카드/직원 탭용 전신 초상화 (350x512)
-  assets/tower/<팀>/<id>_sprite.svg  전투 맵에 서는 SD 캐릭터 (256x256 → 128px 텍스처)
+직원마다 머리 모양, 얼굴, 옷, 소품을 조합해 전투 맵에 서는 SD 캐릭터를 만든다.
+  assets/tower/<팀>/<id>_sprite.svg  (256x256 → 128px 텍스처)
+직원 카드/직원 탭의 초상화는 별도 일러스트(assets/tower/<팀>/<id>.png)를 쓴다.
 
 실행: python tools/gen_characters.py
 """
@@ -319,12 +319,8 @@ def head_front(spec, sw, long_len):
     return s
 
 
-# ------------------------------------------------------------------ 몸 (rig: 전신/SD 공통 기준점)
+# ------------------------------------------------------------------ 몸 (rig: SD 기준점)
 
-PORTRAIT = dict(W=350, H=512, cx=175, head=(175, 118, 1.0), long=150, neck_top=168, neck_bot=208,
-                neck_w=28, sy=206, sh=62, waist_y=298, wh=50, hem_y=336, hh=56, hip_y=326, hip_dx=22,
-                ankle_y=470, leg_w=40, shoe=(25, 11), k=1.0, arm_w=28, hand_r=11, skirt_y=408,
-                long_skirt_y=450, sw=3.0, ground=490, prop=1.0)
 SPRITE = dict(W=256, H=256, cx=128, head=(128, 92, 1.12), long=92, neck_top=150, neck_bot=176,
               neck_w=24, sy=170, sh=42, waist_y=204, wh=36, hem_y=218, hh=40, hip_y=212, hip_dx=14,
               ankle_y=238, leg_w=24, shoe=(16, 8), k=0.4, arm_w=19, hand_r=8.5, skirt_y=232,
@@ -633,12 +629,8 @@ def background(R, spec):
     sw, k = R["sw"], R["k"]
     s = []
     if spec.get("monitors"):
-        if R is PORTRAIT:
-            spots = [(14, 96), (14, 170), (14, 244), (14, 318), (262, 96), (262, 170), (262, 244), (262, 318), (138, 26), (60, 30), (216, 30)]
-            w, h = 74, 62
-        else:
-            spots = [(6, 120), (6, 178), (186, 120), (186, 178)]
-            w, h = 64, 54
+        spots = [(6, 120), (6, 178), (186, 120), (186, 178)]
+        w, h = 64, 54
         for x, y in spots:
             s.append(rect(x, y, w, h, "#37474f", sw, 6 * k + 2))
             s.append(rect(x + w * 0.1, y + h * 0.12, w * 0.8, h * 0.7, "#0f2a30", 0, 3))
@@ -652,8 +644,7 @@ def floating(R, spec):
     sw, k = R["sw"], R["k"]
     s = []
     if spec.get("drone"):
-        x, y = (70, 74) if R is PORTRAIT else (34, 28)
-        z = 1.0 if R is PORTRAIT else 0.7
+        x, y, z = 34, 28, 0.7
         for d in (-1, 1):
             s.append(line([(x, y), (x + d * 34 * z, y - 12 * z)], OUT, 5 * z + 2))
             s.append(ellipse(x + d * 34 * z, y - 16 * z, 20 * z, 5 * z, "#2a2730", sw * 0.7))
@@ -661,15 +652,14 @@ def floating(R, spec):
         s.append(circle(x, y + 2 * z, 12 * z, "#3cff8a", extra=' opacity="0.35"'))
         s.append(circle(x, y + 2 * z, 6 * z, "#3cff8a"))
     if spec.get("hologram"):
-        x, y = (262, 210) if R is PORTRAIT else (210, 150)
-        z = 1.0 if R is PORTRAIT else 0.65
+        x, y, z = 210, 150, 0.65
         cube = f"M{n(x)},{n(y - 26 * z)} L{n(x + 24 * z)},{n(y - 13 * z)} L{n(x + 24 * z)},{n(y + 13 * z)} L{n(x)},{n(y + 26 * z)} L{n(x - 24 * z)},{n(y + 13 * z)} L{n(x - 24 * z)},{n(y - 13 * z)}Z"
         s.append(circle(x, y, 40 * z, "#38e8ff", extra=' opacity="0.15"'))
         s.append(path(cube, "#38e8ff", 2.5 * z + 1, "#bff8ff", ' fill-opacity="0.35"'))
         s.append(path(f"M{n(x - 24 * z)},{n(y - 13 * z)} L{n(x)},{n(y)} L{n(x + 24 * z)},{n(y - 13 * z)} M{n(x)},{n(y)} L{n(x)},{n(y + 26 * z)}", "none", 2.5 * z + 1, "#bff8ff"))
     if spec.get("sparkle"):
-        pts = [(48, 120), (300, 90), (290, 300)] if R is PORTRAIT else [(30, 110), (226, 70)]
-        z = 1.0 if R is PORTRAIT else 0.7
+        pts = [(30, 110), (226, 70)]
+        z = 0.7
         for x, y in pts:
             s.append(path(f"M{n(x)},{n(y - 14 * z)} Q{n(x + 2 * z)},{n(y - 2 * z)} {n(x + 14 * z)},{n(y)} Q{n(x + 2 * z)},{n(y + 2 * z)} {n(x)},{n(y + 14 * z)} Q{n(x - 2 * z)},{n(y + 2 * z)} {n(x - 14 * z)},{n(y)} Q{n(x - 2 * z)},{n(y - 2 * z)} {n(x)},{n(y - 14 * z)}Z", "#ffe27a"))
     return s
@@ -708,8 +698,7 @@ def character(spec, R):
     s.append(group(head_front(spec, head_sw, R["long"]), hx, hy, hs))
     s += floating(R, spec)
     W, H = R["W"], R["H"]
-    size = f'width="{W}" height="{H}"' if R is PORTRAIT else 'width="128" height="128"'
-    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" {size}>' + "".join(s) + "</svg>\n"
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="128" height="128">' + "".join(s) + "</svg>\n"
 
 
 # ------------------------------------------------------------------ 직원 목록 (예전 그림의 머리, 옷, 소품을 따른다)
@@ -792,10 +781,9 @@ def main():
         team = cid[:2]
         folder = os.path.join(ROOT, "assets", "tower", team)
         os.makedirs(folder, exist_ok=True)
-        for suffix, rig in (("", PORTRAIT), ("_sprite", SPRITE)):
-            target = os.path.join(folder, f"{cid}{suffix}.svg")
-            with open(target, "w", encoding="utf-8", newline="\n") as fp:
-                fp.write(character(spec, rig))
+        target = os.path.join(folder, f"{cid}_sprite.svg")
+        with open(target, "w", encoding="utf-8", newline="\n") as fp:
+            fp.write(character(spec, SPRITE))
     print(f"{len(CHARACTERS)} characters written")
 
 

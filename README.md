@@ -67,7 +67,8 @@ scripts/
 assets/            그림과 게임 데이터 (assets/data/gamedata.json)
 tools/
   build.ps1        APK 빌드
-  gen_characters.py  직원 그림(SVG) 생성기: python tools/gen_characters.py
+  gen_characters.py  직원 전투 스프라이트(SVG) 생성기: python tools/gen_characters.py
+  clear_portrait_bg.gd  직원 초상화(PNG) 흰 배경 제거: godot --headless --path . --script res://tools/clear_portrait_bg.gd
   scenarios/       자동 플레이 · 스크린샷 · 밸런스 시뮬레이터
 ```
 

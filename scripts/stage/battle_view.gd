@@ -7,10 +7,9 @@ const FRAME := 128
 const EFFECT_FPS := 20.0
 const EFFECT_MAX_FRAMES := 25
 
-const FLOOR := Color("2a3140")
 const DESK_TOP := Color("b48d63")
 const DESK_SIDE := Color("7b5b3d")
-const LANE := Color("e9dfca")
+const LANE := Color("c4baa6")
 const LANE_EDGE := Color(0, 0, 0, 0.35)
 const FLOW := Color(0.45, 0.38, 0.3, 0.35)
 
@@ -141,12 +140,8 @@ func _text(at: Vector2, text: String, size: int, color := Color.WHITE) -> void:
 
 func _draw() -> void:
 	ci = self
-	# 어두운 사무실 바닥 위에 회의실 사진을 아주 옅게 깐다 (스테이지마다 색조가 다르다)
-	var tint: Color = battle.def.tint
-	draw_rect(Rect2(0, 0, map_size, map_size), FLOOR * tint)
-	var src_h := float(_bg.get_height())
-	var src := Rect2((_bg.get_width() - src_h) / 2.0, 0, src_h, src_h)
-	draw_texture_rect_region(_bg, Rect2(0, 0, map_size, map_size), src, Color(tint, 0.16))
+	# 차분한 카펫 바닥 (스테이지마다 색조가 다르다)
+	draw_texture_rect(_bg, Rect2(0, 0, map_size, map_size), false, battle.def.tint)
 	var c := battle.cell
 	for cell: Vector2i in _path_cells:
 		draw_rect(Rect2(cell.x * c, cell.y * c, c, c), LANE)

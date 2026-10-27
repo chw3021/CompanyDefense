@@ -112,7 +112,7 @@ func _add_specials() -> void:
 		var t: Dictionary = towers[s.base].duplicate()
 		t.towerId = id
 		t.towerName = s.name
-		t.towerImagePath = s.image + ".svg"
+		t.towerImagePath = s.image + ".png"
 		t.towerPortraitPath = t.towerImagePath
 		t.towerSpritePath = s.image + "_sprite.svg"
 		t.towerPhysicalAttack = float(t.towerPhysicalAttack) * SPECIAL_STAT_MULT
