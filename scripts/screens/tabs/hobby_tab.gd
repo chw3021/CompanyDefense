@@ -18,7 +18,7 @@ func _ready() -> void:
 	add_child(UI.scroll(grid))
 
 	var go := UI.button("취미 활동 하기!  (시간 1)", UI.SUCCESS, _do_hobby, 34)
-	go.icon = load("res://assets/icons/waste.png")
+	go.icon = load("res://assets/icons/waste.svg")
 	go.expand_icon = true
 	go.custom_minimum_size.y = 110
 	add_child(go)

@@ -2,10 +2,10 @@
 extends Control
 
 const TABS := [
-	["스테이지", "res://assets/menu/stage.png", "res://scripts/screens/tabs/stage_tab.gd"],
-	["직원", "res://assets/menu/human.png", "res://scripts/screens/tabs/employee_tab.gd"],
-	["취미", "res://assets/menu/hobbies.png", "res://scripts/screens/tabs/hobby_tab.gd"],
-	["사무용품", "res://assets/menu/auto.png", "res://scripts/screens/tabs/equipment_tab.gd"],
+	["스테이지", "res://assets/menu/stage.svg", "res://scripts/screens/tabs/stage_tab.gd"],
+	["직원", "res://assets/menu/human.svg", "res://scripts/screens/tabs/employee_tab.gd"],
+	["취미", "res://assets/menu/hobbies.svg", "res://scripts/screens/tabs/hobby_tab.gd"],
+	["사무용품", "res://assets/menu/auto.svg", "res://scripts/screens/tabs/equipment_tab.gd"],
 ]
 
 ## 이 화면을 열 때 보여 줄 탭 (UI.go 의 setup 에서 바꿀 수 있다)
@@ -78,9 +78,9 @@ func _build_top_bar() -> Control:
 	bar.add_child(margin)
 	var row := UI.hbox(10)
 	margin.add_child(row)
-	_gold_pill = UI.pill("res://assets/icons/coin.png", "", UI.GOLD)
+	_gold_pill = UI.pill("res://assets/icons/coin.svg", "", UI.GOLD)
 	row.add_child(_gold_pill)
-	_time_pill = UI.pill("res://assets/icons/waste.png", "")
+	_time_pill = UI.pill("res://assets/icons/waste.svg", "")
 	row.add_child(_time_pill)
 	row.add_child(UI.spacer(0, false))
 
@@ -95,7 +95,7 @@ func _build_top_bar() -> Control:
 	row.add_child(_mail_button)
 
 	var menu := UI.button("", UI.CARD_HI, open_menu)
-	menu.icon = load("res://assets/menu/menu.png")
+	menu.icon = load("res://assets/menu/menu.svg")
 	menu.expand_icon = true
 	menu.custom_minimum_size = Vector2(68, 68)
 	row.add_child(menu)
@@ -242,7 +242,7 @@ func _fill_mails(list: VBoxContainer) -> void:
 				rewards.add_child(UI.coin_row(str(int(mail.gold)), 24))
 			if int(mail.time) > 0:
 				var t := UI.hbox(6)
-				t.add_child(UI.icon("res://assets/icons/waste.png", 24))
+				t.add_child(UI.icon("res://assets/icons/waste.svg", 24))
 				t.add_child(UI.label("시간 %d" % int(mail.time), 24, Color("7fd3ff")))
 				rewards.add_child(t)
 			v.add_child(rewards)
@@ -351,7 +351,7 @@ func _mission_card(title: String, sub: String, value: int, goal: int, gold: int,
 		info.add_child(UI.coin_row(str(gold), 22))
 	if time > 0:
 		var t := UI.hbox(6)
-		t.add_child(UI.icon("res://assets/icons/waste.png", 22))
+		t.add_child(UI.icon("res://assets/icons/waste.svg", 22))
 		t.add_child(UI.label("시간 %d" % time, 22, Color("7fd3ff")))
 		info.add_child(t)
 	v.add_child(info)

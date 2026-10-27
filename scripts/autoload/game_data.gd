@@ -34,6 +34,22 @@ const MYTHICS := {
 			"description": "사거리 4칸 안의 적에게 물리 공격력의 400% 피해를 주고 3초 동안 60% 느리게 만들며 코인 30개를 얻습니다."}},
 }
 const MYTHIC_STAT_MULT := 4.0
+
+## 특수 직원. 보스를 잡으면 떨어지는 유물로만 뽑을 수 있다 (고용, 승진, 협상, 직원 탭 대상이 아님).
+## 능력치는 base 전설의 SPECIAL_STAT_MULT 배, 레벨은 base 의 레벨을 따른다. 그림은 image(.svg / _sprite.svg)
+const SPECIALS := {
+	"tower_dv7": {"base": "tower_dv5_1", "name": "AI 연구원", "image": "tower/dv/dv7",
+			"skill": {"skillName": "딥러닝", "mult": 4.0, "cooldown": 6.0, "duration": 1.0, "range": 0.0,
+			"description": "체력이 가장 많은 적 3명에게 마법 공격력의 400% 피해를 줍니다."}},
+	"tower_hr7": {"base": "tower_hr5_1", "name": "헤드헌터", "image": "tower/hr/hr7",
+			"skill": {"skillName": "스카우트 제의", "mult": 0.4, "cooldown": 10.0, "duration": 4.0, "range": 3.0,
+			"description": "사거리 3칸 안의 적 방어력을 4초 동안 30 낮추고 1초 동안 기절시키며, 같은 범위 직원의 공격 속도를 40% 올립니다. (보스는 기절하지 않음)"}},
+	"tower_sl7": {"base": "tower_sl5_1", "name": "엔젤 투자자", "image": "tower/sl/sl7",
+			"skill": {"skillName": "투자 유치", "mult": 3.0, "cooldown": 9.0, "duration": 1.0, "range": 2.5,
+			"description": "사거리 2.5칸 안의 적에게 물리 공격력의 300% 피해를 주고, 맞힌 적 한 마리당 코인 3개를 얻습니다."}},
+}
+const SPECIAL_STAT_MULT := 1.6
+const SPECIAL_COLOR := Color("3ee6c8")
 const MAX_TOWER_LEVEL := 30
 const MAX_EQUIPMENT_LEVEL := 10
 ## 스킬 쿨타임은 최대 50% 까지만 줄어든다
@@ -64,6 +80,7 @@ func _init() -> void:
 	for key in equipment:
 		equipment_ids.append(key)
 	_add_mythics()
+	_add_specials()
 
 
 ## 신화 직원을 전설 데이터에서 만들어 towers / skills 에 넣는다 (tower_ids 에는 넣지 않는다: 고용, 직원 탭 대상이 아님)
@@ -86,6 +103,40 @@ func _add_mythics() -> void:
 		skill.summoneeImagePath = skills[String(m.base).trim_prefix("tower_")].get("summoneeImagePath", "")
 		skills[key] = skill
 		mythic_of[m.base] = id
+
+
+## 특수 직원을 전설 데이터에서 만들어 towers / skills 에 넣는다 (tower_ids 에는 넣지 않는다)
+func _add_specials() -> void:
+	for id in SPECIALS:
+		var s: Dictionary = SPECIALS[id]
+		var t: Dictionary = towers[s.base].duplicate()
+		t.towerId = id
+		t.towerName = s.name
+		t.towerImagePath = s.image + ".svg"
+		t.towerPortraitPath = t.towerImagePath
+		t.towerSpritePath = s.image + "_sprite.svg"
+		t.towerPhysicalAttack = float(t.towerPhysicalAttack) * SPECIAL_STAT_MULT
+		t.towerMagicAttack = float(t.towerMagicAttack) * SPECIAL_STAT_MULT
+		t.special = true
+		towers[id] = t
+		var skill: Dictionary = s.skill.duplicate()
+		var key: String = id.trim_prefix("tower_")
+		skill.skillId = key
+		skill.summoneeImagePath = skills[String(s.base).trim_prefix("tower_")].get("summoneeImagePath", "")
+		skills[key] = skill
+
+
+static func is_special(tower: Dictionary) -> bool:
+	return tower.get("special", false)
+
+
+## 카드에 보여 줄 등급 이름과 색 (특수 직원은 등급 대신 "특수")
+static func grade_label(tower: Dictionary) -> String:
+	return "특수" if is_special(tower) else GRADE_NAMES[clampi(int(tower.towerGrade) - 1, 0, GRADE_NAMES.size() - 1)]
+
+
+static func tower_color(tower: Dictionary) -> Color:
+	return SPECIAL_COLOR if is_special(tower) else grade_color(int(tower.towerGrade))
 
 
 func skill_for_tower(tower: Dictionary) -> Dictionary:

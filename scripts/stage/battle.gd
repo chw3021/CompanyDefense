@@ -43,6 +43,7 @@ var team_level := {"hr": 1, "dv": 1, "sl": 1}
 
 var life := MAX_LIFE
 var coins := 0
+var relics := 0  # 보스를 잡으면 얻는 유물. 하나로 특수 직원 한 명을 뽑는다
 var kills := 0
 var score := 0
 var speed := 1.0
@@ -100,11 +101,12 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 		var level: int = user.get("towers", {}).get(tower_id, 1)
 		var team: String = GameData.towers[tower_id].team
 		templates[tower_id] = Tower.make_template(tower_id, level, GameData.stat_bonus(user, team))
-	# 신화는 각성 전 전설의 레벨을 따른다
-	for id in GameData.MYTHICS:
-		var base: String = GameData.MYTHICS[id].base
-		var level: int = user.get("towers", {}).get(base, 1)
-		templates[id] = Tower.make_template(id, level, GameData.stat_bonus(user, GameData.towers[id].team))
+	# 신화와 특수 직원은 바탕이 된 전설의 레벨을 따른다
+	for list in [GameData.MYTHICS, GameData.SPECIALS]:
+		for id in list:
+			var base: String = list[id].base
+			var level: int = user.get("towers", {}).get(base, 1)
+			templates[id] = Tower.make_template(id, level, GameData.stat_bonus(user, GameData.towers[id].team))
 
 
 func cell_center(c: Vector2i) -> Vector2:
@@ -285,6 +287,8 @@ func on_enemy_killed(e: Enemy) -> void:
 	session.kills += 1
 	if e.is_boss():
 		session.boss_kills += 1
+		relics += 1
+		floating.emit("유물 획득!", e.pos + Vector2(0, -cell * 0.6), UI.PURPLE)
 	if e.anchored:
 		_update_blocking()
 	enemy_died.emit(e)
@@ -369,6 +373,22 @@ func hire() -> void:
 	hud_changed.emit()
 
 
+## 유물 하나를 써서 특수 직원을 빈 자리에 뽑는다
+func summon_special() -> void:
+	if finished or relics <= 0:
+		return
+	var free := _free_desks()
+	if free.is_empty():
+		message.emit("빈 자리가 없습니다", UI.DANGER)
+		return
+	relics -= 1
+	var t := _place(GameData.SPECIALS.keys().pick_random(), free.pick_random())
+	tower_placed.emit(t, true)
+	floating.emit("특수 직원!", t.center() + Vector2(0, -cell * 0.5), GameData.SPECIAL_COLOR)
+	select(t)
+	hud_changed.emit()
+
+
 ## dragged 를 target 위에 놓았을 때: 둘을 합쳐 한 등급 높은 무작위 직원으로
 func merge(dragged: Tower, target: Tower, select_result := true) -> void:
 	if finished or not dragged.can_merge_with(target):
@@ -423,6 +443,11 @@ static func trade_cost(t: Tower) -> int:
 	return 50 * t.grade
 
 
+## 신화와 특수 직원은 협상 대상이 아니다
+static func can_trade(t: Tower) -> bool:
+	return t.grade < GameData.MYTHIC_GRADE and not GameData.is_special(t.data)
+
+
 func sell(t: Tower) -> void:
 	if finished:
 		return
@@ -436,7 +461,7 @@ func sell(t: Tower) -> void:
 func trade(t: Tower) -> void:
 	if finished:
 		return
-	if t.grade >= GameData.MYTHIC_GRADE:  # 신화는 협상 대상이 아니다
+	if not can_trade(t):
 		return
 	var cost := trade_cost(t)
 	if coins < cost:

@@ -189,7 +189,7 @@ func coin_row(amount_text: String, size := 28, color := GOLD) -> HBoxContainer:
 	h.add_theme_constant_override("separation", 6)
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(icon("res://assets/icons/coin.png", size))
+	h.add_child(icon("res://assets/icons/coin.svg", size))
 	var l := label(amount_text, size, color)
 	l.name = "Amount"
 	h.add_child(l)

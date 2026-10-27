@@ -14,7 +14,11 @@ var _wave_label: Label
 var _speed_button: Button
 var _wave_button: Button
 var _hire_button: Button
+var _relic_button: Button
+var _relic_label: Label
 var _merge_button: Button  # 1성 모두 승진
+var _sell_armed: Tower  # 퇴사 버튼을 한 번 눌러 확인을 기다리는 직원
+var _sell_token := 0
 var _map_area: Control
 var _float_layer: Control
 var _info_slot: Control
@@ -100,11 +104,11 @@ func _build_hud() -> Control:
 	margin.add_child(row)
 
 	# 고리 맵은 목숨 대신 필드에 있는 적 수 (n/100)
-	row.add_child(UI.icon("res://assets/enemy/printer.png" if battle.loop else "res://assets/icons/heart.png", 40))
+	row.add_child(UI.icon("res://assets/enemy/printer.png", 40) if battle.loop else UI.icon("res://assets/icons/heart.svg", 30))
 	_life_label = UI.label("", 34)
 	_life_label.custom_minimum_size.x = 120 if battle.loop else 50
 	row.add_child(_life_label)
-	row.add_child(UI.icon("res://assets/icons/coin.png", 40))
+	row.add_child(UI.icon("res://assets/icons/coin.svg", 40))
 	_coin_label = UI.label("", 34, UI.GOLD)
 	_coin_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_coin_label)
@@ -171,7 +175,7 @@ func _build_panel() -> Control:
 	hire_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hire_content.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hire_content.add_child(UI.icon("res://assets/icons/work.png", 64))
+	hire_content.add_child(UI.icon("res://assets/icons/work.svg", 64))
 	var hire_text := UI.vbox(0)
 	hire_text.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -180,6 +184,19 @@ func _build_panel() -> Control:
 	hire_content.add_child(hire_text)
 	_hire_button.add_child(hire_content)
 	actions.add_child(_hire_button)
+
+	# 유물 뽑기: 보스를 잡아 유물이 있을 때만 보인다
+	_relic_button = UI.button("", UI.PURPLE, battle.summon_special)
+	_relic_button.custom_minimum_size = Vector2(112, 112)
+	var relic_content := UI.vbox(0)
+	relic_content.alignment = BoxContainer.ALIGNMENT_CENTER
+	relic_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	relic_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	relic_content.add_child(UI.icon("res://assets/icons/relic.svg", 52))
+	_relic_label = UI.label("", 22, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	relic_content.add_child(_relic_label)
+	_relic_button.add_child(relic_content)
+	actions.add_child(_relic_button)
 
 	_wave_button = UI.button("웨이브 시작", UI.DANGER, battle.start_wave, 34)
 	_wave_button.icon = UI.play_icon()
@@ -198,7 +215,7 @@ func _build_upgrade_card(team: String) -> Button:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.add_child(UI.icon("res://assets/icons/%sup.png" % team, 54))
+	v.add_child(UI.icon("res://assets/icons/%sup.svg" % team, 54))
 	var name_label := UI.label("", 26, GameData.TEAM_COLORS[team].lightened(0.3), HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(name_label)
 	var cost := UI.coin_row("", 22)
@@ -235,9 +252,7 @@ func _build_tower_card() -> PanelContainer:
 	top.add_child(text)
 
 	var row := UI.hbox(12)
-	var sell := UI.button("", Color("a0604a"), func():
-		if battle.selected:
-			battle.sell(battle.selected), 28)
+	var sell := UI.button("", Color("a0604a"), _on_sell_pressed, 28)
 	var trade := UI.button("", Color("3b6ea5"), func():
 		if battle.selected:
 			battle.trade(battle.selected), 28)
@@ -245,8 +260,8 @@ func _build_tower_card() -> PanelContainer:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.custom_minimum_size.y = 76
 		row.add_child(b)
-	sell.icon = load("res://assets/icons/walk_out.png")
-	trade.icon = load("res://assets/icons/negociation.png")
+	sell.icon = load("res://assets/icons/walk_out.svg")
+	trade.icon = load("res://assets/icons/negociation.svg")
 	sell.expand_icon = false
 	v.add_child(row)
 	# 전설이면 신화 조합 재료와 각성 버튼
@@ -342,6 +357,8 @@ func _refresh_hud() -> void:
 	var start_text := "야근 시작" if battle.loop else "웨이브 시작"
 	_wave_button.text = start_text if can_start else ("진행 중" if battle.wave_running else "종료")
 	_hire_button.modulate.a = 1.0 if battle.coins >= Battle.SPAWN_COST else 0.6
+	_relic_button.visible = battle.relics > 0
+	_relic_label.text = "유물 x%d" % battle.relics
 	var pairs := battle.merge_pairs(1).size()
 	_merge_button.text = "1성 모두 승진 (%d쌍)" % pairs
 	_merge_button.disabled = pairs == 0
@@ -357,6 +374,7 @@ func _process(_delta: float) -> void:
 
 
 func _on_tower_selected(t: Tower) -> void:
+	_sell_armed = null
 	_card.visible = t != null
 	_hint.visible = t == null
 	if t == null:
@@ -364,14 +382,33 @@ func _on_tower_selected(t: Tower) -> void:
 		return
 	_card_widgets.portrait.texture = load(GameData.asset(t.data.towerImagePath))
 	_card_widgets.name.text = t.name
-	_card_widgets.grade.text = "%s팀  |  %s" % [GameData.team_name(t.team), GameData.GRADE_NAMES[t.grade - 1]]
-	_card_widgets.grade.add_theme_color_override("font_color", GameData.grade_color(t.grade))
+	_card_widgets.grade.text = "%s팀  |  %s" % [GameData.team_name(t.team), GameData.grade_label(t.data)]
+	_card_widgets.grade.add_theme_color_override("font_color", GameData.tower_color(t.data))
 	_card_widgets.sell.text = "퇴사  +%d" % Battle.sell_price(t)
 	_card_widgets.trade.text = "협상  -%d (30%%)" % Battle.trade_cost(t)
-	_card_widgets.trade.disabled = t.grade >= GameData.MYTHIC_GRADE
+	_card_widgets.trade.disabled = not Battle.can_trade(t)
 	_fill_stats(t)
 	# 화면이 낮으면 팀 업그레이드 줄 자리에 카드를 보여 준다
 	_upgrades.visible = _info_slot.size.y + _card.size.y >= CARD_MIN_HEIGHT * 2
+
+
+## 퇴사는 되돌릴 수 없어서 두 번 눌러야 한다 (화면이 낮으면 바로 아래 직원 고용 버튼과 붙어 있어 잘못 누르기 쉽다)
+func _on_sell_pressed() -> void:
+	var t := battle.selected
+	if t == null:
+		return
+	if _sell_armed == t:
+		_sell_armed = null
+		battle.sell(t)
+		return
+	_sell_armed = t
+	_sell_token += 1
+	var token := _sell_token
+	_card_widgets.sell.text = "한 번 더 누르면 퇴사"
+	get_tree().create_timer(2.0).timeout.connect(func():
+		if token == _sell_token and _sell_armed == t:
+			_sell_armed = null
+			_card_widgets.sell.text = "퇴사  +%d" % Battle.sell_price(t))
 
 
 func _fill_stats(t: Tower) -> void:

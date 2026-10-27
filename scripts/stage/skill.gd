@@ -270,5 +270,36 @@ func _apply(t: Tower) -> bool:
 			battle.add_coins(30)
 			battle.floating_text("+30", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
 			return true
+		# ---- 특수 (보스 유물)
+		"dv7":  # 딥러닝: 체력이 가장 많은 적 3명에게 마법 피해
+			var targets := _alive()
+			if targets.is_empty():
+				return false
+			targets.sort_custom(func(a: Enemy, b: Enemy): return a.hp > b.hp)
+			for e: Enemy in targets.slice(0, 3):
+				e.damage(0, t.magic * mult)
+			return true
+		"hr7":  # 스카우트 제의: 범위 내 적 방어력 감소 + 기절, 범위 내 직원 공격 속도 증가
+			var targets := _in_range(t, range_px)
+			if targets.is_empty():
+				return false
+			for e: Enemy in targets:
+				e.reduce_defense(30, 30, duration)
+				if not e.is_boss():
+					e.stun(1.0)
+			for ally: Tower in battle.towers:
+				if ally.center().distance_to(t.center()) <= range_px:
+					ally.buff_speed(mult, duration)
+			return true
+		"sl7":  # 투자 유치: 범위 물리 피해, 맞힌 적 수만큼 코인
+			var targets := _in_range(t, range_px)
+			if targets.is_empty():
+				return false
+			for e: Enemy in targets:
+				e.damage(t.physical * mult, 0)
+			var coins := targets.size() * 3
+			battle.add_coins(coins)
+			battle.floating_text("+%d" % coins, t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
+			return true
 	push_warning("unknown skill " + id)
 	return false

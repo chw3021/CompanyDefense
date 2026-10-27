@@ -258,10 +258,10 @@ func _draw_tower(t: Tower) -> void:
 	var c := battle.cell
 	var base := Vector2(t.cell.x * c, t.cell.y * c)
 	var center_x := base.x + c / 2
-	var portrait := tex(GameData.asset(t.data.towerImagePath))
+	var sprite := tex(GameData.asset(t.data.towerSpritePath))
 	var team_color: Color = GameData.TEAM_COLORS[t.team]
-	var grade_color := GameData.grade_color(t.grade)
-	# 부서 = 책상 색, 등급 = 얼굴 테두리 색과 아래 별 개수 (두 가지 색이 섞이지 않게 역할을 나눈다)
+	var grade_color := GameData.tower_color(t.data)
+	# 부서 = 책상 색, 등급 = 발판 테두리 색과 아래 별 개수 (두 가지 색이 섞이지 않게 역할을 나눈다)
 	var m := c * 0.1
 	var top := Rect2(base.x + m, base.y + m, c - m * 2, c - m * 2 - c * 0.08)
 	_rounded(top, Color(team_color, 0.6), 10)
@@ -272,38 +272,39 @@ func _draw_tower(t: Tower) -> void:
 	var lunge := Vector2.ZERO
 	if progress >= 0 and t.target != null and not t.target.dead:
 		lunge = (t.target.pos - t.center()).normalized() * c * 0.07 * sin(progress * PI)
-	# 전신 대신 얼굴 토큰: 직원이 많아져도 누가 누군지 얼굴로 알아보게
-	var radius := c * 0.34 * (1.0 + 0.25 * t.spawn_anim)
-	var at := Vector2(center_x, base.y + c * 0.42) + lunge
-	ci.draw_circle(at + Vector2(0, c * 0.04), radius + 3, Color(0, 0, 0, 0.35 * alpha))
-	ci.draw_circle(at, radius + 2, Color(team_color.darkened(0.45), alpha))
-	_draw_face(t.id, portrait, at, radius - 1, Color(shade, shade, shade, alpha))
-	# 등급 테두리: 등급이 높을수록 두껍고, 4등급부터는 바깥에 반짝이는 고리
-	ci.draw_arc(at, radius + 1, 0, TAU, 32, Color(0.08, 0.06, 0.12, alpha), 7 + t.grade, true)
+	# 발판: 부서색 원판에 등급색 테두리. 등급이 높을수록 두껍고, 4등급부터는 바깥에 반짝이는 고리
+	var foot := Vector2(center_x, base.y + c * 0.7) + lunge
+	var ring := c * 0.34
+	_ellipse(foot + Vector2(0, c * 0.03), ring + 3, FOOT_SQUASH, Color(0, 0, 0, 0.35 * alpha))
+	_ellipse(foot, ring + 2, FOOT_SQUASH, Color(team_color.darkened(0.45), alpha))
+	_ellipse_ring(foot, ring + 1, Color(0.08, 0.06, 0.12, alpha), 5 + t.grade)
 	if t.grade >= GameData.MYTHIC_GRADE:
 		# 신화: 무지갯빛이 빙글빙글 도는 테두리와 은은한 후광
 		var spin := Time.get_ticks_msec() / 600.0
-		ci.draw_circle(at, radius + 14, Color(1, 0.85, 0.95, 0.12 + 0.08 * sin(spin * 3.0)))
+		_ellipse(foot, ring + 12, FOOT_SQUASH, Color(1, 0.85, 0.95, 0.12 + 0.08 * sin(spin * 3.0)))
 		for i in 12:
 			var a := spin + i * TAU / 12
-			ci.draw_arc(at, radius + 1, a, a + TAU / 12 + 0.02, 4, Color(Color.from_hsv(fmod(i / 12.0 + spin * 0.2, 1.0), 0.7, 1.0), alpha), 9, true)
+			_ellipse_ring(foot, ring + 1, Color(Color.from_hsv(fmod(i / 12.0 + spin * 0.2, 1.0), 0.7, 1.0), alpha), 6, a, a + TAU / 12 + 0.02, 4)
 	else:
-		ci.draw_arc(at, radius + 1, 0, TAU, 32, Color(grade_color, alpha), 3 + t.grade, true)
+		_ellipse_ring(foot, ring + 1, Color(grade_color, alpha), 2 + t.grade * 0.6)
 	if t.grade >= 4:
 		var shine := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 220.0 + t.cell.x)
-		ci.draw_arc(at, radius + 5 + t.grade, 0, TAU, 32, Color(grade_color.lightened(0.3), (0.35 + 0.4 * shine) * alpha), 2.5, true)
+		_ellipse_ring(foot, ring + 4 + t.grade, Color(grade_color.lightened(0.3), (0.35 + 0.4 * shine) * alpha), 2.5)
 	if t.buff_glow > 0:
-		ci.draw_arc(at, radius + 5, 0, TAU, 32, Color(UI.GOLD, 0.7), 3, true)
+		_ellipse_ring(foot, ring + 5, Color(UI.GOLD, 0.7), 3)
+	# 직원: 발판 위에 선 SD 캐릭터. 배치 직후에는 통통 튀어나온다
+	var size := c * 0.8 * (1.0 + 0.25 * t.spawn_anim)
+	ci.draw_texture_rect(sprite, Rect2(foot.x - size / 2, foot.y + c * 0.06 - size, size, size), false, Color(shade, shade, shade, alpha))
 	if t.stun_left > 0:
 		_rounded(Rect2(center_x - c * 0.36, base.y + c * 0.04, c * 0.72, c * 0.24), Color(0, 0, 0, 0.65), 8)
 		_text(Vector2(center_x, base.y + c * 0.16), "통화 중", 17, UI.WARN)
 	# 공격 모션은 오른쪽 위에 팀마다 다른 모양으로
 	if progress >= 0:
 		_draw_attack_motion(t, Vector2(base.x + c * 0.8, base.y + c * 0.12), progress)
-	# 등급 별: 얼굴 아래 어두운 띠 위에 등급 수만큼
+	# 등급 별: 발 아래 어두운 띠 위에 등급 수만큼
 	var star_r := c * 0.075
 	var gap := star_r * 2.1
-	var row := Vector2(center_x, base.y + c * 0.8) + lunge
+	var row := Vector2(center_x, base.y + c * 0.86) + lunge
 	var band_w := gap * t.grade + star_r * 0.6
 	_rounded(Rect2(row - Vector2(band_w / 2, star_r * 1.35), Vector2(band_w, star_r * 2.7)), Color(0.08, 0.06, 0.12, 0.85 * alpha), int(star_r * 1.3))
 	for i in t.grade:
@@ -321,32 +322,16 @@ func _star(at: Vector2, r: float, color: Color) -> void:
 	ci.draw_colored_polygon(points, color)
 
 
-## 직원 그림(350x512)에서 얼굴이 있는 곳: [가운데 x, 머리 꼭대기 y]. 여기서 190px 정사각형을 잘라 쓴다
-const FACE_CROPS := {
-	"dv1": [161, 24], "dv2": [218, 24], "dv3": [171, 28], "dv4": [173, 26], "dv5_1": [171, 26], "dv5_2": [176, 190],
-	"hr1": [180, 22], "hr2": [170, 14], "hr3": [170, 28], "hr4": [168, 20], "hr5_1": [171, 30], "hr5_2": [175, 18],
-	"sl1": [173, 22], "sl2": [173, 16], "sl3": [169, 22], "sl4": [176, 14], "sl5_1": [173, 14], "sl5_2": [212, 12],
-}
-const FACE_SIZE := 190.0
-var _circle := PackedVector2Array()  # 반지름 1 짜리 원 꼭짓점 (얼굴 토큰용)
+const FOOT_SQUASH := 0.38  # 발판 원을 위아래로 눌러 바닥에 놓인 것처럼 보이게
 
 
-## 직원 얼굴을 at 을 중심으로 반지름 radius 인 원 안에 그린다
-func _draw_face(tower_id: String, portrait: Texture2D, at: Vector2, radius: float, modulate: Color) -> void:
-	if _circle.is_empty():
-		for i in 28:
-			_circle.append(Vector2.from_angle(i * TAU / 28))
-	# 신화는 각성 전 전설의 얼굴 위치를 쓴다
-	var key: String = String(GameData.towers[tower_id].get("mythicBase", tower_id)).trim_prefix("tower_")
-	var crop: Array = FACE_CROPS.get(key, [175, 20])
-	var size := portrait.get_size()
-	var origin := Vector2(crop[0] - FACE_SIZE / 2, crop[1] - 8)
+## 발판 테두리: 눌린 원의 둘레 (from~to 라디안 구간)를 일정한 굵기로 긋는다
+func _ellipse_ring(center: Vector2, radius: float, color: Color, width: float, from := 0.0, to := TAU, segments := 32) -> void:
 	var points := PackedVector2Array()
-	var uvs := PackedVector2Array()
-	for p in _circle:
-		points.append(at + p * radius)
-		uvs.append((origin + (p * 0.5 + Vector2(0.5, 0.5)) * FACE_SIZE) / size)
-	ci.draw_polygon(points, PackedColorArray([modulate]), uvs, portrait)
+	for i in segments + 1:
+		var a := lerpf(from, to, float(i) / segments)
+		points.append(center + Vector2(cos(a) * radius, sin(a) * radius * FOOT_SQUASH))
+	ci.draw_polyline(points, color, width, true)
 
 
 ## 개발팀: 코드 기호가 튀어나옴, 인사팀: 도장을 쾅, 영업팀: 서류가방 휘두르기
@@ -825,6 +810,24 @@ func _on_skill_cast(t: Tower) -> void:
 			for i in 16:
 				_add_fx("coin", at + Vector2(0, -c * 0.2), 1.0, c * 0.13, UI.GOLD, Vector2(randf_range(-1.2, 1.2), randf_range(-3, -1.8)) * c * 1.5, 0, randf_range(4, 10))
 			_shake_screen(0.4)
+		# ---- 특수 (보스 유물)
+		"dv7":  # 딥러닝: 체력이 가장 많은 적 3명에게 하늘색 광선과 조준선
+			var strong: Array = _enemies_near(at, INF)
+			strong.sort_custom(func(a: Enemy, b: Enemy): return a.hp > b.hp)
+			for e: Enemy in strong.slice(0, 3):
+				_add_fx("ray", at, 0.35, at.distance_to(e.pos), Color(0.4, 0.95, 1), Vector2.ZERO, (e.pos - at).angle())
+				_add_fx("cross", e.pos, 0.6, c * 0.45, Color(0.4, 0.95, 1))
+			_add_fx("text", at + Vector2(0, c * 0.05), 0.7, 20, Color(0.6, 1, 1), Vector2(0, -c * 0.6), 0, 0, "AI!")
+		"hr7":  # 스카우트 제의: 보라 장판과 적마다 명함
+			_add_fx("zone", at, 0.6, sk.range_px, Color(0.85, 0.3, 0.6))
+			for e: Enemy in _enemies_near(at, sk.range_px):
+				_add_fx("card", e.pos, 0.6, c * 0.14, Color.WHITE, Vector2(0, -c * 1.2), randf() * TAU, randf_range(-8, 8))
+			_add_fx("text", at + Vector2(0, c * 0.05), 0.8, 20, Color(1, 0.7, 0.85), Vector2(0, -c * 0.5), 0, 0, "스카우트!")
+		"sl7":  # 투자 유치: 금빛 충격파와 동전
+			_add_fx("ring", at, 0.5, sk.range_px, UI.GOLD)
+			for i in 10:
+				_add_fx("coin", at + Vector2(0, -c * 0.2), 0.9, c * 0.13, UI.GOLD, Vector2(randf_range(-1, 1), randf_range(-2.6, -1.6)) * c * 1.5, 0, randf_range(4, 10))
+			_shake_screen(0.3)
 
 
 ## 신화 각성: 무지개 광선, 화면 번쩍, 큰 글자
@@ -989,13 +992,12 @@ func _draw_fx() -> void:
 
 
 func _draw_drag() -> void:
-	var portrait := tex(GameData.asset(_press_tower.data.towerImagePath))
-	var h := battle.cell * 1.1
-	var w := h * portrait.get_width() / portrait.get_height()
+	var sprite := tex(GameData.asset(_press_tower.data.towerSpritePath))
+	var size := battle.cell * 1.1
 	var ring := UI.GOLD if _hover_target != null else Color(1, 1, 1, 0.6)
 	ci.draw_circle(_drag_pos, battle.cell * 0.55, Color(ring, 0.18))
 	ci.draw_arc(_drag_pos, battle.cell * 0.55, 0, TAU, 40, ring, 3, true)
-	ci.draw_texture_rect(portrait, Rect2(_drag_pos.x - w / 2, _drag_pos.y - h * 0.75, w, h), false, Color(1, 1, 1, 0.9))
+	ci.draw_texture_rect(sprite, Rect2(_drag_pos.x - size / 2, _drag_pos.y - size * 0.75, size, size), false, Color(1, 1, 1, 0.9))
 
 
 # ------------------------------------------------------------------ 입력
