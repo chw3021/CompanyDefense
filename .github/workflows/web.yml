@@ -1,0 +1,66 @@
+# main 에 푸시할 때마다 웹 빌드를 만들어 GitHub Pages 에 배포한다.
+name: Web 배포
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Godot 캐시 복원
+        id: godot-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Godot 및 웹 템플릿 설치
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -fsSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mkdir -p ~/godot ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          unzip -q -j godot.zip -d ~/godot && mv ~/godot/Godot_v* ~/godot/godot
+          unzip -q -j templates.tpz 'templates/web_nothreads_*' -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          rm godot.zip templates.tpz
+
+      - name: 웹 빌드
+        run: |
+          mkdir -p build/web
+          ~/godot/godot --headless --path . --import
+          ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
+          test -f build/web/index.html
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
