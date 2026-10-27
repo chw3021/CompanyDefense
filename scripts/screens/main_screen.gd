@@ -47,6 +47,17 @@ func _ready() -> void:
 		refresh_top_bar())
 	add_child(timer)
 	show_tab(start_tab)
+	# 웹에서 구글 로그인 페이지를 다녀온 결과 (화면보다 먼저 끝났거나, 나중에 끝나거나)
+	Account.login_done.connect(_on_redirect_login)
+	var pending = Account.take_pending()
+	if pending != null:
+		_after_login(pending)
+
+
+func _on_redirect_login(_error: String) -> void:
+	var pending = Account.take_pending()
+	if pending != null:
+		_after_login(pending)
 
 
 func _notification(what: int) -> void:
@@ -370,22 +381,26 @@ func open_menu() -> void:
 	var name_label := UI.label("사원: " + Save.user.name, 32, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(name_label)
 	v.add_child(UI.spacer(6))
-	var modal: Control
+	# 람다는 지역 변수를 값으로 잡으므로, 버튼보다 나중에 만들어지는 메뉴 창은 딕셔너리에 담아 넘긴다
+	var ctx := {}
 	var items := [
+		["내 정보", UI.PRIMARY, func():
+			UI.close_modal(ctx.modal)
+			_open_profile()],
 		["내 기록", UI.PRIMARY, _open_records],
 		["닉네임 변경", UI.PRIMARY, func():
-			UI.close_modal(modal)
+			UI.close_modal(ctx.modal)
 			_change_nickname()],
 		["설정", UI.PRIMARY, _open_settings],
 		["데이터 초기화", UI.DANGER, func():
-			UI.close_modal(modal)
+			UI.close_modal(ctx.modal)
 			_confirm_reset()],
 	]
 	for item in items:
 		var b := UI.button(item[0], item[1], item[2])
 		b.custom_minimum_size.y = 86
 		v.add_child(b)
-	modal = UI.modal("메뉴", v, [["닫기", UI.CARD_HI]], self)
+	ctx.modal = UI.modal("메뉴", v, [["닫기", UI.CARD_HI]], self)
 
 
 func _open_records() -> void:
@@ -415,6 +430,134 @@ func _open_records() -> void:
 	UI.modal("내 기록", v, [["닫기", UI.CARD_HI]], self)
 
 
+## 내 정보: 계정 요약과 구글 계정 연동 (클라우드 저장)
+func _open_profile() -> void:
+	var u: Dictionary = Save.user
+	var level_sum := 0
+	for id in u.towers:
+		level_sum += int(u.towers[id])
+	var v := UI.vbox(16)
+	var info := UI.panel(UI.CARD, 16, 20)
+	info.add_child(UI.label("닉네임: %s\n스테이지 클리어: %d / %d\n무한 야근 최고 라운드: %d\n플레이 %d회 / 승리 %d회\n보유 골드: %d\n직원 레벨 합계: %d" % [
+			u.name, u.max_cleared, StageDefs.COUNT, u.round_best, u.games_played, u.games_won, u.gold, level_sum], 26))
+	v.add_child(info)
+	var box := UI.panel(UI.CARD, 16, 20)
+	var bv := UI.vbox(12)
+	box.add_child(bv)
+	bv.add_child(UI.label("계정 연동", 30, UI.GOLD))
+	var status := UI.wrap_label("", 24, UI.TEXT, HORIZONTAL_ALIGNMENT_LEFT)
+	bv.add_child(status)
+	v.add_child(box)
+	# 람다는 지역 변수를 값으로 잡으므로, 나중에 만들어지는 창은 딕셔너리에 담아 넘긴다
+	var ctx := {}
+	var specs := []
+	if Account.is_linked():
+		status.text = "구글 계정: %s\n진행 상황이 자동으로 클라우드에 저장됩니다." % Account.email
+		specs = [
+			["지금 클라우드에 저장", UI.PRIMARY, func():
+				UI.toast("클라우드에 저장했습니다." if await Account.upload() else "클라우드 저장에 실패했습니다.", UI.GOLD)],
+			["클라우드에서 불러오기", UI.PRIMARY, func():
+				UI.close_modal(ctx.modal)
+				_load_cloud()],
+			["연동 해제", UI.DANGER, func():
+				UI.modal("연동 해제", UI.wrap_label("연동을 해제해도 이 기기와 클라우드의 데이터는 지워지지 않습니다.\n해제할까요?", 26, UI.TEXT), [
+					["취소", UI.CARD_HI],
+					["해제", UI.DANGER, func():
+						Account.unlink()
+						UI.close_modal(ctx.modal)
+						_open_profile()
+						UI.toast("계정 연동을 해제했습니다.")],
+				], self)],
+		]
+	else:
+		status.text = "구글 계정을 연동하면 진행 상황이 클라우드에 저장되어 다른 기기에서도 이어서 할 수 있습니다."
+		specs = [["구글 계정 연동", UI.SUCCESS, func():
+			UI.close_modal(ctx.modal)
+			_start_login()]]
+	for spec in specs:
+		var b := UI.button(spec[0], spec[1], spec[2], 26)
+		b.custom_minimum_size.y = 76
+		bv.add_child(b)
+	ctx.modal = UI.modal("내 정보", v, [["닫기", UI.CARD_HI]], self)
+
+
+func _start_login() -> void:
+	if Account.use_redirect_login():
+		if Account.web_client_id == "":
+			UI.toast("계정 연동이 아직 준비되지 않았습니다.", UI.DANGER)
+			return
+		Save.save()
+		Account.start_redirect_login()
+		return
+	var v := UI.vbox(14)
+	var guide := UI.wrap_label("로그인 코드를 받는 중입니다...", 26, UI.TEXT)
+	v.add_child(guide)
+	var code := UI.label("", 56, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	v.add_child(code)
+	var row := UI.hbox(10)
+	v.add_child(row)
+	var ctx := {"url": "https://www.google.com/device"}
+	for spec in [["브라우저 열기", func(): OS.shell_open(ctx.url)], ["코드 복사", func():
+			DisplayServer.clipboard_set(code.text)
+			UI.toast("코드를 복사했습니다.")]]:
+		var b := UI.button(spec[0], UI.PRIMARY, spec[1], 26)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size.y = 76
+		row.add_child(b)
+	row.visible = false
+	var modal := UI.modal("구글 계정 연동", v, [["취소", UI.CARD_HI, Account.cancel_device_login]], self, false)
+	var on_code := func(user_code: String, verification_url: String):
+		ctx.url = verification_url
+		code.text = user_code
+		guide.text = "브라우저에서 %s 에 접속해 아래 코드를 입력하고 구글 계정으로 로그인해 주세요." % verification_url
+		row.visible = true
+	Account.device_code_ready.connect(on_code)
+	var error: String = await Account.start_device_login()
+	Account.device_code_ready.disconnect(on_code)
+	UI.close_modal(modal)
+	_after_login(error)
+
+
+## 로그인 직후: 클라우드에 데이터가 있으면 어느 쪽을 쓸지 묻고, 없으면 이 기기 데이터를 올린다
+func _after_login(error: String) -> void:
+	if error != "":
+		UI.toast(error, UI.DANGER)
+		return
+	var cloud = await Account.download()
+	if cloud == null:
+		UI.toast("계정은 연동되었지만 클라우드 데이터를 확인하지 못했습니다.", UI.WARN)
+	elif cloud.is_empty():
+		await Account.upload()
+		UI.toast("구글 계정이 연동되었습니다. 이 기기 데이터를 클라우드에 저장했습니다.", UI.SUCCESS)
+	else:
+		_ask_cloud_or_local(cloud, "구글 계정이 연동되었습니다.\n")
+
+
+func _load_cloud() -> void:
+	var cloud = await Account.download()
+	if cloud == null:
+		UI.toast("클라우드 데이터를 불러오지 못했습니다.", UI.DANGER)
+	elif cloud.is_empty():
+		UI.toast("클라우드에 저장된 데이터가 없습니다.", UI.WARN)
+	else:
+		_ask_cloud_or_local(cloud, "")
+
+
+func _ask_cloud_or_local(cloud: Dictionary, head: String) -> void:
+	var summary := func(u: Dictionary) -> String:
+		return "%s / 스테이지 %d 클리어 / 골드 %d" % [u.get("name", ""), int(u.get("max_cleared", 0)), int(u.get("gold", 0))]
+	var text := "%s클라우드에 저장된 데이터가 있습니다.\n\n클라우드: %s\n이 기기: %s\n\n어느 데이터를 사용할까요?" % [
+			head, summary.call(cloud.user), summary.call(Save.user)]
+	UI.modal("데이터 선택", UI.wrap_label(text, 26, UI.TEXT), [
+		["이 기기 데이터", UI.PRIMARY, func():
+			UI.toast("이 기기 데이터를 클라우드에 저장했습니다." if await Account.upload() else "클라우드 저장에 실패했습니다.", UI.GOLD)],
+		["클라우드 데이터", UI.SUCCESS, func():
+			Save.replace_user(cloud.user)
+			UI.go("res://scenes/main.tscn")
+			UI.toast("클라우드 데이터를 불러왔습니다.", UI.SUCCESS)],
+	], self, false)
+
+
 func _change_nickname() -> void:
 	const Title = preload("res://scripts/screens/title_screen.gd")
 	Title.ask_nickname("새 닉네임", Save.user.name, func(nick: String):
@@ -432,15 +575,18 @@ func _open_settings() -> void:
 		refresh.call())
 	refresh.call()
 	v.add_child(speed_button)
-	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0 (오프라인)\n데이터는 이 기기에만 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
+	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
 	UI.modal("설정", v, [["닫기", UI.CARD_HI]], self)
 
 
 func _confirm_reset() -> void:
-	var text := UI.wrap_label("모든 진행 상황(골드, 레벨, 기록)이 삭제됩니다.\n정말 초기화할까요?", 28, UI.TEXT)
+	var linked_note := "\n구글 계정 연동은 해제되며, 클라우드 데이터는 지워지지 않습니다." if Account.is_linked() else ""
+	var text := UI.wrap_label("모든 진행 상황(골드, 레벨, 기록)이 삭제됩니다.%s\n정말 초기화할까요?" % linked_note, 28, UI.TEXT)
 	UI.modal("데이터 초기화", text, [
 		["취소", UI.CARD_HI],
 		["초기화", UI.DANGER, func():
+			# 새로 만든 데이터가 클라우드 데이터를 덮어쓰지 않도록 연동부터 푼다
+			Account.unlink()
 			Save.reset()
 			UI.go("res://scenes/title.tscn")],
 	], self)

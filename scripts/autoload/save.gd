@@ -79,6 +79,14 @@ func _apply_rich_start() -> void:
 		user.gold = RICH_GOLD
 
 
+## 클라우드에서 받은 데이터로 바꾼다
+func replace_user(data: Dictionary) -> void:
+	user = data
+	_normalize()
+	refresh_time()
+	save()
+
+
 func reset() -> void:
 	user = {}
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))

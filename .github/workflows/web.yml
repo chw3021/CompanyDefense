@@ -44,6 +44,19 @@ jobs:
           unzip -q -j templates.tpz 'templates/web_nothreads_*' -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           rm godot.zip templates.tpz
 
+      - name: 계정 연동 키 파일 생성
+        env:
+          WEB_CLIENT_ID: ${{ secrets.WEB_CLIENT_ID }}
+          DEVICE_CLIENT_ID: ${{ secrets.DEVICE_CLIENT_ID }}
+          DEVICE_CLIENT_SECRET: ${{ secrets.DEVICE_CLIENT_SECRET }}
+        run: |
+          {
+            echo 'extends RefCounted'
+            echo "const WEB_CLIENT_ID := \"${WEB_CLIENT_ID}\""
+            echo "const DEVICE_CLIENT_ID := \"${DEVICE_CLIENT_ID}\""
+            echo "const DEVICE_CLIENT_SECRET := \"${DEVICE_CLIENT_SECRET}\""
+          } > scripts/autoload/account_keys.gd
+
       - name: 웹 빌드
         run: |
           mkdir -p build/web

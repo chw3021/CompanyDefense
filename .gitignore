@@ -9,3 +9,5 @@ build/
 *.keystore
 *.jks
 keys/
+scripts/autoload/account_keys.gd
+scripts/autoload/account_keys.gd.uid
