@@ -395,7 +395,7 @@ func _on_tower_selected(t: Tower) -> void:
 	_card_widgets.grade.text = "%s팀  |  %s" % [GameData.team_name(t.team), GameData.grade_label(t.data)]
 	_card_widgets.grade.add_theme_color_override("font_color", GameData.tower_color(t.data))
 	_card_widgets.sell.text = "퇴사  +%d" % Battle.sell_price(t)
-	_card_widgets.trade.text = "협상  -%d (30%%)" % Battle.trade_cost(t)
+	_card_widgets.trade.text = "협상  -%d (%d%%)" % [Battle.trade_cost(t), roundi(Battle.trade_chance(t) * 100)]
 	_card_widgets.trade.disabled = not Battle.can_trade(t)
 	_fill_stats(t)
 	# 화면이 낮으면 팀 업그레이드 줄 자리에 카드를 보여 준다

@@ -22,7 +22,7 @@ signal projectile_hit(p: Dictionary)
 signal mythic_born(t: Tower)
 
 const SPAWN_COST := 100
-const TRADE_CHANCE := 0.3
+const TRADE_CHANCES := [0.8, 0.6, 0.4, 0.25, 0.1]  # 협상 성공 확률 (1~5성)
 const MAX_LIFE := 8
 const DT_CLAMP := 0.1
 
@@ -442,6 +442,10 @@ static func trade_cost(t: Tower) -> int:
 	return 50 * t.grade
 
 
+static func trade_chance(t: Tower) -> float:
+	return TRADE_CHANCES[clampi(t.grade - 1, 0, TRADE_CHANCES.size() - 1)]
+
+
 ## 신화와 특수 직원은 협상 대상이 아니다
 static func can_trade(t: Tower) -> bool:
 	return t.grade < GameData.MYTHIC_GRADE and not GameData.is_special(t.data)
@@ -456,7 +460,7 @@ func sell(t: Tower) -> void:
 	hud_changed.emit()
 
 
-## 협상: 비용을 내고 30% 확률로 같은 등급의 다른 직원으로 교체, 실패하면 퇴사
+## 협상: 비용을 내고 등급별 확률(trade_chance)로 같은 등급의 다른 직원으로 교체, 실패하면 퇴사
 func trade(t: Tower) -> void:
 	if finished:
 		return
@@ -469,7 +473,7 @@ func trade(t: Tower) -> void:
 	coins -= cost
 	var c := t.cell
 	_remove(t)
-	if randf() < TRADE_CHANCE:
+	if randf() < trade_chance(t):
 		var candidates := GameData.towers_of_grade(t.grade).filter(func(id): return id != t.id)
 		if candidates.is_empty():
 			candidates = GameData.towers_of_grade(t.grade)
