@@ -154,7 +154,7 @@ func _firebase_sign_in(post_body: String) -> String:
 	var r := await _post_json("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=" + API_KEY, {
 		"postBody": post_body, "requestUri": "http://localhost", "returnSecureToken": true})
 	if r.code != 200 or not r.data is Dictionary:
-		push_warning("Firebase 로그인 실패: %s" % str(r.data))
+		push_warning("Firebase 로그인 실패 (%d): %s" % [r.code, str(r.data)])
 		return "계정 연동에 실패했습니다. 잠시 후 다시 시도해 주세요."
 	uid = r.data.localId
 	email = r.data.get("email", "")
@@ -175,7 +175,7 @@ func _ensure_token() -> bool:
 	var r := await _post_form("https://securetoken.googleapis.com/v1/token?key=" + API_KEY,
 			{"grant_type": "refresh_token", "refresh_token": _refresh_token})
 	if r.code != 200 or not r.data is Dictionary:
-		push_warning("Firebase 토큰 갱신 실패: %s" % str(r.data))
+		push_warning("Firebase 토큰 갱신 실패 (%d): %s" % [r.code, str(r.data)])
 		return false
 	_id_token = r.data.id_token
 	_expires_at = _now() + int(r.data.get("expires_in", 3600))
@@ -243,6 +243,8 @@ func _post_json(url: String, body: Dictionary) -> Dictionary:
 func _request(method: int, url: String, body := "", headers: Array = []) -> Dictionary:
 	var req := HTTPRequest.new()
 	req.timeout = 20.0
+	# 웹에서는 브라우저가 이미 압축을 풀어 주므로 Godot 가 다시 풀다 실패해 응답이 비어 버린다
+	req.accept_gzip = false
 	add_child(req)
 	if req.request(url, PackedStringArray(headers), method, body) != OK:
 		req.queue_free()
