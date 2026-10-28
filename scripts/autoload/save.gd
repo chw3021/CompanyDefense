@@ -73,10 +73,15 @@ func create_user(user_name: String) -> void:
 	save()
 
 
-## 내 전용 빌드면 켤 때마다 골드를 RICH_GOLD 까지 채운다
+## 내 전용 빌드면 켤 때마다 골드를 RICH_GOLD 까지 채우고, 시간을 가득 채우고, 모든 스테이지와 직원 최대 레벨(신화 해금 포함)을 연다
 func _apply_rich_start() -> void:
-	if OS.has_feature("rich_start") and user.gold < RICH_GOLD:
-		user.gold = RICH_GOLD
+	if not OS.has_feature("rich_start"):
+		return
+	user.gold = maxi(user.gold, RICH_GOLD)
+	user.time = MAX_TIME
+	user.max_cleared = maxi(user.max_cleared, StageDefs.COUNT - 1)
+	for id in user.towers:
+		user.towers[id] = GameData.MAX_TOWER_LEVEL
 
 
 ## 클라우드에서 받은 데이터로 바꾼다
@@ -144,6 +149,8 @@ func spend_gold(amount: int) -> bool:
 func spend_time() -> bool:
 	if user.is_empty():
 		return false
+	if OS.has_feature("rich_start"):  # 내 전용 빌드는 시간이 줄지 않는다
+		return true
 	refresh_time()
 	if user.time < 1:
 		return false

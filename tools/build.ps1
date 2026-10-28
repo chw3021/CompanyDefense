@@ -1,7 +1,7 @@
-﻿# 배포용(릴리스 서명) APK 를 만든다. 빌드할 때마다 version/code 를 1 올린다.
+# 배포용(릴리스 서명) APK 를 만든다. 빌드할 때마다 version/code 를 1 올린다.
 #   powershell -File tools\build.ps1                  # 버전 코드만 올려서 빌드
 #   powershell -File tools\build.ps1 -Version 2.1.0   # 표시 버전도 바꿔서 빌드
-#   powershell -File tools\build.ps1 -Me              # 내 전용 (골드 99999999), 버전은 그대로
+#   powershell -File tools\build.ps1 -Me              # 내 전용 (골드 99999999, 시간 무한, 스테이지/직원 최대 해금), 버전은 그대로
 # 결과: build\CompanyDefense.apk (폰 설치용) + build\CompanyDefense-v<버전>.apk (친구 공유용)
 #       -Me 는 build\CompanyDefense-me.apk 만 만든다. 친구에게 주지 말 것.
 # 서명 키는 저장소 밖 ..\..\keys 에 있다. 잃어버리면 같은 앱으로 업데이트할 수 없으니 꼭 백업할 것.
