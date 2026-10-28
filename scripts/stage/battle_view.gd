@@ -26,6 +26,7 @@ var _textures := {}       # path -> Texture2D
 var _frame_counts := {}   # sheet path -> 프레임 수
 var _boxes := {}          # 스타일박스 캐시
 var _path_cells := {}     # Vector2i -> true
+var _effect_alpha := 0.75  # 스킬 이펙트 불투명도 (설정값, 스테이지 시작 때 읽는다)
 
 # 연출 (게임 시간 기준으로 움직이고, 일시정지하면 멈춘다)
 var _fx: Array = []       # 파티클/고리/글자 {kind, pos, vel, age, life, size, color, rot, spin, text}
@@ -47,6 +48,7 @@ func setup(p_battle: Battle) -> void:
 	_bg = load("res://assets/background/stage1.png")
 	_enemy_tex = load("res://assets/enemy/printer.png")
 	_bolt_tex = load("res://assets/tower/projectile.png")
+	_effect_alpha = Save.effect_alpha()
 	for row in battle.map.size():
 		for col in battle.map[row].size():
 			var v := float(battle.map[row][col])
@@ -185,17 +187,21 @@ func _draw_dynamic() -> void:
 		_draw_range(battle.selected)
 	for t: Tower in battle.towers:
 		_draw_tower(t)
-	# 끌고 있거나 선택한 직원과 합칠 수 있는 직원을 금색으로 표시
-	if _dragging and _press_tower:
-		_draw_merge_targets(_press_tower)
-	elif battle.selected:
-		_draw_merge_targets(battle.selected)
 	for e: Enemy in battle.enemies:
 		_draw_enemy(e)
 	for p in battle.projectiles:
 		_draw_projectile(p)
 	for fx in battle.effects:
 		_draw_effect(fx)
+	# 등급 별, 체력바, 합칠 대상 표시는 스킬 이펙트에 가려지지 않도록 이펙트 위에 그린다
+	for t: Tower in battle.towers:
+		_draw_tower_hud(t)
+	if _dragging and _press_tower:
+		_draw_merge_targets(_press_tower)
+	elif battle.selected:
+		_draw_merge_targets(battle.selected)
+	for e: Enemy in battle.enemies:
+		_draw_enemy_hud(e)
 	_draw_fx()
 	if _red_flash > 0:
 		ci.draw_rect(Rect2(0, 0, map_size, map_size), Color(UI.DANGER, 0.28 * _red_flash))
@@ -262,11 +268,8 @@ func _draw_tower(t: Tower) -> void:
 	_rounded(top, Color(team_color, 0.6), 10)
 	var alpha := 0.35 if (_dragging and _press_tower == t) else 1.0
 	var shade := 0.55 if t.stun_left > 0 else 1.0  # 통화 중이면 어둡게
-	# 공격하는 동안 대상 쪽으로 살짝 몸을 내민다
 	var progress := t.attack_progress()
-	var lunge := Vector2.ZERO
-	if progress >= 0 and t.target != null and not t.target.dead:
-		lunge = (t.target.pos - t.center()).normalized() * c * 0.07 * sin(progress * PI)
+	var lunge := _lunge(t)
 	# 발판: 부서색 원판에 등급색 테두리. 등급이 높을수록 두껍고, 4등급부터는 바깥에 반짝이는 고리
 	var foot := Vector2(center_x, base.y + c * 0.7) + lunge
 	var ring := c * 0.34
@@ -290,12 +293,30 @@ func _draw_tower(t: Tower) -> void:
 	# 직원: 발판 위에 선 SD 캐릭터. 배치 직후에는 통통 튀어나온다
 	var size := c * 0.8 * (1.0 + 0.25 * t.spawn_anim)
 	ci.draw_texture_rect(sprite, Rect2(foot.x - size / 2, foot.y + c * 0.06 - size, size, size), false, Color(shade, shade, shade, alpha))
-	if t.stun_left > 0:
-		_rounded(Rect2(center_x - c * 0.36, base.y + c * 0.04, c * 0.72, c * 0.24), Color(0, 0, 0, 0.65), 8)
-		_text(Vector2(center_x, base.y + c * 0.16), "통화 중", 17, UI.WARN)
 	# 공격 모션은 오른쪽 위에 팀마다 다른 모양으로
 	if progress >= 0:
 		_draw_attack_motion(t, Vector2(base.x + c * 0.8, base.y + c * 0.12), progress)
+
+
+## 공격하는 동안 대상 쪽으로 살짝 몸을 내민다
+func _lunge(t: Tower) -> Vector2:
+	var progress := t.attack_progress()
+	if progress >= 0 and t.target != null and not t.target.dead:
+		return (t.target.pos - t.center()).normalized() * battle.cell * 0.07 * sin(progress * PI)
+	return Vector2.ZERO
+
+
+## 직원 위 표시 (통화 중, 등급 별, 선택 테두리)
+func _draw_tower_hud(t: Tower) -> void:
+	var c := battle.cell
+	var base := Vector2(t.cell.x * c, t.cell.y * c)
+	var center_x := base.x + c / 2
+	var grade_color := GameData.tower_color(t.data)
+	var alpha := 0.35 if (_dragging and _press_tower == t) else 1.0
+	var lunge := _lunge(t)
+	if t.stun_left > 0:
+		_rounded(Rect2(center_x - c * 0.36, base.y + c * 0.04, c * 0.72, c * 0.24), Color(0, 0, 0, 0.65), 8)
+		_text(Vector2(center_x, base.y + c * 0.16), "통화 중", 17, UI.WARN)
 	# 등급 별: 발 아래 어두운 띠 위에 등급 수만큼
 	var star_r := c * 0.075
 	var gap := star_r * 2.1
@@ -376,6 +397,13 @@ func _draw_enemy(e: Enemy) -> void:
 	var sw := s * (1.0 + 0.12 * squash)
 	var sh := h * (1.0 - 0.12 * squash)
 	_draw_enemy_body(e.type_id, Rect2(p.x - sw / 2, p.y + h / 2 - sh, sw, sh), mod, e)
+
+
+## 적 위 표시 (기절 별, 보스 고리, 약점, 체력바, 보호막)
+func _draw_enemy_hud(e: Enemy) -> void:
+	var s := e.size
+	var p := e.pos + Vector2(0, e.bob_offset())
+	var h := s * _enemy_tex.get_height() / _enemy_tex.get_width()
 	if e.stun_left > 0:
 		var t := Time.get_ticks_msec() / 200.0
 		for i in 3:
@@ -387,6 +415,16 @@ func _draw_enemy(e: Enemy) -> void:
 	var bar_w := maxf(s * 0.9, battle.cell * 0.5)
 	var bar := Rect2(p.x - bar_w / 2, p.y - h / 2 - 12, bar_w, 7)
 	_rounded(bar.grow(1), Color(0, 0, 0, 0.7), 4)
+	# 물리/마법 방어 차이가 크면 체력바 왼쪽에 잘 들어가는 피해 종류를 데미지 숫자와 같은 색으로 표시
+	var gap := e.pdef - e.mdef
+	if absf(gap) >= WEAK_GAP:
+		var weak_magic := gap > 0
+		var at := Vector2(bar.position.x - 12, bar.get_center().y)
+		ci.draw_circle(at, 11, Color(0, 0, 0, 0.7))
+		ci.draw_circle(at, 9, DMG_MAGIC if weak_magic else DMG_PHYSICAL)
+		var letter := "마" if weak_magic else "물"
+		var lw := _font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		ci.draw_string(_font, at + Vector2(-lw / 2, 5), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.08, 0.1, 0.15))
 	if e.hp_trail > e.hp_ratio():
 		_rounded(Rect2(bar.position, Vector2(bar.size.x * e.hp_trail, bar.size.y)), Color(1, 1, 1, 0.75), 3)
 	if e.hp_ratio() > 0:
@@ -400,6 +438,7 @@ func _draw_enemy(e: Enemy) -> void:
 
 
 const SHIELD := Color("7fdcff")
+const WEAK_GAP := 20.0  # 물리/마법 방어 차이가 이 이상이면 약점 표시
 ## 그림이 있는 적 (프린터 계열). 나머지는 도형으로 그린다
 const SPRITE_ENEMIES := ["printer", "fax", "copier", "server", "boss"]
 
@@ -529,7 +568,7 @@ func _draw_effect(fx: Dictionary) -> void:
 	var index := int(fx.age * EFFECT_FPS) % count
 	var s: float = fx.size
 	var alpha := clampf((fx.life - fx.age) / 0.2, 0.0, 1.0)  # 끝날 때 살짝 사라지게
-	ci.draw_texture_rect_region(sheet, Rect2(fx.pos - Vector2(s, s) / 2, Vector2(s, s)), _frame_rect(index, sheet), Color(1, 1, 1, alpha))
+	ci.draw_texture_rect_region(sheet, Rect2(fx.pos - Vector2(s, s) / 2, Vector2(s, s)), _frame_rect(index, sheet), Color(1, 1, 1, alpha * _effect_alpha))
 
 
 # ------------------------------------------------------------------ 연출 (파티클, 데미지 숫자, 화면 흔들림)

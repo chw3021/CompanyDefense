@@ -329,3 +329,13 @@ func game_speed() -> float:
 func set_game_speed(speed: float) -> void:
 	settings.set_value("game", "speed", speed)
 	settings.save(SETTINGS_PATH)
+
+
+## 스킬 이펙트 스프라이트 불투명도 (0 = 안 보임, 1 = 원본)
+func effect_alpha() -> float:
+	return settings.get_value("game", "effect_alpha", 0.75)
+
+
+func set_effect_alpha(alpha: float) -> void:
+	settings.set_value("game", "effect_alpha", clampf(alpha, 0.0, 1.0))
+	settings.save(SETTINGS_PATH)

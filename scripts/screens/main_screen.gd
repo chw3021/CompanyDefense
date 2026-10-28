@@ -575,6 +575,22 @@ func _open_settings() -> void:
 		refresh.call())
 	refresh.call()
 	v.add_child(speed_button)
+	# 스킬 이펙트 진하기: 낮출수록 이펙트 뒤의 직원과 적이 잘 보인다
+	var fx_label := UI.label("", 26)
+	var fx_slider := HSlider.new()
+	fx_slider.min_value = 0.0
+	fx_slider.max_value = 1.0
+	fx_slider.step = 0.05
+	fx_slider.value = Save.effect_alpha()
+	fx_slider.custom_minimum_size.y = 48
+	var fx_refresh := func(value: float): fx_label.text = "스킬 이펙트 진하기: %d%%" % roundi(value * 100)
+	fx_slider.value_changed.connect(func(value: float):
+		Save.set_effect_alpha(value)
+		fx_refresh.call(value))
+	fx_refresh.call(fx_slider.value)
+	v.add_child(fx_label)
+	v.add_child(fx_slider)
+	v.add_child(UI.wrap_label("낮출수록 스킬 이펙트가 투명해져 직원과 적이 잘 보입니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
 	UI.modal("설정", v, [["닫기", UI.CARD_HI]], self)
 

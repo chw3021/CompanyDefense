@@ -150,7 +150,8 @@ func _build_panel() -> Control:
 	tools.alignment = BoxContainer.ALIGNMENT_CENTER
 	_merge_button = UI.button("", UI.SUCCESS, func(): battle.merge_all(1), 24)
 	var book := UI.button("신화 조합표", Color("7a3fb0"), _open_recipes, 24)
-	for b in [_merge_button, book]:
+	var help := UI.button("도움말", UI.CARD_HI, _open_help, 24)
+	for b in [_merge_button, book, help]:
 		b.custom_minimum_size = Vector2(0, 64)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tools.add_child(b)
@@ -264,6 +265,9 @@ func _build_tower_card() -> PanelContainer:
 	sell.icon = load("res://assets/icons/walk_out.svg")
 	trade.icon = load("res://assets/icons/negociation.svg")
 	sell.expand_icon = false
+	var help := UI.button("?", UI.CARD_HI, _open_help, 28)
+	help.custom_minimum_size = Vector2(76, 76)
+	row.add_child(help)
 	v.add_child(row)
 	# 전설이면 신화 조합 재료와 각성 버튼
 	var mythic := UI.hbox(12)
@@ -339,6 +343,56 @@ func _open_recipes() -> void:
 	v.add_child(UI.wrap_label("세 팀의 전설 3명(또는 특수 직원 + 전설 2명)을 모으면 신화로 각성! 첫 번째 직원을 누르고 '신화 각성'.\n재료로 쓴 직원은 사라집니다. 초록색은 지금 필드에 있는 직원.\n신화는 직원 관리에서 그 팀 직원을 모두 레벨 %d 이상으로 올려야 해금됩니다." % GameData.MYTHIC_UNLOCK_LEVEL, 22, UI.MUTED))
 	v.add_child(scroll)
 	UI.modal("신화 조합표", v, [["닫기", UI.CARD_HI]], self)
+
+
+## 도움말: 팀 레벨업, 협상, 적 방어력
+func _open_help() -> void:
+	var v := UI.vbox(12)
+	var section := func(title: String) -> void:
+		v.add_child(UI.label(title, 30, UI.GOLD))
+	var line := func(text: String, color: Color) -> void:
+		v.add_child(UI.wrap_label(text, 22, color, HORIZONTAL_ALIGNMENT_LEFT))
+
+	section.call("팀 레벨업 (인사 / 개발 / 영업)")
+	line.call("아래 팀 버튼을 누르면 그 팀 직원 모두의 물리·마법 공격력이 레벨당 10%씩 오릅니다.\n비용은 50 × 현재 레벨 코인이고, 이번 스테이지에서만 유지됩니다.", UI.MUTED)
+	var roles := {"hr": "공격 속도 증가, 적 방어력 감소, 기절 등 지원", "dv": "마법 피해 스킬", "sl": "물리 피해 스킬과 코인 획득"}
+	for team in GameData.TEAMS:
+		var lv: int = battle.team_level[team]
+		line.call("%s팀 Lv.%d: 공격력 +%d%% → 다음 레벨 +%d%% (%d코인)\n  %s" % [GameData.team_name(team), lv, (lv - 1) * 10, lv * 10, battle.upgrade_cost(team), roles[team]],
+				GameData.TEAM_COLORS[team].lightened(0.3))
+
+	section.call("협상")
+	var chances := []
+	for i in Battle.TRADE_CHANCES.size():
+		chances.append("%d성 %d%%" % [i + 1, roundi(Battle.TRADE_CHANCES[i] * 100)])
+	line.call("직원을 누르고 '협상'을 누르면 50 × 등급 코인을 내고 같은 등급의 다른 직원으로 바꿉니다.\n실패하면 그 직원은 퇴사하고 코인은 돌려받지 못합니다. 신화와 특수 직원은 협상할 수 없습니다.", UI.MUTED)
+	line.call("성공 확률: " + " · ".join(chances), UI.TEXT)
+
+	section.call("적 방어력")
+	line.call("받는 피해 = 피해 × (1 - 방어 ÷ (방어 + 100)). 괄호 안은 줄어드는 피해입니다.\n맵에서 체력바 옆 '물'(주황)·'마'(파랑) 표시는 그 피해가 잘 들어가는 적입니다.", UI.MUTED)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 6)
+	for head in ["적", "물리 방어", "마법 방어", "약점"]:
+		grid.add_child(UI.label(head, 22, UI.MUTED))
+	for id in StageDefs.ENEMIES:
+		var e: Dictionary = StageDefs.ENEMIES[id]
+		var gap: float = e.pdef - e.mdef
+		var weak := "-"
+		var weak_color := UI.MUTED
+		if absf(gap) >= BattleView.WEAK_GAP:
+			weak = "마법" if gap > 0 else "물리"
+			weak_color = BattleView.DMG_MAGIC if gap > 0 else BattleView.DMG_PHYSICAL
+		grid.add_child(UI.label(e.name, 22, UI.DANGER if e.boss else UI.TEXT))
+		grid.add_child(UI.label("%d (-%d%%)" % [e.pdef, roundi(100.0 * e.pdef / (e.pdef + 100.0))], 22, BattleView.DMG_PHYSICAL))
+		grid.add_child(UI.label("%d (-%d%%)" % [e.mdef, roundi(100.0 * e.mdef / (e.mdef + 100.0))], 22, BattleView.DMG_MAGIC))
+		grid.add_child(UI.label(weak, 22, weak_color))
+	v.add_child(grid)
+
+	var scroll := UI.scroll(v)
+	scroll.custom_minimum_size = Vector2(640, 760)
+	UI.modal("도움말", scroll, [["닫기", UI.CARD_HI]], self)
 
 
 # ------------------------------------------------------------------ 갱신
