@@ -9,7 +9,7 @@ const MAX_TIME := 5
 const TIME_REFILL_SEC := 30 * 60
 const NICKNAME_MAX := 10
 const DEFAULT_NAME := "신입사원"
-const RICH_GOLD := 99999999  # tools/build.ps1 -Me 로 만든 내 전용 APK 에만 적용 (기능 태그 rich_start)
+const RICH_GOLD := 99999999  # tools/build.ps1 -Me 로 만든 내 전용 APK (기능 태그 rich_start) 와 슈퍼계정 (Account.SUPER_UIDS) 에만 적용
 
 var user: Dictionary = {}
 var settings := ConfigFile.new()
@@ -37,7 +37,7 @@ func _load() -> void:
 		return
 	user = parsed
 	_normalize()
-	_apply_rich_start()
+	apply_rich_start()
 	refresh_time()
 
 
@@ -69,13 +69,22 @@ func create_user(user_name: String) -> void:
 	}
 	_normalize()
 	send_mail("입사를 환영합니다!", "컴퍼니 디펜스에 오신 것을 환영합니다.\n입사 축하금을 받아가세요.", 500, 3)
-	_apply_rich_start()
+	apply_rich_start()
 	save()
 
 
-## 내 전용 빌드면 켤 때마다 골드를 RICH_GOLD 까지 채우고, 시간을 가득 채우고, 모든 스테이지와 직원 최대 레벨(신화 해금 포함)을 연다
-func _apply_rich_start() -> void:
-	if not OS.has_feature("rich_start"):
+## 내 전용 빌드(-Me) 이거나 슈퍼계정으로 연동된 경우
+func is_rich() -> bool:
+	if OS.has_feature("rich_start"):
+		return true
+	# Save 가 Account 보다 먼저 로드되므로 아직 없을 수 있다 (그때는 Account._ready 가 다시 적용한다)
+	var account := get_node_or_null("/root/Account")
+	return account != null and account.is_super()
+
+
+## 켤 때마다 골드를 RICH_GOLD 까지 채우고, 시간을 가득 채우고, 모든 스테이지와 직원 최대 레벨(신화 해금 포함)을 연다
+func apply_rich_start() -> void:
+	if not is_rich():
 		return
 	user.gold = maxi(user.gold, RICH_GOLD)
 	user.time = MAX_TIME
@@ -88,6 +97,7 @@ func _apply_rich_start() -> void:
 func replace_user(data: Dictionary) -> void:
 	user = data
 	_normalize()
+	apply_rich_start()
 	refresh_time()
 	save()
 
@@ -149,7 +159,7 @@ func spend_gold(amount: int) -> bool:
 func spend_time() -> bool:
 	if user.is_empty():
 		return false
-	if OS.has_feature("rich_start"):  # 내 전용 빌드는 시간이 줄지 않는다
+	if is_rich():  # 내 전용 빌드와 슈퍼계정은 시간이 줄지 않는다
 		return true
 	refresh_time()
 	if user.time < 1:

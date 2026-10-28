@@ -24,7 +24,8 @@ var _enemy_tex: Texture2D
 var _bolt_tex: Texture2D
 var _textures := {}       # path -> Texture2D
 var _frame_counts := {}   # sheet path -> 프레임 수
-var _boxes := {}          # 스타일박스 캐시
+var _boxes := {}          # 스타일박스 캐시: 색 -> {반지름 * 64 + 테두리 -> StyleBoxTexture}
+var _shapes := {}         # 미리 만든 흰색 도형 이미지 (원, 둥근 박스, 발판 고리, 별)
 var _path_cells := {}     # Vector2i -> true
 var _effect_alpha := 0.75  # 스킬 이펙트 불투명도 (설정값, 스테이지 시작 때 읽는다)
 
@@ -98,23 +99,62 @@ func _frame_rect(index: int, sheet_tex: Texture2D) -> Rect2:
 
 
 # ------------------------------------------------------------------ 도형 도우미
+# 원, 둥근 박스, 발판 고리, 별은 처음 한 번 흰색 이미지로 만들어 두고 색을 곱해 그린다.
+# 이 렌더러(Compatibility)는 draw_circle / draw_polyline / draw_colored_polygon / StyleBoxFlat 을
+# 부를 때마다 정점 버퍼를 새로 만들어 한 번에 약 20us 가 걸리지만, 이미지는 0.5us 라
+# 직원과 적이 많을 때 프레임이 크게 떨어지던 것을 막는다 (tools/scenarios/perf.gd 로 잰다).
 
-func _box(color: Color, radius: int, border := 0) -> StyleBoxFlat:
+## 흰색 이미지를 만든다. alpha_at(픽셀 중심 좌표) 가 각 픽셀의 불투명도
+func _white_texture(w: int, h: int, alpha_at: Callable) -> Texture2D:
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			img.set_pixel(x, y, Color(1, 1, 1, alpha_at.call(Vector2(x + 0.5, y + 0.5))))
+	return ImageTexture.create_from_image(img)
+
+
+func _disc_texture() -> Texture2D:
+	if not _shapes.has("disc"):
+		const SIZE := 128
+		_shapes["disc"] = _white_texture(SIZE, SIZE, func(p: Vector2) -> float:
+			return clampf(SIZE / 2.0 - p.distance_to(Vector2(SIZE, SIZE) / 2), 0.0, 1.0))
+	return _shapes["disc"]
+
+
+## 둥근 사각형 (border > 0 이면 테두리만). 나인패치로 늘려 그리므로 반지름/테두리마다 하나
+func _box_texture(radius: int, border: int) -> Texture2D:
+	var key := "box%d|%d" % [radius, border]
+	if not _shapes.has(key):
+		var m := maxi(radius, border)
+		var size := m * 2 + 2
+		_shapes[key] = _white_texture(size, size, func(p: Vector2) -> float:
+			# 둥근 사각형까지의 부호 있는 거리 (안쪽이 음수)
+			var q := (p - Vector2(size, size) / 2).abs() - Vector2.ONE * (size / 2.0 - radius)
+			var sd := Vector2(maxf(q.x, 0), maxf(q.y, 0)).length() + minf(maxf(q.x, q.y), 0.0) - radius
+			var a := clampf(0.5 - sd, 0.0, 1.0)
+			return a * clampf(sd + border + 0.5, 0.0, 1.0) if border > 0 else a)
+	return _shapes[key]
+
+
+func _box(color: Color, radius: int, border := 0) -> StyleBox:
 	# 서서히 사라지는 연출이 프레임마다 새 박스를 만들지 않도록 색을 단계로 끊는다
 	color = Color(snappedf(color.r, 0.025), snappedf(color.g, 0.025), snappedf(color.b, 0.025), snappedf(color.a, 0.05))
-	var key := "%s|%d|%d" % [color.to_html(), radius, border]
-	if not _boxes.has(key):
-		var sb := StyleBoxFlat.new()
-		sb.set_corner_radius_all(radius)
-		sb.anti_aliasing = true
-		if border > 0:
-			sb.draw_center = false
-			sb.border_color = color
-			sb.set_border_width_all(border)
-		else:
-			sb.bg_color = color
-		_boxes[key] = sb
-	return _boxes[key]
+	# 프레임마다 수백 번 불리므로 문자열 키 대신 색과 정수를 키로 쓴다
+	if not _boxes.has(color):
+		_boxes[color] = {}
+	var by_color: Dictionary = _boxes[color]
+	var key := radius * 64 + border
+	if not by_color.has(key):
+		var sb := StyleBoxTexture.new()
+		sb.texture = _box_texture(radius, border)
+		var m := maxi(radius, border)
+		sb.texture_margin_left = m
+		sb.texture_margin_right = m
+		sb.texture_margin_top = m
+		sb.texture_margin_bottom = m
+		sb.modulate_color = color
+		by_color[key] = sb
+	return by_color[key]
 
 
 func _rounded(r: Rect2, color: Color, radius := 10) -> void:
@@ -125,10 +165,13 @@ func _outline(r: Rect2, color: Color, radius := 10, width := 3) -> void:
 	ci.draw_style_box(_box(color, radius, width), r)
 
 
+## draw_circle 대신 쓰는 원 (인자가 같다)
+func _disc(center: Vector2, radius: float, color: Color) -> void:
+	ci.draw_texture_rect(_disc_texture(), Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2), false, color)
+
+
 func _ellipse(center: Vector2, radius: float, squash: float, color: Color) -> void:
-	ci.draw_set_transform(center, 0, Vector2(1, squash))
-	ci.draw_circle(Vector2.ZERO, radius, color)
-	ci.draw_set_transform(Vector2.ZERO)
+	ci.draw_texture_rect(_disc_texture(), Rect2(center.x - radius, center.y - radius * squash, radius * 2, radius * 2 * squash), false, color)
 
 
 func _text(at: Vector2, text: String, size: int, color := Color.WHITE) -> void:
@@ -235,7 +278,7 @@ func _draw_flow() -> void:
 
 func _draw_marker(at: Vector2, color: Color, text: String) -> void:
 	var c := battle.cell
-	ci.draw_circle(at, c * 0.42, Color(color, 0.25))
+	_disc(at, c * 0.42, Color(color, 0.25))
 	ci.draw_arc(at, c * 0.42, 0, TAU, 32, color, 3, true)
 	_text(at, text, int(c * 0.28))
 
@@ -251,7 +294,7 @@ func _draw_merge_targets(src: Tower) -> void:
 
 func _draw_range(t: Tower) -> void:
 	var color: Color = GameData.TEAM_COLORS[t.team]
-	ci.draw_circle(t.center(), t.range_px, Color(color, 0.12))
+	_disc(t.center(), t.range_px, Color(color, 0.12))
 	ci.draw_arc(t.center(), t.range_px, 0, TAU, 64, Color(color, 0.8), 3, true)
 
 
@@ -331,11 +374,22 @@ func _draw_tower_hud(t: Tower) -> void:
 
 ## 다섯 꼭지 별
 func _star(at: Vector2, r: float, color: Color) -> void:
-	var points := PackedVector2Array()
-	for i in 10:
-		var radius := r if i % 2 == 0 else r * 0.45
-		points.append(at + Vector2.from_angle(-PI / 2 + i * PI / 5) * radius)
-	ci.draw_colored_polygon(points, color)
+	const SIZE := 32  # 별 이미지 한 변 (꼭짓점이 가장자리에서 1px 안쪽)
+	if not _shapes.has("star"):
+		var outer := SIZE / 2.0 - 1
+		var points := PackedVector2Array()
+		for i in 10:
+			points.append(Vector2(SIZE, SIZE) / 2 + Vector2.from_angle(-PI / 2 + i * PI / 5) * (outer if i % 2 == 0 else outer * 0.45))
+		# 픽셀마다 4x4 지점을 찍어 가장자리를 부드럽게
+		_shapes["star"] = _white_texture(SIZE, SIZE, func(p: Vector2) -> float:
+			var hits := 0
+			for sy in 4:
+				for sx in 4:
+					if Geometry2D.is_point_in_polygon(p + Vector2(sx - 1.5, sy - 1.5) / 4.0, points):
+						hits += 1
+			return hits / 16.0)
+	var half := r * SIZE / (SIZE - 2.0)
+	ci.draw_texture_rect(_shapes["star"], Rect2(at - Vector2(half, half), Vector2(half, half) * 2), false, color)
 
 
 const FOOT_SQUASH := 0.38  # 발판 원을 위아래로 눌러 바닥에 놓인 것처럼 보이게
@@ -343,6 +397,27 @@ const FOOT_SQUASH := 0.38  # 발판 원을 위아래로 눌러 바닥에 놓인 
 
 ## 발판 테두리: 눌린 원의 둘레 (from~to 라디안 구간)를 일정한 굵기로 긋는다
 func _ellipse_ring(center: Vector2, radius: float, color: Color, width: float, from := 0.0, to := TAU, segments := 32) -> void:
+	if from == 0.0 and to == TAU:
+		# 한 바퀴 고리는 반지름/굵기마다 이미지로 만들어 둔다
+		var key := Vector2(snappedf(radius, 0.5), snappedf(width, 0.5))
+		if not _shapes.has(key):
+			var r: float = key.x
+			var half_w: float = key.y / 2
+			var w := ceili((r + half_w + 1.5) * 2)
+			var h := ceili((r * FOOT_SQUASH + half_w + 1.5) * 2)
+			var s2 := FOOT_SQUASH * FOOT_SQUASH
+			_shapes[key] = _white_texture(w, h, func(p: Vector2) -> float:
+				# 눌린 원 둘레까지의 거리 (기울기로 나눈 근사)
+				var d := p - Vector2(w, h) / 2
+				var g := sqrt(d.x * d.x + d.y * d.y / s2)
+				if g < 0.001:
+					return 0.0
+				var grad := Vector2(d.x / g, d.y / (s2 * g)).length()
+				return clampf(half_w - absf(g - r) / grad + 0.5, 0.0, 1.0))
+		var tex: Texture2D = _shapes[key]
+		ci.draw_texture_rect(tex, Rect2(center - tex.get_size() / 2, tex.get_size()), false, color)
+		return
+	# 신화의 도는 조각은 매번 계산한다
 	var points := PackedVector2Array()
 	for i in segments + 1:
 		var a := lerpf(from, to, float(i) / segments)
@@ -408,7 +483,7 @@ func _draw_enemy_hud(e: Enemy) -> void:
 		var t := Time.get_ticks_msec() / 200.0
 		for i in 3:
 			var a := t + i * TAU / 3
-			ci.draw_circle(p + Vector2(cos(a) * s * 0.35, -s * 0.55 + sin(a) * s * 0.1), s * 0.07, UI.GOLD)
+			_disc(p + Vector2(cos(a) * s * 0.35, -s * 0.55 + sin(a) * s * 0.1), s * 0.07, UI.GOLD)
 	if e.is_boss():
 		ci.draw_arc(p, s * 0.62, 0, TAU, 40, Color(UI.DANGER, 0.7), 3, true)
 	# 체력바
@@ -420,8 +495,8 @@ func _draw_enemy_hud(e: Enemy) -> void:
 	if absf(gap) >= WEAK_GAP:
 		var weak_magic := gap > 0
 		var at := Vector2(bar.position.x - 12, bar.get_center().y)
-		ci.draw_circle(at, 11, Color(0, 0, 0, 0.7))
-		ci.draw_circle(at, 9, DMG_MAGIC if weak_magic else DMG_PHYSICAL)
+		_disc(at, 11, Color(0, 0, 0, 0.7))
+		_disc(at, 9, DMG_MAGIC if weak_magic else DMG_PHYSICAL)
 		var letter := "마" if weak_magic else "물"
 		var lw := _font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 		ci.draw_string(_font, at + Vector2(-lw / 2, 5), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.08, 0.1, 0.15))
@@ -475,14 +550,14 @@ func _draw_enemy_body(type_id: String, r: Rect2, mod: Color, e: Enemy = null) ->
 			_rounded(Rect2(body.position.x + w * 0.1, body.end.y - hh * 0.16, body.size.x - w * 0.2, hh * 0.08), Color(0.35, 0.38, 0.45) * mod, 3)
 			_outline(body, Color(0.4, 0.45, 0.55, 0.8) * mod, 6, 2)
 			if e != null and e.ability_flash > 0:
-				ci.draw_circle(r.get_center(), w * 0.65, Color(UI.SUCCESS, 0.25 * e.ability_flash / 0.6))
+				_disc(r.get_center(), w * 0.65, Color(UI.SUCCESS, 0.25 * e.ability_flash / 0.6))
 		"vacuum":
 			var center := Vector2(cx, foot - hh * 0.3)
 			_ellipse(center + Vector2(0, hh * 0.08), w * 0.5, 0.42, Color(0.18, 0.19, 0.23) * mod)
 			_ellipse(center, w * 0.5, 0.42, Color(0.38, 0.4, 0.47) * mod)
 			_ellipse(center + Vector2(0, -hh * 0.02), w * 0.36, 0.42, Color(0.55, 0.58, 0.66) * mod)
 			var blink := 1.0 if (now / 250) % 2 == 0 else 0.35
-			ci.draw_circle(center + Vector2(0, -hh * 0.05), w * 0.06, Color(0.3, 1, 0.9, blink) * mod)
+			_disc(center + Vector2(0, -hh * 0.05), w * 0.06, Color(0.3, 1, 0.9, blink) * mod)
 			# 앞쪽 솔이 빙글빙글 돈다
 			var brush := center + Vector2(-w * 0.38, hh * 0.1)
 			for i in 3:
@@ -503,7 +578,7 @@ func _draw_enemy_body(type_id: String, r: Rect2, mod: Color, e: Enemy = null) ->
 			if e != null and e.shield > 0:
 				var a := e.shield_ratio()
 				var radius := w * 0.68 * (0.92 + 0.08 * sin(now / 200.0))
-				ci.draw_circle(r.get_center(), radius, Color(SHIELD, 0.16 * a))
+				_disc(r.get_center(), radius, Color(SHIELD, 0.16 * a))
 				ci.draw_arc(r.get_center(), radius, 0, TAU, 32, Color(SHIELD, 0.7 * a), 2.5, true)
 		"phone":
 			var ringing := e != null and e.ability_flash > 0
@@ -550,10 +625,10 @@ func _draw_projectile(p: Dictionary) -> void:
 					var q: Vector2 = p.pos - dir * s * (0.5 + i * 0.45) + side * sin(p.age * 30.0 + i) * 0.8
 					var qs := s * 0.22 * (1.0 - i * 0.25)
 					ci.draw_rect(Rect2(q - Vector2(qs, qs) / 2, Vector2(qs, qs)), Color(0.45, 1, 0.85, 0.8 - i * 0.22))
-				ci.draw_circle(p.pos, s * 0.42 * grow, Color(0.3, 0.75, 1, 0.35))
-				ci.draw_circle(p.pos, s * 0.22 * grow, Color(0.85, 0.97, 1))
+				_disc(p.pos, s * 0.42 * grow, Color(0.3, 0.75, 1, 0.35))
+				_disc(p.pos, s * 0.22 * grow, Color(0.85, 0.97, 1))
 			"hr":  # 빙글빙글 도는 결재 도장
-				ci.draw_circle(p.pos, s * 0.36 * grow, Color(0.85, 0.15, 0.15))
+				_disc(p.pos, s * 0.36 * grow, Color(0.85, 0.15, 0.15))
 				ci.draw_arc(p.pos, s * 0.25 * grow, p.age * 14.0, p.age * 14.0 + PI * 1.5, 10, Color(1, 0.85, 0.85), 2.5, true)
 			_:
 				ci.draw_texture_rect(_bolt_tex, r, false)
@@ -951,7 +1026,7 @@ func _draw_fx() -> void:
 		var s: float = fx.size
 		match fx.kind:
 			"spark":
-				ci.draw_circle(fx.pos, s * (1.0 - t), Color(color, color.a * (1.0 - t * 0.5)))
+				_disc(fx.pos, s * (1.0 - t), Color(color, color.a * (1.0 - t * 0.5)))
 			"paper":
 				ci.draw_set_transform(fx.pos, fx.rot, Vector2(1, absf(cos(fx.rot * 1.7)) * 0.7 + 0.3))
 				ci.draw_rect(Rect2(-s / 2, -s * 0.65, s, s * 1.3), Color(color, 1.0 - t * t))
@@ -991,8 +1066,8 @@ func _draw_fx() -> void:
 			"coin":
 				var squash := absf(cos(fx.age * fx.spin))
 				ci.draw_set_transform(fx.pos, 0, Vector2(maxf(0.15, squash), 1))
-				ci.draw_circle(Vector2.ZERO, s, Color(color.darkened(0.25), 1.0 - t * t))
-				ci.draw_circle(Vector2.ZERO, s * 0.72, Color(color, 1.0 - t * t))
+				_disc(Vector2.ZERO, s, Color(color.darkened(0.25), 1.0 - t * t))
+				_disc(Vector2.ZERO, s * 0.72, Color(color, 1.0 - t * t))
 				ci.draw_set_transform(Vector2.ZERO)
 			"stamp":  # 크게 찍혔다가 자리를 잡는 빨간 도장
 				var k := 1.0 + 0.8 * maxf(0.0, 1.0 - t * 6)
@@ -1004,7 +1079,7 @@ func _draw_fx() -> void:
 			"zone":  # 바닥 장판: 숨 쉬듯 밝아졌다 어두워진다
 				var a := minf(1.0, minf(fx.age * 5.0, (fx.life - fx.age) * 3.0))
 				var pulse := 0.75 + 0.25 * sin(fx.age * 9.0)
-				ci.draw_circle(fx.pos, s, Color(color, 0.16 * a * pulse))
+				_disc(fx.pos, s, Color(color, 0.16 * a * pulse))
 				ci.draw_arc(fx.pos, s, 0, TAU, 48, Color(color, 0.6 * a), 3, true)
 				ci.draw_arc(fx.pos, s * fmod(fx.age * 0.8, 1.0), 0, TAU, 48, Color(color, 0.4 * a), 2, true)
 			"beam":
@@ -1016,7 +1091,7 @@ func _draw_fx() -> void:
 				var wobble := s * (0.8 + 0.4 * sin(fx.age * 40.0))
 				ci.draw_line(fx.pos, end, Color(color, 0.35 * a), wobble * 2.2, true)
 				ci.draw_line(fx.pos, end, Color(1, 1, 1, 0.9 * a), wobble * 0.6, true)
-				ci.draw_circle(end, wobble * 1.4, Color(color, 0.6 * a))
+				_disc(end, wobble * 1.4, Color(color, 0.6 * a))
 			"cross":  # 조준선: 돌면서 좁혀진다
 				var r := s * (1.4 - 0.6 * minf(1.0, t * 3))
 				var a := 1.0 - t * t
@@ -1033,8 +1108,8 @@ func _draw_fx() -> void:
 			"heart":
 				var a := 1.0 - t * t
 				var hs := s * (1.0 + 0.3 * maxf(0.0, 1.0 - t * 5))
-				ci.draw_circle(fx.pos + Vector2(-hs * 0.5, 0), hs * 0.55, Color(color, a))
-				ci.draw_circle(fx.pos + Vector2(hs * 0.5, 0), hs * 0.55, Color(color, a))
+				_disc(fx.pos + Vector2(-hs * 0.5, 0), hs * 0.55, Color(color, a))
+				_disc(fx.pos + Vector2(hs * 0.5, 0), hs * 0.55, Color(color, a))
 				ci.draw_colored_polygon(PackedVector2Array([fx.pos + Vector2(-hs * 1.02, hs * 0.15), fx.pos + Vector2(hs * 1.02, hs * 0.15), fx.pos + Vector2(0, hs * 1.2)]), Color(color, a))
 			"bubble", "tag":  # 말풍선 / 가격표
 				var a := 1.0 - maxf(0.0, t - 0.6) / 0.4
@@ -1055,7 +1130,7 @@ func _draw_drag() -> void:
 	var sprite := tex(GameData.asset(_press_tower.data.towerSpritePath))
 	var size := battle.cell * 1.1
 	var ring := UI.GOLD if _hover_target != null else Color(1, 1, 1, 0.6)
-	ci.draw_circle(_drag_pos, battle.cell * 0.55, Color(ring, 0.18))
+	_disc(_drag_pos, battle.cell * 0.55, Color(ring, 0.18))
 	ci.draw_arc(_drag_pos, battle.cell * 0.55, 0, TAU, 40, ring, 3, true)
 	ci.draw_texture_rect(sprite, Rect2(_drag_pos.x - size / 2, _drag_pos.y - size * 0.75, size, size), false, Color(1, 1, 1, 0.9))
 

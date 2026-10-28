@@ -13,8 +13,11 @@ const API_KEY := "AIzaSyBR1kQXuUPKbRROAN8u-EHDOFcPna0ZM0E"
 const KEYS_PATH := "res://scripts/autoload/account_keys.gd"
 const DB_URL := "https://company-defense-default-rtdb.firebaseio.com"
 const ACCOUNT_PATH := "user://account.json"
+const ANON_PATH := "user://anon.json"  # 구글 연동 전 닉네임 등록에 쓰는 기기별 익명 계정 {uid, refresh_token}
 const SCOPE := "openid email profile"
 const UPLOAD_INTERVAL := 20.0
+## 슈퍼계정 (골드/시간 무한, 전 스테이지와 직원 최대 레벨). Firebase 콘솔 > Authentication > 사용자의 UID 를 넣는다
+const SUPER_UIDS: Array[String] = ["l9csSd4AsET2ciaLLVSLg6Ryv482", "poG6CZrbcNb6QWPbU4Bip54z1xf1"]
 
 var web_client_id := ""
 ## "TV 및 입력 제한 기기" 유형 OAuth 클라이언트 (기기 코드 로그인)
@@ -28,6 +31,7 @@ var _expires_at := 0
 var _dirty := false
 var _uploading := false
 var _cancel_device := false
+var _anon := {}  # {uid, refresh_token, id_token, expires_at}
 ## 웹에서 로그인 페이지로 다녀온 직후의 결과. 메인 화면이 뜰 때 take_pending() 으로 가져간다
 var _pending: Variant = null
 
@@ -43,6 +47,13 @@ func _ready() -> void:
 		uid = data.get("uid", "")
 		email = data.get("email", "")
 		_refresh_token = data.get("refresh_token", "")
+	var anon = JSON.parse_string(FileAccess.get_file_as_string(ANON_PATH)) if FileAccess.file_exists(ANON_PATH) else null
+	if anon is Dictionary and anon.has("uid") and anon.has("refresh_token"):
+		_anon = {"uid": anon.uid, "refresh_token": anon.refresh_token, "id_token": "", "expires_at": 0}
+	# Save 가 먼저 로드되어 그때는 연동 정보를 몰랐으므로 여기서 슈퍼계정 혜택을 적용한다
+	if is_super() and Save.has_user():
+		Save.apply_rich_start()
+		Save.save()
 	Save.changed.connect(func(): _dirty = true)
 	var timer := Timer.new()
 	timer.wait_time = UPLOAD_INTERVAL
@@ -55,6 +66,10 @@ func _ready() -> void:
 
 func is_linked() -> bool:
 	return uid != "" and _refresh_token != ""
+
+
+func is_super() -> bool:
+	return is_linked() and uid in SUPER_UIDS
 
 
 func use_redirect_login() -> bool:
@@ -164,6 +179,7 @@ func _firebase_sign_in(post_body: String) -> String:
 	var f := FileAccess.open(ACCOUNT_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify({"uid": uid, "email": email, "refresh_token": _refresh_token}))
 	f.close()
+	await _hand_over_name()
 	return ""
 
 
@@ -180,6 +196,85 @@ func _ensure_token() -> bool:
 	_id_token = r.data.id_token
 	_expires_at = _now() + int(r.data.get("expires_in", 3600))
 	return true
+
+
+# ------------------------------------------------------------------ 닉네임 (중복 방지)
+# names/<키> = 주인 uid. 구글 연동이면 그 계정, 아니면 기기별 익명 계정이 주인이다.
+# DB 규칙이 "비어 있거나 내 것일 때만 쓰기"를 보장하므로 동시에 같은 이름을 잡아도 한 명만 성공한다.
+
+## 대소문자를 무시하고, DB 키에 못 쓰는 글자(. $ # [ ] /)가 있어도 되도록 16진수로 바꾼다
+static func name_key(nick: String) -> String:
+	return nick.strip_edges().to_lower().to_utf8_buffer().hex_encode()
+
+
+## 익명 계정의 ID 토큰 (없으면 만든다). 실패하면 ""
+func _anon_token() -> String:
+	if _anon.is_empty():
+		var r := await _post_json("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + API_KEY, {"returnSecureToken": true})
+		if r.code != 200 or not r.data is Dictionary:
+			push_warning("익명 로그인 실패 (%d): %s" % [r.code, str(r.data)])
+			return ""
+		_anon = {"uid": r.data.localId, "refresh_token": r.data.refreshToken, "id_token": r.data.idToken,
+				"expires_at": _now() + int(r.data.get("expiresIn", 3600))}
+		var f := FileAccess.open(ANON_PATH, FileAccess.WRITE)
+		f.store_string(JSON.stringify({"uid": _anon.uid, "refresh_token": _anon.refresh_token}))
+		f.close()
+	elif _anon.id_token == "" or _now() >= int(_anon.expires_at) - 60:
+		var r := await _post_form("https://securetoken.googleapis.com/v1/token?key=" + API_KEY,
+				{"grant_type": "refresh_token", "refresh_token": _anon.refresh_token})
+		if r.code != 200 or not r.data is Dictionary:
+			push_warning("익명 토큰 갱신 실패 (%d): %s" % [r.code, str(r.data)])
+			return ""
+		_anon.id_token = r.data.id_token
+		_anon.expires_at = _now() + int(r.data.get("expires_in", 3600))
+	return _anon.id_token
+
+
+## 닉네임을 등록할 계정 {uid, token}. 실패하면 {}
+func _name_session() -> Dictionary:
+	if is_linked():
+		return {"uid": uid, "token": _id_token} if await _ensure_token() else {}
+	var token := await _anon_token()
+	return {"uid": _anon.uid, "token": token} if token != "" else {}
+
+
+## nick 을 내 닉네임으로 등록하고 old 는 풀어 준다. 성공하면 "", 실패하면 보여 줄 문구.
+## 기본 이름은 여러 명이 같이 쓰므로 등록하지 않는다
+func claim_name(nick: String, old: String) -> String:
+	if name_key(nick) == name_key(old):
+		return ""
+	var s := await _name_session()
+	if s.is_empty():
+		return "닉네임을 확인하지 못했습니다. 인터넷 연결을 확인해 주세요."
+	if nick != Save.DEFAULT_NAME:
+		var url := "%s/names/%s.json?auth=%s" % [DB_URL, name_key(nick), s.token]
+		var r := await _request(HTTPClient.METHOD_GET, url)
+		if r.code != 200:
+			return "닉네임을 확인하지 못했습니다. 인터넷 연결을 확인해 주세요."
+		if r.data != null and r.data != s.uid:
+			return "이미 사용 중인 닉네임입니다."
+		r = await _request(HTTPClient.METHOD_PUT, url, JSON.stringify(s.uid))
+		if r.code == 401 or r.code == 403:  # 그 사이 다른 사람이 먼저 등록했다
+			return "이미 사용 중인 닉네임입니다."
+		if r.code != 200:
+			return "닉네임을 확인하지 못했습니다. 인터넷 연결을 확인해 주세요."
+	if old.strip_edges() != "" and old != Save.DEFAULT_NAME:
+		# 내 것이 아니면 규칙이 막으므로 결과는 보지 않는다
+		await _request(HTTPClient.METHOD_DELETE, "%s/names/%s.json?auth=%s" % [DB_URL, name_key(old), s.token])
+	return ""
+
+
+## 구글 연동 직후: 익명 계정이 잡아 둔 지금 닉네임의 주인을 구글 계정으로 넘기고 익명 계정은 버린다.
+## ponytail: 넘기기가 네트워크 오류로 실패하면 그 닉네임은 주인 없는 채로 잠긴다. 자주 생기면 실패 시 익명 계정을 남겨 두고 다음 연동 때 다시 넘긴다
+func _hand_over_name() -> void:
+	if _anon.is_empty():
+		return
+	if Save.has_user() and Save.user.name != Save.DEFAULT_NAME:
+		var token := await _anon_token()
+		if token != "":
+			await _request(HTTPClient.METHOD_PUT, "%s/names/%s.json?auth=%s" % [DB_URL, name_key(Save.user.name), token], JSON.stringify(uid))
+	_anon = {}
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(ANON_PATH))
 
 
 ## 클라우드의 저장 데이터 {user, updated}. 없으면 {}, 실패하면 null

@@ -523,6 +523,9 @@ func _after_login(error: String) -> void:
 	if error != "":
 		UI.toast(error, UI.DANGER)
 		return
+	if Account.is_super():
+		Save.apply_rich_start()
+		Save.save()
 	var cloud = await Account.download()
 	if cloud == null:
 		UI.toast("계정은 연동되었지만 클라우드 데이터를 확인하지 못했습니다.", UI.WARN)

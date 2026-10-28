@@ -64,20 +64,30 @@ func _on_start() -> void:
 		UI.go("res://scenes/main.tscn"))
 
 
-## 닉네임 입력 창. 빈 값이면 기본 이름, 최대 10자
-static func ask_nickname(title: String, initial: String, on_done: Callable, parent: Node = null) -> void:
+## 닉네임 입력 창. 빈 값이면 기본 이름, 최대 10자. 다른 사람이 쓰는 닉네임이면 오류를 보여 주고 다시 묻는다.
+## initial 은 지금 닉네임 (새로 만들 때는 "") 이고, 바꾸는 데 성공하면 서버에서 풀어 준다
+static func ask_nickname(title: String, initial: String, on_done: Callable, parent: Node = null, error := "", typed := "") -> void:
 	var v := UI.vbox(14)
 	var edit := LineEdit.new()
-	edit.text = initial
+	edit.text = typed if error != "" else initial
 	edit.placeholder_text = Save.DEFAULT_NAME
 	edit.max_length = Save.NICKNAME_MAX
 	edit.custom_minimum_size = Vector2(520, 90)
 	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(edit)
-	v.add_child(UI.label("최대 %d자" % Save.NICKNAME_MAX, 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	if error != "":
+		v.add_child(UI.wrap_label(error, 22, UI.DANGER))
+	v.add_child(UI.label("최대 %d자 · 다른 사람과 같은 닉네임은 쓸 수 없습니다" % Save.NICKNAME_MAX, 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var submit := func():
 		var nick := edit.text.strip_edges().left(Save.NICKNAME_MAX)
-		on_done.call(nick if nick != "" else Save.DEFAULT_NAME)
+		if nick == "":
+			nick = Save.DEFAULT_NAME
+		UI.toast("닉네임을 확인하고 있습니다...")
+		var err: String = await Account.claim_name(nick, initial)
+		if err != "":
+			ask_nickname(title, initial, on_done, parent, err, nick)
+			return
+		on_done.call(nick)
 	var modal := UI.modal(title, v, [["확인", UI.PRIMARY, submit]], parent)
 	edit.text_submitted.connect(func(_t):
 		UI.close_modal(modal)
