@@ -17,7 +17,7 @@ const ANON_PATH := "user://anon.json"  # 구글 연동 전 닉네임 등록에 �
 const SCOPE := "openid email profile"
 const UPLOAD_INTERVAL := 20.0
 ## 슈퍼계정 (골드/시간 무한, 전 스테이지와 직원 최대 레벨). Firebase 콘솔 > Authentication > 사용자의 UID 를 넣는다
-const SUPER_UIDS: Array[String] = ["l9csSd4AsET2ciaLLVSLg6Ryv482", "poG6CZrbcNb6QWPbU4Bip54z1xf1"]
+const SUPER_UIDS: Array[String] = ["l9csSd4AsET2ciaLLVSLg6Ryv482", "poG6CZrbcNb6QWPbU4Bip54z1xf1", "31mb0ULOX0aGjdcAlDvV0qve74b2"]
 
 var web_client_id := ""
 ## "TV 및 입력 제한 기기" 유형 OAuth 클라이언트 (기기 코드 로그인)
