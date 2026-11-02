@@ -16,6 +16,7 @@ var _time_pill: PanelContainer
 var _mail_button: Button
 var _mail_badge: Label
 var _mission_badge: Label
+var _avatar: Avatar
 var _content: Control
 var _nav_buttons: Array[Button] = []
 var _current_tab := -1
@@ -89,6 +90,13 @@ func _build_top_bar() -> Control:
 	bar.add_child(margin)
 	var row := UI.hbox(10)
 	margin.add_child(row)
+	# 구글 계정을 연동했으면 맨 왼쪽에 프로필 사진 (누르면 내 정보)
+	_avatar = Avatar.new()
+	_avatar.custom_minimum_size = Vector2(68, 68)
+	_avatar.pressed.connect(_open_profile)
+	row.add_child(_avatar)
+	Account.profile_changed.connect(_refresh_avatar)
+	_refresh_avatar()
 	_gold_pill = UI.pill("res://assets/icons/coin.svg", "", UI.GOLD)
 	row.add_child(_gold_pill)
 	_time_pill = UI.pill("res://assets/icons/waste.svg", "")
@@ -609,3 +617,47 @@ func _confirm_reset() -> void:
 			Save.reset()
 			UI.go("res://scenes/title.tscn")],
 	], self)
+
+
+# ------------------------------------------------------------------ 프로필 사진
+
+func _refresh_avatar() -> void:
+	_avatar.visible = Account.is_linked()
+	_avatar.texture = Account.avatar
+	_avatar.initial = Account.profile_name().left(1).to_upper()
+	_avatar.tooltip_text = Account.profile_name()
+	_avatar.queue_redraw()
+
+
+## 동그란 프로필 사진 버튼. 사진이 없으면 이름 첫 글자
+class Avatar extends Button:
+	var texture: Texture2D
+	var initial := ""
+
+	func _init() -> void:
+		flat = true
+		focus_mode = Control.FOCUS_NONE
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+	func _draw() -> void:
+		var c := size / 2
+		var r := minf(size.x, size.y) / 2 - 3
+		draw_circle(c, r + 3, UI.PRIMARY)
+		if texture:
+			# 원 모양 다각형에 사진을 입힌다 (가운데 정사각형 부분)
+			var tex_size := texture.get_size()
+			var side := minf(tex_size.x, tex_size.y)
+			var origin := (tex_size - Vector2(side, side)) / 2
+			var points := PackedVector2Array()
+			var uvs := PackedVector2Array()
+			for i in 32:
+				var d := Vector2.from_angle(i * TAU / 32)
+				points.append(c + d * r)
+				uvs.append((origin + (d * 0.5 + Vector2(0.5, 0.5)) * side) / tex_size)
+			draw_polygon(points, PackedColorArray([Color.WHITE]), uvs, texture)
+		else:
+			draw_circle(c, r, UI.CARD_HI)
+			var font := get_theme_default_font()
+			var fs := int(r * 1.1)
+			var w := font.get_string_size(initial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			draw_string(font, c + Vector2(-w / 2, fs * 0.35), initial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UI.TEXT)

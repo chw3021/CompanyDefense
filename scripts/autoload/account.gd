@@ -7,6 +7,8 @@ extends Node
 ## 웹 redirect / 기기 코드 로그인이 끝나면 (error 가 "" 이면 성공)
 signal login_done(error: String)
 signal device_code_ready(user_code: String, url: String)
+## 프로필(이름, 사진)이 바뀌었을 때 (연동, 해제, 사진을 다 받았을 때)
+signal profile_changed
 
 const API_KEY := "AIzaSyBR1kQXuUPKbRROAN8u-EHDOFcPna0ZM0E"
 ## OAuth 클라이언트 값은 커밋하지 않는 파일에 둔다 (account_keys.example.gd 참고, 웹 배포는 GitHub Actions 시크릿으로 만든다)
@@ -14,6 +16,7 @@ const KEYS_PATH := "res://scripts/autoload/account_keys.gd"
 const DB_URL := "https://company-defense-default-rtdb.firebaseio.com"
 const ACCOUNT_PATH := "user://account.json"
 const ANON_PATH := "user://anon.json"  # 구글 연동 전 닉네임 등록에 쓰는 기기별 익명 계정 {uid, refresh_token}
+const AVATAR_PATH := "user://avatar.bin"  # 구글 프로필 사진 캐시 (원본 바이트)
 const SCOPE := "openid email profile"
 const UPLOAD_INTERVAL := 20.0
 ## 슈퍼계정 (골드/시간 무한, 전 스테이지와 직원 최대 레벨). Firebase 콘솔 > Authentication > 사용자의 UID 를 넣는다
@@ -25,6 +28,10 @@ var device_client_id := ""
 var device_client_secret := ""
 var uid := ""
 var email := ""
+var display_name := ""
+var photo_url := ""
+var avatar: Texture2D  # 프로필 사진 (없거나 아직 못 받았으면 null)
+var _profile_loading := false
 var _refresh_token := ""
 var _id_token := ""
 var _expires_at := 0
@@ -46,6 +53,8 @@ func _ready() -> void:
 	if data is Dictionary:
 		uid = data.get("uid", "")
 		email = data.get("email", "")
+		display_name = data.get("name", "")
+		photo_url = data.get("photo", "")
 		_refresh_token = data.get("refresh_token", "")
 	var anon = JSON.parse_string(FileAccess.get_file_as_string(ANON_PATH)) if FileAccess.file_exists(ANON_PATH) else null
 	if anon is Dictionary and anon.has("uid") and anon.has("refresh_token"):
@@ -62,6 +71,7 @@ func _ready() -> void:
 	add_child(timer)
 	if OS.has_feature("web"):
 		_consume_web_redirect()
+	_load_profile()
 
 
 func is_linked() -> bool:
@@ -85,9 +95,84 @@ func take_pending() -> Variant:
 func unlink() -> void:
 	uid = ""
 	email = ""
+	display_name = ""
+	photo_url = ""
+	avatar = null
 	_refresh_token = ""
 	_id_token = ""
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(ACCOUNT_PATH))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(AVATAR_PATH))
+	profile_changed.emit()
+
+
+func _save_account() -> void:
+	var f := FileAccess.open(ACCOUNT_PATH, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"uid": uid, "email": email, "refresh_token": _refresh_token,
+			"name": display_name, "photo": photo_url}))
+	f.close()
+
+
+# ------------------------------------------------------------------ 프로필 (이름, 사진)
+
+## 보여 줄 이름: 구글 이름이 없으면 이메일 앞부분
+func profile_name() -> String:
+	if display_name != "":
+		return display_name
+	return email.get_slice("@", 0)
+
+
+## 연동돼 있으면 프로필 사진을 준비한다. 예전에 연동해 사진 주소가 없으면 한 번 조회해 온다
+func _load_profile() -> void:
+	if not is_linked() or _profile_loading:
+		return
+	_profile_loading = true
+	if photo_url == "" and display_name == "" and await _ensure_token():
+		var r := await _post_json("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + API_KEY, {"idToken": _id_token})
+		if r.code == 200 and r.data is Dictionary and not r.data.get("users", []).is_empty():
+			var u: Dictionary = r.data.users[0]
+			display_name = u.get("displayName", "")
+			photo_url = u.get("photoUrl", "")
+			_save_account()
+	var bytes := PackedByteArray()
+	if FileAccess.file_exists(AVATAR_PATH):
+		bytes = FileAccess.get_file_as_bytes(AVATAR_PATH)
+	elif photo_url != "":
+		bytes = await _download(photo_url)
+		if not bytes.is_empty():
+			var f := FileAccess.open(AVATAR_PATH, FileAccess.WRITE)
+			f.store_buffer(bytes)
+			f.close()
+	avatar = _decode_image(bytes)
+	_profile_loading = false
+	profile_changed.emit()
+
+
+func _download(url: String) -> PackedByteArray:
+	var req := HTTPRequest.new()
+	req.timeout = 20.0
+	req.accept_gzip = false
+	add_child(req)
+	if req.request(url) != OK:
+		req.queue_free()
+		return PackedByteArray()
+	var res: Array = await req.request_completed
+	req.queue_free()
+	return res[3] if res[0] == HTTPRequest.RESULT_SUCCESS and res[1] == 200 else PackedByteArray()
+
+
+## PNG / JPG / WEBP 바이트를 텍스처로 (형식은 앞 몇 바이트로 구분)
+static func _decode_image(bytes: PackedByteArray) -> Texture2D:
+	if bytes.size() < 12:
+		return null
+	var img := Image.new()
+	var err := ERR_FILE_UNRECOGNIZED
+	if bytes[0] == 0x89 and bytes[1] == 0x50:
+		err = img.load_png_from_buffer(bytes)
+	elif bytes[0] == 0xFF and bytes[1] == 0xD8:
+		err = img.load_jpg_from_buffer(bytes)
+	elif bytes.slice(8, 12).get_string_from_ascii() == "WEBP":
+		err = img.load_webp_from_buffer(bytes)
+	return ImageTexture.create_from_image(img) if err == OK else null
 
 
 # ------------------------------------------------------------------ 웹: 구글 로그인 페이지 이동
@@ -173,12 +258,15 @@ func _firebase_sign_in(post_body: String) -> String:
 		return "계정 연동에 실패했습니다. 잠시 후 다시 시도해 주세요."
 	uid = r.data.localId
 	email = r.data.get("email", "")
+	display_name = r.data.get("displayName", r.data.get("fullName", ""))
+	photo_url = r.data.get("photoUrl", "")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(AVATAR_PATH))  # 다른 계정 사진이 남지 않게
 	_refresh_token = r.data.refreshToken
 	_id_token = r.data.idToken
 	_expires_at = _now() + int(r.data.get("expiresIn", 3600))
-	var f := FileAccess.open(ACCOUNT_PATH, FileAccess.WRITE)
-	f.store_string(JSON.stringify({"uid": uid, "email": email, "refresh_token": _refresh_token}))
-	f.close()
+	_save_account()
+	profile_changed.emit()  # 사진을 받기 전에도 이름 첫 글자로 바로 보이게
+	_load_profile()
 	await _hand_over_name()
 	return ""
 
