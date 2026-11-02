@@ -64,8 +64,11 @@ const SPECIAL_STAT_MULT := 1.6
 const SPECIAL_COLOR := Color("3ee6c8")
 const MAX_TOWER_LEVEL := 30
 const MAX_EQUIPMENT_LEVEL := 100
-## 스킬 쿨타임은 최대 50% 까지만 줄어든다
-const MIN_COOLDOWN_MULT := 0.5
+## 스킬 쿨타임은 최대 65% 까지만 줄어든다 (악기 연주와 사무용품 쿨타임 효과를 곱으로 합친 뒤)
+const MIN_COOLDOWN_MULT := 0.35
+## 악기 연주: 레벨이 오를수록 INSTRUMENT_MAX 에 점점 가까워진다 (예전엔 레벨당 1% 로 50레벨에서 막혀 그 뒤 레벨이 쓸모없었다)
+const INSTRUMENT_MAX := 0.5
+const INSTRUMENT_SCALE := 50.0
 
 var towers := {}      # towerId(tower_dv1) -> Dictionary
 var tower_ids: Array[String] = []
@@ -212,9 +215,14 @@ static func hobby_rate(hobby_id: String) -> float:
 		"exercise": return 0.02    # 물리 공격력 +2%
 		"reading": return 0.02     # 마법 공격력 +2%
 		"game": return 0.01        # 공격 속도 +1%
-		"instrument": return 0.01  # 스킬 쿨타임 -1%
+		"instrument": return 0.01  # 초반 레벨당 약 -1% (실제 값은 instrument_reduction)
 		"stock": return 20.0       # 시작 코인 +20
 	return 0.0
+
+
+## 악기 연주 레벨의 쿨타임 감소율 (10레벨 9%, 50레벨 32%, 100레벨 43%, 200레벨 49%)
+static func instrument_reduction(level: int) -> float:
+	return INSTRUMENT_MAX * (1.0 - exp(-level / INSTRUMENT_SCALE))
 
 
 static func hobby_effect_text(hobby_id: String, level: int) -> String:
@@ -223,7 +231,7 @@ static func hobby_effect_text(hobby_id: String, level: int) -> String:
 		"exercise": return "물리 공격력 +%d%%" % roundi(value * 100)
 		"reading": return "마법 공격력 +%d%%" % roundi(value * 100)
 		"game": return "공격 속도 +%d%%" % roundi(value * 100)
-		"instrument": return "스킬 쿨타임 -%d%%" % roundi(minf(value, 1 - MIN_COOLDOWN_MULT) * 100)
+		"instrument": return "스킬 쿨타임 -%.1f%%" % (instrument_reduction(level) * 100)
 		"stock": return "시작 코인 +%d" % int(value)
 	return ""
 
@@ -247,7 +255,8 @@ func stat_bonus(user: Dictionary, team: String) -> Dictionary:
 	bonus.physical += hobby_rate("exercise") * int(hobby_levels.get("exercise", 0))
 	bonus.magic += hobby_rate("reading") * hobby_levels.get("reading", 0)
 	bonus.speed += hobby_rate("game") * hobby_levels.get("game", 0)
-	var cooldown_reduction: float = hobby_rate("instrument") * hobby_levels.get("instrument", 0)
+	var hobby_cooldown := instrument_reduction(int(hobby_levels.get("instrument", 0)))
+	var cooldown_reduction := 0.0  # 사무용품 쿨타임 효과 합
 	var eq_levels: Dictionary = user["equipment"]
 	for eq_id in eq_levels:
 		var level: int = eq_levels[eq_id]
@@ -265,7 +274,7 @@ func stat_bonus(user: Dictionary, team: String) -> Dictionary:
 				bonus.speed += value
 			"cooldown":
 				cooldown_reduction += value
-	bonus.cooldown = maxf(MIN_COOLDOWN_MULT, 1.0 - cooldown_reduction)
+	bonus.cooldown = maxf(MIN_COOLDOWN_MULT, (1.0 - hobby_cooldown) * (1.0 - cooldown_reduction))
 	return bonus
 
 

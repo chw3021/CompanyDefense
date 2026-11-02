@@ -2,7 +2,6 @@
 extends Control
 
 const MAP_CELL := 72.0
-const CARD_MIN_HEIGHT := 230.0
 
 var stage_id := 1
 var battle: Battle
@@ -25,6 +24,7 @@ var _info_slot: Control
 var _hint: VBoxContainer
 var _card: PanelContainer
 var _upgrades: HBoxContainer
+var _panel_col: VBoxContainer  # 아래 조작 패널 (넘치는지 재려고)
 var _upgrade_labels := {}
 var _upgrade_costs := {}
 var _card_widgets := {}
@@ -135,6 +135,7 @@ func _build_panel() -> Control:
 	margin.add_theme_constant_override("margin_bottom", 22)
 	panel.add_child(margin)
 	var col := UI.vbox(12)
+	_panel_col = col
 	margin.add_child(col)
 
 	# 가운데: 직원 정보 카드 또는 안내 문구
@@ -271,7 +272,8 @@ func _build_tower_card() -> PanelContainer:
 	v.add_child(row)
 	# 전설이면 신화 조합 재료와 각성 버튼
 	var mythic := UI.hbox(12)
-	var recipe := UI.label("", 22, UI.MUTED)
+	var recipe := UI.label("", 21, UI.MUTED)
+	recipe.max_lines_visible = 2
 	recipe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	recipe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mythic.add_child(recipe)
@@ -292,15 +294,18 @@ func _fill_recipe(t: Tower) -> void:
 	_card_widgets.mythic.visible = mythic != ""
 	if mythic == "":
 		return
+	# 카드가 길어져 아래 버튼을 밀어내지 않게 두 줄로만 (자세한 조합식은 신화 조합표)
 	var parts := battle.recipe_towers(t)
 	var names := []
 	var recipe: Array = GameData.MYTHICS[mythic].recipe
 	for i in recipe.size():
-		names.append("%s %s" % [GameData.towers[recipe[i]].towerName, "(보유)" if parts[i] != null else "(없음)"])
+		names.append("%s %s" % [GameData.towers[recipe[i]].towerName, "O" if parts[i] != null else "X"])
 	var unlocked := battle.mythic_unlocked(t)
-	_card_widgets.recipe.text = "→ %s%s\n재료: %s" % [GameData.MYTHICS[mythic].name, "" if unlocked else " (잠김)", " + ".join(names)]
+	var second := "재료: " + " · ".join(names)
 	if not unlocked:
-		_card_widgets.recipe.text += "\n" + GameData.mythic_lock_text(Save.user, mythic)
+		var p := GameData.mythic_progress(Save.user, mythic)
+		second = "%s팀 전원 Lv.%d 필요 (%d/%d명)" % [GameData.team_name(GameData.towers[mythic].team), GameData.MYTHIC_UNLOCK_LEVEL, p[0], p[1]]
+	_card_widgets.recipe.text = "→ %s%s\n%s" % [GameData.MYTHICS[mythic].name, "" if unlocked else " (잠김)", second]
 	var ok := battle.can_awaken(t)
 	_card_widgets.recipe.add_theme_color_override("font_color", UI.GOLD if ok else (UI.MUTED if unlocked else UI.DANGER))
 	_card_widgets.awaken.disabled = not ok
@@ -452,8 +457,17 @@ func _on_tower_selected(t: Tower) -> void:
 	_card_widgets.trade.text = "협상  -%d (%d%%)" % [Battle.trade_cost(t), roundi(Battle.trade_chance(t) * 100)]
 	_card_widgets.trade.disabled = not Battle.can_trade(t)
 	_fill_stats(t)
-	# 화면이 낮으면 팀 업그레이드 줄 자리에 카드를 보여 준다
-	_upgrades.visible = _info_slot.size.y + _card.size.y >= CARD_MIN_HEIGHT * 2
+	_fit_panel()
+
+
+## 카드가 들어가고 패널이 넘치면 (화면이 낮거나 카드가 길면) 팀 업그레이드 줄을 숨겨 아래 버튼이 보이게 한다.
+## 카드 크기는 다음 프레임에 정해지므로 한 프레임 기다렸다가 잰다
+func _fit_panel() -> void:
+	_upgrades.visible = true
+	await get_tree().process_frame
+	var bottom := _panel_col.get_global_rect().end.y
+	if battle.selected != null and (bottom > get_viewport_rect().size.y + 1 or _panel_col.get_combined_minimum_size().y > _panel_col.size.y + 1):
+		_upgrades.visible = false
 
 
 ## 퇴사는 되돌릴 수 없어서 두 번 눌러야 한다 (화면이 낮으면 바로 아래 직원 고용 버튼과 붙어 있어 잘못 누르기 쉽다)
