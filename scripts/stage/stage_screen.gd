@@ -24,7 +24,6 @@ var _info_slot: Control
 var _hint: VBoxContainer
 var _card: PanelContainer
 var _upgrades: HBoxContainer
-var _panel_col: VBoxContainer  # 아래 조작 패널 (넘치는지 재려고)
 var _upgrade_labels := {}
 var _upgrade_costs := {}
 var _card_widgets := {}
@@ -135,7 +134,6 @@ func _build_panel() -> Control:
 	margin.add_theme_constant_override("margin_bottom", 22)
 	panel.add_child(margin)
 	var col := UI.vbox(12)
-	_panel_col = col
 	margin.add_child(col)
 
 	# 가운데: 직원 정보 카드 또는 안내 문구
@@ -229,8 +227,9 @@ func _build_upgrade_card(team: String) -> Button:
 
 
 func _build_tower_card() -> PanelContainer:
-	var card := UI.panel(UI.CARD, 20, 18)
-	var v := UI.vbox(14)
+	# 9:16 보다 넓은 화면은 아래 패널 높이가 고정이라, 전설(신화 조합 줄 포함) 카드가 업그레이드 줄 자리에 들어가도록 촘촘하게 둔다
+	var card := UI.panel(UI.CARD, 20, 12)
+	var v := UI.vbox(10)
 	card.add_child(v)
 	var top := UI.hbox(18)
 	v.add_child(top)
@@ -261,26 +260,26 @@ func _build_tower_card() -> PanelContainer:
 			battle.trade(battle.selected), 28)
 	for b in [sell, trade]:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.custom_minimum_size.y = 76
+		b.custom_minimum_size.y = 68
+		b.add_theme_constant_override("icon_max_width", 40)
 		row.add_child(b)
 	sell.icon = load("res://assets/icons/walk_out.svg")
 	trade.icon = load("res://assets/icons/negociation.svg")
 	sell.expand_icon = false
 	var help := UI.button("?", UI.CARD_HI, _open_help, 28)
-	help.custom_minimum_size = Vector2(76, 76)
+	help.custom_minimum_size = Vector2(68, 68)
 	row.add_child(help)
 	v.add_child(row)
 	# 전설이면 신화 조합 재료와 각성 버튼
 	var mythic := UI.hbox(12)
-	var recipe := UI.label("", 21, UI.MUTED)
-	recipe.max_lines_visible = 2
+	var recipe := UI.label("", 22, UI.MUTED)
 	recipe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	recipe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mythic.add_child(recipe)
 	var awaken := UI.button("신화 각성", Color("7a3fb0"), func():
 		if battle.selected:
 			battle.awaken(battle.selected), 26)
-	awaken.custom_minimum_size = Vector2(170, 70)
+	awaken.custom_minimum_size = Vector2(170, 56)
 	mythic.add_child(awaken)
 	v.add_child(mythic)
 	_card_widgets = {"portrait": portrait, "name": name_label, "grade": grade_label, "stats": stats,
@@ -294,18 +293,18 @@ func _fill_recipe(t: Tower) -> void:
 	_card_widgets.mythic.visible = mythic != ""
 	if mythic == "":
 		return
-	# 카드가 길어져 아래 버튼을 밀어내지 않게 두 줄로만 (자세한 조합식은 신화 조합표)
 	var parts := battle.recipe_towers(t)
 	var names := []
 	var recipe: Array = GameData.MYTHICS[mythic].recipe
 	for i in recipe.size():
-		names.append("%s %s" % [GameData.towers[recipe[i]].towerName, "O" if parts[i] != null else "X"])
+		names.append("%s %s" % [GameData.towers[recipe[i]].towerName, "(보유)" if parts[i] != null else "(없음)"])
 	var unlocked := battle.mythic_unlocked(t)
-	var second := "재료: " + " · ".join(names)
+	var lock := ""
 	if not unlocked:
+		# 카드 높이를 두 줄로 맞추려고 해금 조건을 짧게 붙인다 (자세한 문구는 신화 조합표)
 		var p := GameData.mythic_progress(Save.user, mythic)
-		second = "%s팀 전원 Lv.%d 필요 (%d/%d명)" % [GameData.team_name(GameData.towers[mythic].team), GameData.MYTHIC_UNLOCK_LEVEL, p[0], p[1]]
-	_card_widgets.recipe.text = "→ %s%s\n%s" % [GameData.MYTHICS[mythic].name, "" if unlocked else " (잠김)", second]
+		lock = " (잠김: %s팀 Lv.%d 이상 %d/%d명)" % [GameData.team_name(GameData.towers[mythic].team), GameData.MYTHIC_UNLOCK_LEVEL, p[0], p[1]]
+	_card_widgets.recipe.text = "→ %s%s\n재료: %s" % [GameData.MYTHICS[mythic].name, lock, " + ".join(names)]
 	var ok := battle.can_awaken(t)
 	_card_widgets.recipe.add_theme_color_override("font_color", UI.GOLD if ok else (UI.MUTED if unlocked else UI.DANGER))
 	_card_widgets.awaken.disabled = not ok
@@ -440,6 +439,7 @@ func _process(_delta: float) -> void:
 	# 공격 속도 버프 등으로 바뀌는 능력치를 카드에 계속 반영
 	if _card.visible and battle.selected:
 		_fill_stats(battle.selected)
+		_fit_upgrades()
 
 
 func _on_tower_selected(t: Tower) -> void:
@@ -457,17 +457,18 @@ func _on_tower_selected(t: Tower) -> void:
 	_card_widgets.trade.text = "협상  -%d (%d%%)" % [Battle.trade_cost(t), roundi(Battle.trade_chance(t) * 100)]
 	_card_widgets.trade.disabled = not Battle.can_trade(t)
 	_fill_stats(t)
-	_fit_panel()
+	_fit_upgrades()
 
 
-## 카드가 들어가고 패널이 넘치면 (화면이 낮거나 카드가 길면) 팀 업그레이드 줄을 숨겨 아래 버튼이 보이게 한다.
-## 카드 크기는 다음 프레임에 정해지므로 한 프레임 기다렸다가 잰다
-func _fit_panel() -> void:
-	_upgrades.visible = true
-	await get_tree().process_frame
-	var bottom := _panel_col.get_global_rect().end.y
-	if battle.selected != null and (bottom > get_viewport_rect().size.y + 1 or _panel_col.get_combined_minimum_size().y > _panel_col.size.y + 1):
-		_upgrades.visible = false
+## 카드와 팀 업그레이드 줄이 함께 들어갈 높이가 있을 때만 업그레이드 줄을 보여 준다 (낮은 화면에서는 그 자리에 카드).
+## 카드가 처음 배치되기 전에는 줄바꿈 높이를 크게 잡으므로 _process 에서 다시 맞춘다
+func _fit_upgrades() -> void:
+	var col := _card.get_parent() as VBoxContainer
+	var sep := col.get_theme_constant("separation")
+	# 넘쳐서 col 이 늘어난 상태여도 흔들리지 않게 화면 높이 기준으로 남는 높이를 잰다
+	var room: float = size.y - col.global_position.y - col.get_parent().get_theme_constant("margin_bottom")
+	var need: float = _card.get_combined_minimum_size().y + _upgrades.size.y + _hire_button.get_parent().size.y + sep * 3
+	_upgrades.visible = need <= room
 
 
 ## 퇴사는 되돌릴 수 없어서 두 번 눌러야 한다 (화면이 낮으면 바로 아래 직원 고용 버튼과 붙어 있어 잘못 누르기 쉽다)

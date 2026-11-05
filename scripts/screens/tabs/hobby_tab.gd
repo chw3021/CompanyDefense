@@ -53,7 +53,7 @@ func _card(id: String) -> Control:
 func _refresh() -> void:
 	for id in _cards:
 		var lv: int = Save.user.hobbies[id]
-		_cards[id].level.text = "Lv.%d" % lv
+		_cards[id].level.text = "Lv.MAX" if GameData.hobby_maxed(id, lv) else "Lv.%d" % lv
 		_cards[id].effect.text = GameData.hobby_effect_text(id, lv)
 
 
@@ -62,7 +62,8 @@ func _do_hobby() -> void:
 		_result.text = "시간이 부족합니다"
 		_result.add_theme_color_override("font_color", UI.DANGER)
 		return
-	var id: String = GameData.hobby_ids.pick_random()
+	# 최대 레벨에 닿은 취미는 더 오르지 않게 뽑기에서 뺀다
+	var id: String = GameData.hobby_ids.filter(func(h): return not GameData.hobby_maxed(h, Save.user.hobbies[h])).pick_random()
 	Save.user.hobbies[id] += 1
 	Save.save()
 	_refresh()
@@ -83,7 +84,7 @@ func _open(id: String) -> void:
 	var v := UI.vbox(14)
 	var img := UI.icon(GameData.asset(h.hobbyImagePath), 180)
 	v.add_child(img)
-	v.add_child(UI.label("레벨 %d" % lv, 32, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UI.label("레벨 MAX" if GameData.hobby_maxed(id, lv) else "레벨 %d" % lv, 32, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UI.wrap_label(h.hobbyDescription, 26))
 	v.add_child(UI.label("현재 효과: " + GameData.hobby_effect_text(id, lv), 28, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 	UI.modal(h.hobbyName, v, [["닫기", UI.CARD_HI]], main)
