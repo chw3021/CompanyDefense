@@ -586,6 +586,16 @@ func _open_settings() -> void:
 		refresh.call())
 	refresh.call()
 	v.add_child(speed_button)
+	# 이펙트 품질: 렉이 심하면 최소화/끄기로 바꾼다
+	var quality_button := UI.button("", UI.PRIMARY)
+	quality_button.custom_minimum_size.y = 86
+	var quality_refresh := func(): quality_button.text = "이펙트: %s" % Save.effect_quality_label()
+	quality_button.pressed.connect(func():
+		Save.cycle_effect_quality()
+		quality_refresh.call())
+	quality_refresh.call()
+	v.add_child(quality_button)
+	v.add_child(UI.wrap_label("켜기 → 최소화 → 끄기 순으로 바뀝니다. 최소화는 파티클·화면흔들림을 줄이고, 끄기는 연출을 모두 끕니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	# 스킬 이펙트 진하기: 낮출수록 이펙트 뒤의 직원과 적이 잘 보인다
 	var fx_label := UI.label("", 26)
 	var fx_slider := HSlider.new()
@@ -601,7 +611,45 @@ func _open_settings() -> void:
 	fx_refresh.call(fx_slider.value)
 	v.add_child(fx_label)
 	v.add_child(fx_slider)
-	v.add_child(UI.wrap_label("낮출수록 스킬 이펙트가 투명해져 직원과 적이 잘 보입니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(UI.wrap_label("낮출수록 스킬 이펙트가 투명해져 직원과 적이 잘 보입니다. (이펙트 켜기일 때만 적용)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	var lite_btn := UI.button("", UI.PRIMARY)
+	lite_btn.custom_minimum_size.y = 72
+	var lite_refresh := func(): lite_btn.text = "투사체 히트 연출: %s" % ("간소화" if Save.lite_projectiles() else "기본")
+	lite_btn.pressed.connect(func():
+		Save.set_lite_projectiles(not Save.lite_projectiles())
+		lite_refresh.call())
+	lite_refresh.call()
+	v.add_child(lite_btn)
+	var low_btn := UI.button("저사양 프리셋 적용", UI.WARN)
+	low_btn.custom_minimum_size.y = 72
+	low_btn.pressed.connect(func():
+		Save.apply_low_perf_preset()
+		quality_refresh.call()
+		lite_refresh.call()
+		UI.toast("저사양 프리셋을 적용했습니다.", UI.GOLD))
+	v.add_child(low_btn)
+	v.add_child(UI.wrap_label("저사양: 이펙트 끄기 + 투사체 히트 생략 + 데미지 숫자 합치기 강화", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	for item in [
+		["전체 볼륨", Save.volume_master, Save.set_volume_master],
+		["BGM", Save.volume_bgm, Save.set_volume_bgm],
+		["효과음", Save.volume_sfx, Save.set_volume_sfx],
+	]:
+		var vol_label := UI.label("", 26)
+		var vol_slider := HSlider.new()
+		vol_slider.min_value = 0.0
+		vol_slider.max_value = 1.0
+		vol_slider.step = 0.05
+		vol_slider.value = item[1].call()
+		vol_slider.custom_minimum_size.y = 48
+		var title: String = item[0]
+		var vol_refresh := func(value: float): vol_label.text = "%s: %d%%" % [title, roundi(value * 100)]
+		vol_slider.value_changed.connect(func(value: float):
+			item[2].call(value)
+			vol_refresh.call(value))
+		vol_refresh.call(vol_slider.value)
+		v.add_child(vol_label)
+		v.add_child(vol_slider)
+	v.add_child(UI.wrap_label("볼륨은 오디오 버스에 바로 적용됩니다. (BGM/효과음 리소스가 추가되면 해당 버스로 재생됩니다)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
 	UI.modal("설정", v, [["닫기", UI.CARD_HI]], self)
 

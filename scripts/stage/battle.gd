@@ -20,11 +20,15 @@ signal tower_attacked(t: Tower, target: Enemy, melee: bool)
 signal skill_cast(t: Tower)
 signal projectile_hit(p: Dictionary)
 signal mythic_born(t: Tower)
+signal rest_started(reason: String)  # 정비 시작 (UI가 배너/버튼 갱신)
+signal rest_ended
 
 const SPAWN_COST := 100
 const TRADE_CHANCES := [0.8, 0.6, 0.4, 0.25, 0.1]  # 협상 성공 확률 (1~5성)
 const MAX_LIFE := 8
 const DT_CLAMP := 0.1
+const MOVE_COOLDOWN := 2   # 전설+ 자리 이동 쿨 (웨이브/라운드)
+const REST_EVERY := 10     # 야근: N라운드마다 자동 정비
 
 var stage_id: int
 var def: Dictionary
@@ -48,6 +52,7 @@ var kills := 0
 var score := 0
 var speed := 1.0
 var paused := false
+var resting := false  # 자동/보스 정비: 시뮬 정지, 배치는 가능
 var finished := false
 var won := false
 var endless := false  # 무한 모드: 웨이브가 끝나지 않고, 목숨이 다하면 끝
@@ -55,6 +60,7 @@ var loop := false     # 고리 맵 서바이벌: 적이 계속 돌고, 라운드
 var max_enemies := 0
 var round_sec := 0.0
 var round_left := 0.0      # 다음 라운드까지 남은 시간
+var rest_reason := ""      # 정비 안내 문구
 var _crowd_warned := false
 var boss_room := Vector2.ZERO  # 보스방 가운데 (고리 맵에 보스방이 있으면)
 var has_boss_room := false
@@ -153,7 +159,7 @@ func wave_has_boss(index: int) -> bool:
 # ------------------------------------------------------------------ 루프
 
 func _process(delta: float) -> void:
-	if paused or finished:
+	if paused or resting or finished:
 		return
 	var dt := minf(delta, DT_CLAMP) * speed
 	_time += dt
@@ -168,6 +174,11 @@ func _process(delta: float) -> void:
 		t.update(dt)
 	_update_projectiles(dt)
 	_update_effects(dt)
+
+
+## 일시정지·정비 중에는 시뮬만 멈추고 배치는 할 수 있다
+func setup_frozen() -> bool:
+	return paused or resting
 
 
 func game_time() -> float:
@@ -236,11 +247,53 @@ func _next_round() -> void:
 	score += 100
 	var bonus := 30 + 10 * wave_index
 	coins += bonus
-	_queue_wave(wave_index)
-	round_left += round_sec
+	_tick_reposition_cds()
 	message.emit("라운드 보너스 +%d" % bonus, UI.GOLD)
+	# 10라운드마다(보스 라운드 포함) 정비 — 큐잉은 end_rest 에서
+	if _should_auto_rest():
+		var boss := wave_has_boss(wave_index)
+		_begin_rest("보스 등장 전 정비" if boss else "%d라운드 정비" % REST_EVERY)
+		hud_changed.emit()
+		return
+	_resume_round()
+
+
+func _should_auto_rest() -> bool:
+	# 야근: 보스 라운드(5·10…) + 10라운드마다 정비
+	if not loop:
+		return false
+	var shown := wave_index + 1
+	return shown % REST_EVERY == 0 or wave_has_boss(wave_index)
+
+
+func _begin_rest(reason: String) -> void:
+	resting = true
+	rest_reason = reason
+	rest_started.emit(reason)
+	message.emit(reason + "\n배치를 정리한 뒤 정비를 마쳐 주세요", UI.GOLD)
+	hud_changed.emit()
+
+
+func end_rest() -> void:
+	if not resting or finished:
+		return
+	resting = false
+	rest_reason = ""
+	_resume_round()
+	rest_ended.emit()
+
+
+func _resume_round() -> void:
+	_queue_wave(wave_index)
+	round_left = round_sec
 	wave_started.emit(wave_index)
 	hud_changed.emit()
+
+
+func _tick_reposition_cds() -> void:
+	for t: Tower in towers:
+		if t.reposition_cd > 0:
+			t.reposition_cd -= 1
 
 
 func alive_count() -> int:
@@ -265,12 +318,13 @@ func _on_wave_cleared() -> void:
 	score += 100
 	var bonus := 50 + 25 * wave_index
 	coins += bonus
+	_tick_reposition_cds()
 	if not has_wave(wave_index):
 		_end(true)
 		return
 	var text := "웨이브 클리어! +%d" % bonus
 	if next_wave_has_boss():
-		text += "\n다음 웨이브: 보스 등장!"
+		text += "\n다음 웨이브: 보스 등장! 배치를 정리하세요"
 	message.emit(text, UI.GOLD)
 	hud_changed.emit()
 
@@ -358,7 +412,7 @@ func hire() -> void:
 	if coins < SPAWN_COST:
 		message.emit("코인이 부족합니다", UI.DANGER)
 		return
-	var free := _free_desks()
+	var free := _free_desks_preferred()
 	if free.is_empty():
 		message.emit("빈 자리가 없습니다", UI.DANGER)
 		return
@@ -367,7 +421,7 @@ func hire() -> void:
 		message.emit("소환할 수 있는 직원이 없습니다", UI.DANGER)
 		return
 	coins -= SPAWN_COST
-	tower_placed.emit(_place(candidates.pick_random(), free.pick_random()), false)
+	tower_placed.emit(_place(candidates.pick_random(), free[0]), false)
 	session.hires += 1
 	hud_changed.emit()
 
@@ -376,16 +430,65 @@ func hire() -> void:
 func summon_special() -> void:
 	if finished or relics <= 0:
 		return
-	var free := _free_desks()
+	var free := _free_desks_preferred()
 	if free.is_empty():
 		message.emit("빈 자리가 없습니다", UI.DANGER)
 		return
 	relics -= 1
-	var t := _place(GameData.SPECIALS.keys().pick_random(), free.pick_random())
+	var t := _place(GameData.SPECIALS.keys().pick_random(), free[0])
 	tower_placed.emit(t, true)
 	floating.emit("특수 직원!", t.center() + Vector2(0, -cell * 0.5), GameData.SPECIAL_COLOR)
 	select(t)
 	hud_changed.emit()
+
+
+## 선호 자리가 비어 있으면 그쪽을 먼저, 나머지는 랜덤 섞기
+func _free_desks_preferred() -> Array:
+	var free: Array = _free_desks()
+	if free.is_empty():
+		return free
+	var preferred: Array = []
+	var rest: Array = free.duplicate()
+	for key in Save.desk_prefs(stage_id):
+		var c := Save.parse_desk_cell(str(key))
+		if c.x < 0:
+			continue
+		var idx := rest.find(c)
+		if idx >= 0:
+			preferred.append(c)
+			rest.remove_at(idx)
+	rest.shuffle()
+	return preferred + rest
+
+
+## 지금 직원이 앉은 자리를 선호이즈 선호 책상으로 저장
+func save_desk_prefs_from_towers() -> void:
+	var cells: Array = []
+	for t: Tower in towers:
+		cells.append(t.cell)
+	Save.set_desk_prefs(stage_id, cells)
+	message.emit("선호 자리 %d칸 저장" % cells.size(), UI.GOLD)
+
+
+func clear_desk_prefs() -> void:
+	Save.clear_desk_prefs(stage_id)
+	message.emit("선호 자리를 지웠습니다", UI.MUTED)
+
+
+## 전설+ 를 빈 책상으로 옮긴다 (쿨 MOVE_COOLDOWN 웨이브)
+func reposition(t: Tower, dest: Vector2i) -> bool:
+	if finished or t == null or not t.can_reposition():
+		return false
+	if not dest in desk_cells or tower_at_cell(dest) != null:
+		message.emit("빈 책상으로만 이동할 수 있습니다", UI.DANGER)
+		return false
+	t.cell = dest
+	t.reposition_cd = MOVE_COOLDOWN
+	floating.emit("이동!", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
+	tower_placed.emit(t, false)
+	select(t)
+	hud_changed.emit()
+	return true
 
 
 ## dragged 를 target 위에 놓았을 때: 둘을 합쳐 한 등급 높은 무작위 직원으로
@@ -409,11 +512,14 @@ func merge(dragged: Tower, target: Tower, select_result := true) -> void:
 
 
 ## grade 등급에서 같은 직원끼리 짝지을 수 있는 쌍 [[a, b], ...]
-func merge_pairs(grade: int) -> Array:
+func merge_pairs(grade: int, team := "") -> Array:
 	var by_id := {}
 	for t: Tower in towers:
-		if t.grade == grade and grade < GameData.MAX_GRADE:
-			by_id[t.id] = by_id.get(t.id, []) + [t]
+		if t.grade != grade or grade >= GameData.MAX_GRADE:
+			continue
+		if team != "" and t.team != team:
+			continue
+		by_id[t.id] = by_id.get(t.id, []) + [t]
 	var pairs := []
 	for id in by_id:
 		var list: Array = by_id[id]
@@ -423,15 +529,43 @@ func merge_pairs(grade: int) -> Array:
 
 
 ## 자동 승진: grade 등급의 짝을 모두 합친다. 합친 쌍 수를 돌려준다
-func merge_all(grade: int) -> int:
+func merge_all(grade: int, team := "") -> int:
 	if finished:
 		return 0
-	var pairs := merge_pairs(grade)
+	var pairs := merge_pairs(grade, team)
 	for pair in pairs:
 		merge(pair[0], pair[1], false)
 	if not pairs.is_empty():
-		message.emit("%d성 %d쌍 승진!" % [grade, pairs.size()], UI.GOLD)
+		var scope := Save.merge_auto_team_label(team) if team != "" else ""
+		var prefix := ("%s " % scope) if scope != "" and scope != "전체" else ""
+		message.emit("%s%d성 %d쌍 승진!" % [prefix, grade, pairs.size()], UI.GOLD)
 	return pairs.size()
+
+
+## 1성부터 max_grade 성까지 연쇄 자동 승진 (설정 팀 필터 적용)
+func merge_auto() -> int:
+	var max_grade := Save.merge_auto_grade()
+	var team := Save.merge_auto_team()
+	var total := 0
+	var guard := 0
+	while guard < 20:
+		guard += 1
+		var gained := 0
+		for g in range(1, max_grade + 1):
+			gained += merge_all(g, team)
+		total += gained
+		if gained == 0:
+			break
+	return total
+
+
+func merge_auto_pairs_count() -> int:
+	var max_grade := Save.merge_auto_grade()
+	var team := Save.merge_auto_team()
+	var n := 0
+	for g in range(1, max_grade + 1):
+		n += merge_pairs(g, team).size()
+	return n
 
 
 static func sell_price(t: Tower) -> int:
@@ -620,6 +754,9 @@ func _update_projectiles(dt: float) -> void:
 
 ## 스킬 이펙트 애니메이션 (게임 시간 기준으로 재생/삭제)
 func add_effect(sheet: String, at: Vector2, size: float, lifetime: float) -> void:
+	# 최소화/끄기에서는 시트 애니메이션을 아예 만들지 않는다 (드로우·업데이트 비용이 크다)
+	if Save.effect_quality() != Save.FX_ON:
+		return
 	effects.append({"sheet": sheet, "pos": at, "size": size, "life": lifetime, "age": 0.0})
 
 

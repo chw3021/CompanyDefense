@@ -110,7 +110,7 @@ func reset() -> void:
 
 ## 데이터에 새 직원/취미/장비가 추가되었으면 채우고, 사라진 직원은 지운다
 func _normalize() -> void:
-	for key in ["towers", "hobbies", "equipment", "best_scores"]:
+	for key in ["towers", "hobbies", "equipment", "best_scores", "desk_prefs"]:
 		if not user.has(key) or typeof(user[key]) != TYPE_DICTIONARY:
 			user[key] = {}
 	if not user.has("mails"):
@@ -356,3 +356,165 @@ func effect_alpha() -> float:
 func set_effect_alpha(alpha: float) -> void:
 	settings.set_value("game", "effect_alpha", clampf(alpha, 0.0, 1.0))
 	settings.save(SETTINGS_PATH)
+
+
+## 이펙트 품질: on(켜기) / min(최소화) / off(끄기)
+const FX_ON := "on"
+const FX_MIN := "min"
+const FX_OFF := "off"
+const FX_ORDER := [FX_ON, FX_MIN, FX_OFF]
+
+
+func effect_quality() -> String:
+	var q: String = str(settings.get_value("game", "effect_quality", FX_ON))
+	return q if q in FX_ORDER else FX_ON
+
+
+func set_effect_quality(quality: String) -> void:
+	settings.set_value("game", "effect_quality", quality if quality in FX_ORDER else FX_ON)
+	settings.save(SETTINGS_PATH)
+
+
+func cycle_effect_quality() -> String:
+	var next: String = FX_ORDER[(FX_ORDER.find(effect_quality()) + 1) % FX_ORDER.size()]
+	set_effect_quality(next)
+	return next
+
+
+func effect_quality_label(quality := "") -> String:
+	match quality if not quality.is_empty() else effect_quality():
+		FX_MIN:
+			return "최소화"
+		FX_OFF:
+			return "끄기"
+		_:
+			return "켜기"
+
+
+## 저사양: 이펙트 끄기 + 투사체 히트 연출 생략 + 데미지 숫자 합치기 강화
+func apply_low_perf_preset() -> void:
+	set_effect_quality(FX_OFF)
+	set_lite_projectiles(true)
+	set_dmg_batch_sec(0.55)
+
+
+func lite_projectiles() -> bool:
+	return bool(settings.get_value("game", "lite_projectiles", false))
+
+
+func set_lite_projectiles(on: bool) -> void:
+	settings.set_value("game", "lite_projectiles", on)
+	settings.save(SETTINGS_PATH)
+
+
+## 데미지 숫자를 모아서 띄우는 간격 (초). 길수록 글자가 덜 뜬다
+func dmg_batch_sec() -> float:
+	return float(settings.get_value("game", "dmg_batch_sec", 0.25))
+
+
+func set_dmg_batch_sec(sec: float) -> void:
+	settings.set_value("game", "dmg_batch_sec", clampf(sec, 0.15, 1.0))
+	settings.save(SETTINGS_PATH)
+
+
+func volume_master() -> float:
+	return float(settings.get_value("audio", "master", 1.0))
+
+
+func volume_bgm() -> float:
+	return float(settings.get_value("audio", "bgm", 0.8))
+
+
+func volume_sfx() -> float:
+	return float(settings.get_value("audio", "sfx", 1.0))
+
+
+func set_volume_master(v: float) -> void:
+	settings.set_value("audio", "master", clampf(v, 0.0, 1.0))
+	settings.save(SETTINGS_PATH)
+	Audio.apply_volumes()
+
+
+func set_volume_bgm(v: float) -> void:
+	settings.set_value("audio", "bgm", clampf(v, 0.0, 1.0))
+	settings.save(SETTINGS_PATH)
+	Audio.apply_volumes()
+
+
+func set_volume_sfx(v: float) -> void:
+	settings.set_value("audio", "sfx", clampf(v, 0.0, 1.0))
+	settings.save(SETTINGS_PATH)
+	Audio.apply_volumes()
+
+
+## 자동 승진: 1~max 성까지 합침 (기본 1)
+func merge_auto_grade() -> int:
+	return clampi(int(settings.get_value("game", "merge_auto_grade", 1)), 1, GameData.MAX_GRADE - 1)
+
+
+func set_merge_auto_grade(grade: int) -> void:
+	settings.set_value("game", "merge_auto_grade", clampi(grade, 1, GameData.MAX_GRADE - 1))
+	settings.save(SETTINGS_PATH)
+
+
+## 자동 승진 팀 필터 ("" = 전체)
+func merge_auto_team() -> String:
+	var team: String = str(settings.get_value("game", "merge_auto_team", ""))
+	return team if team in GameData.TEAMS else ""
+
+
+func set_merge_auto_team(team: String) -> void:
+	settings.set_value("game", "merge_auto_team", team if team in GameData.TEAMS else "")
+	settings.save(SETTINGS_PATH)
+
+
+func cycle_merge_auto_grade() -> int:
+	var next := merge_auto_grade() % (GameData.MAX_GRADE - 1) + 1
+	set_merge_auto_grade(next)
+	return next
+
+
+func cycle_merge_auto_team() -> String:
+	var order: Array = [""] + GameData.TEAMS.duplicate()
+	var i := order.find(merge_auto_team())
+	var next: String = order[(maxi(i, 0) + 1) % order.size()]
+	set_merge_auto_team(next)
+	return next
+
+
+func merge_auto_team_label(team: Variant = null) -> String:
+	var t: String = merge_auto_team() if team == null else str(team)
+	return GameData.team_name(t) if t in GameData.TEAMS else "전체"
+
+
+## 스테이지별 선호 책상 좌표 ["x,y", ...]
+func desk_prefs(stage_id: int) -> Array:
+	var raw = user.get("desk_prefs", {}).get(str(stage_id), [])
+	return raw if typeof(raw) == TYPE_ARRAY else []
+
+
+func set_desk_prefs(stage_id: int, cells: Array) -> void:
+	if not user.has("desk_prefs") or typeof(user.desk_prefs) != TYPE_DICTIONARY:
+		user.desk_prefs = {}
+	var encoded: Array = []
+	for c in cells:
+		if c is Vector2i:
+			encoded.append("%d,%d" % [c.x, c.y])
+		elif typeof(c) == TYPE_STRING:
+			encoded.append(c)
+	user.desk_prefs[str(stage_id)] = encoded
+	save()
+
+
+func clear_desk_prefs(stage_id: int) -> void:
+	if user.get("desk_prefs", {}).has(str(stage_id)):
+		user.desk_prefs.erase(str(stage_id))
+		save()
+
+
+func parse_desk_cell(key: String) -> Vector2i:
+	var parts := key.split(",")
+	if parts.size() != 2:
+		return Vector2i(-1, -1)
+	return Vector2i(int(parts[0]), int(parts[1]))
+

@@ -11,6 +11,7 @@ var _life_label: Label
 var _coin_label: Label
 var _wave_label: Label
 var _speed_button: Button
+var _fx_button: Button
 var _wave_button: Button
 var _hire_button: Button
 var _relic_button: Button
@@ -28,6 +29,8 @@ var _upgrade_labels := {}
 var _upgrade_costs := {}
 var _card_widgets := {}
 var _pause_modal: Control
+var _setup_bar: PanelContainer  # 일시정지/정비 중 맵을 가리지 않는 하단 바
+var _setup_label: Label
 var _last_life := 0
 
 
@@ -43,6 +46,8 @@ func _ready() -> void:
 	battle.tower_selected.connect(_on_tower_selected)
 	battle.game_over.connect(_on_game_over)
 	battle.wave_started.connect(_show_wave_banner)
+	battle.rest_started.connect(func(_reason: String): _refresh_setup_bar())
+	battle.rest_ended.connect(_refresh_setup_bar)
 	_last_life = battle.life
 	_refresh_hud()
 	_show_banner()
@@ -121,6 +126,9 @@ func _build_hud() -> Control:
 	_speed_button = UI.button("", UI.CARD_HI, _toggle_speed, 28)
 	_speed_button.custom_minimum_size = Vector2(72, 64)
 	row.add_child(_speed_button)
+	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 24)
+	_fx_button.custom_minimum_size = Vector2(72, 64)
+	row.add_child(_fx_button)
 	return hud
 
 
@@ -144,17 +152,27 @@ func _build_panel() -> Control:
 	_hint = UI.vbox(14)
 	_hint.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!", 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n전설 이상은 빈 책상으로 이동 (쿨 2웨이브)", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var tools := UI.hbox(12)
 	tools.alignment = BoxContainer.ALIGNMENT_CENTER
-	_merge_button = UI.button("", UI.SUCCESS, func(): battle.merge_all(1), 24)
-	var book := UI.button("신화 조합표", Color("7a3fb0"), _open_recipes, 24)
-	var help := UI.button("도움말", UI.CARD_HI, _open_help, 24)
-	for b in [_merge_button, book, help]:
+	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 22)
+	var merge_cfg := UI.button("승진설정", UI.CARD_HI, _open_merge_settings, 22)
+	var book := UI.button("신화 조합표", Color("7a3fb0"), _open_recipes, 22)
+	var help := UI.button("도움말", UI.CARD_HI, _open_help, 22)
+	for b in [_merge_button, merge_cfg, book, help]:
 		b.custom_minimum_size = Vector2(0, 64)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tools.add_child(b)
 	_hint.add_child(tools)
+	var pref_row := UI.hbox(10)
+	pref_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var save_pref := UI.button("선호 자리 저장", UI.PRIMARY, func(): battle.save_desk_prefs_from_towers(), 22)
+	var clear_pref := UI.button("선호 자리 삭제", UI.CARD_HI, func(): battle.clear_desk_prefs(), 22)
+	for b in [save_pref, clear_pref]:
+		b.custom_minimum_size = Vector2(0, 56)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pref_row.add_child(b)
+	_hint.add_child(pref_row)
 	_info_slot.add_child(_hint)
 	_card = _build_tower_card()
 	_card.visible = false
@@ -198,13 +216,69 @@ func _build_panel() -> Control:
 	_relic_button.add_child(relic_content)
 	actions.add_child(_relic_button)
 
-	_wave_button = UI.button("웨이브 시작", UI.DANGER, battle.start_wave, 34)
+	_wave_button = UI.button("웨이브 시작", UI.DANGER, _on_wave_pressed, 34)
 	_wave_button.icon = UI.play_icon()
 	_wave_button.custom_minimum_size.y = 112
 	_wave_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actions.add_child(_wave_button)
 	col.add_child(actions)
+
+	_setup_bar = UI.panel(UI.CARD, 12, 12)
+	_setup_bar.visible = false
+	var setup_row := UI.hbox(10)
+	_setup_bar.add_child(setup_row)
+	_setup_label = UI.label("", 24, UI.GOLD)
+	_setup_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	setup_row.add_child(_setup_label)
+	var resume := UI.button("계속", UI.PRIMARY, _resume_setup, 24)
+	resume.custom_minimum_size = Vector2(120, 56)
+	setup_row.add_child(resume)
+	var give_up := UI.button("포기", UI.DANGER, _confirm_give_up, 24)
+	give_up.custom_minimum_size = Vector2(100, 56)
+	setup_row.add_child(give_up)
+	col.add_child(_setup_bar)
 	return panel
+
+
+func _on_wave_pressed() -> void:
+	if battle.resting:
+		battle.end_rest()
+	elif battle.paused:
+		_resume_setup()
+	else:
+		battle.start_wave()
+
+
+func _on_merge_pressed() -> void:
+	if battle.merge_auto_pairs_count() == 0:
+		_open_merge_settings()
+	else:
+		battle.merge_auto()
+		_refresh_hud()
+
+
+func _open_merge_settings() -> void:
+	var v := UI.vbox(14)
+	var grade_btn := UI.button("", UI.PRIMARY)
+	grade_btn.custom_minimum_size.y = 72
+	var grade_refresh := func(): grade_btn.text = "승진 범위: 1~%d성" % Save.merge_auto_grade()
+	grade_btn.pressed.connect(func():
+		Save.cycle_merge_auto_grade()
+		grade_refresh.call()
+		_refresh_hud())
+	grade_refresh.call()
+	v.add_child(grade_btn)
+	var team_btn := UI.button("", UI.PRIMARY)
+	team_btn.custom_minimum_size.y = 72
+	var team_refresh := func(): team_btn.text = "팀 필터: %s" % Save.merge_auto_team_label()
+	team_btn.pressed.connect(func():
+		Save.cycle_merge_auto_team()
+		team_refresh.call()
+		_refresh_hud())
+	team_refresh.call()
+	v.add_child(team_btn)
+	v.add_child(UI.wrap_label("자동 승진 버튼을 누르면 선택한 범위·팀의 짝을 연쇄로 합칩니다.\n(모바일: 도움말에서도 바꿀 수 있습니다)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	UI.modal("자동 승진 설정", v, [["닫기", UI.CARD_HI]], self)
 
 
 func _build_upgrade_card(team: String) -> Button:
@@ -372,6 +446,14 @@ func _open_help() -> void:
 	line.call("직원을 누르고 '협상'을 누르면 50 × 등급 코인을 내고 같은 등급의 다른 직원으로 바꿉니다.\n실패하면 그 직원은 퇴사하고 코인은 돌려받지 못합니다. 신화와 특수 직원은 협상할 수 없습니다.", UI.MUTED)
 	line.call("성공 확률: " + " · ".join(chances), UI.TEXT)
 
+	section.call("전설 이동 · 정비")
+	line.call("전설(5성) 이상 직원은 빈 책상으로 끌어 이동할 수 있습니다. 이동 후 %d웨이브(라운드) 동안 다시 옮길 수 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
+	line.call("일시정지와 정비 시간에는 전투만 멈추고 고용·승진·이동이 가능합니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
+	line.call("선호 자리 저장: 지금 앉아 있는 칸을 기억해 두고, 직원 고용 시 그 빈자리를 먼저 씁니다.", UI.MUTED)
+
+	section.call("자동 승진")
+	line.call("현재 범위 1~%d성 / 팀: %s. '승진설정'에서 바꿀 수 있습니다." % [Save.merge_auto_grade(), Save.merge_auto_team_label()], UI.TEXT)
+
 	section.call("적 방어력")
 	line.call("받는 피해 = 피해 × (1 - 방어 ÷ (방어 + 100)). 괄호 안은 줄어드는 피해입니다.\n맵에서 체력바 옆 '물'(주황)·'마'(파랑) 표시는 그 피해가 잘 들어가는 적입니다.", UI.MUTED)
 	var grid := GridContainer.new()
@@ -420,16 +502,29 @@ func _refresh_hud() -> void:
 	else:
 		_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
 	_speed_button.text = "x%d" % int(battle.speed)
+	_fx_button.text = Save.effect_quality_label()
 	var can_start := battle.can_start_wave()
-	_wave_button.disabled = not can_start
-	var start_text := "야근 시작" if battle.loop else "웨이브 시작"
-	_wave_button.text = start_text if can_start else ("진행 중" if battle.wave_running else "종료")
+	if battle.resting:
+		_wave_button.disabled = false
+		_wave_button.text = "정비 완료"
+	elif battle.paused:
+		_wave_button.disabled = false
+		_wave_button.text = "계속하기"
+	else:
+		_wave_button.disabled = not can_start
+		var start_text := "야근 시작" if battle.loop else "웨이브 시작"
+		_wave_button.text = start_text if can_start else ("진행 중" if battle.wave_running else "종료")
 	_hire_button.modulate.a = 1.0 if battle.coins >= Battle.SPAWN_COST else 0.6
 	_relic_button.visible = battle.relics > 0
 	_relic_label.text = "유물 x%d" % battle.relics
-	var pairs := battle.merge_pairs(1).size()
-	_merge_button.text = "1성 모두 승진 (%d쌍)" % pairs
-	_merge_button.disabled = pairs == 0
+	var pairs := battle.merge_auto_pairs_count()
+	var team_tag := Save.merge_auto_team_label()
+	var scope := "1~%d성" % Save.merge_auto_grade()
+	if team_tag != "전체":
+		scope = "%s %s" % [team_tag, scope]
+	_merge_button.text = "자동 승진 %s (%d)" % [scope, pairs]
+	_merge_button.disabled = false
+	_refresh_setup_bar()
 	for team in GameData.TEAMS:
 		_upgrade_labels[team].text = "%s Lv.%d" % [GameData.team_name(team), battle.team_level[team]]
 		_upgrade_costs[team].text = str(battle.upgrade_cost(team))
@@ -587,22 +682,62 @@ func _toggle_speed() -> void:
 	_refresh_hud()
 
 
+func _toggle_fx() -> void:
+	Save.cycle_effect_quality()
+	view.apply_effect_settings()
+	_refresh_hud()
+
+
 func _toggle_pause() -> void:
 	if battle.finished:
 		return
+	# 정비 중 II: 정비 종료. 일시정지 중 II: 재개
+	if battle.resting:
+		battle.end_rest()
+		return
+	if battle.paused:
+		_resume_setup()
+		return
+	battle.paused = true
+	_refresh_setup_bar()
+	_refresh_hud()
+	# 맵을 가리지 않도록 전체 모달 대신 안내만. 포기는 하단 바에서
+	battle.message.emit("일시정지 — 배치를 수정할 수 있습니다", UI.WARN)
+
+
+func _resume_setup() -> void:
+	if battle.resting:
+		battle.end_rest()
+		return
+	battle.paused = false
 	if is_instance_valid(_pause_modal):
 		UI.close_modal(_pause_modal)
 		_pause_modal = null
-		battle.paused = false
-		return
-	battle.paused = true
+	_refresh_setup_bar()
+	_refresh_hud()
+
+
+func _confirm_give_up() -> void:
 	var text := UI.label("스테이지를 포기하면 보상을 받을 수 없습니다.", 28, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
-	_pause_modal = UI.modal("일시정지", text, [
-		["계속하기", UI.PRIMARY, func(): battle.paused = false],
+	_pause_modal = UI.modal("포기하기", text, [
+		["취소", UI.CARD_HI],
 		["포기하기", UI.DANGER, func():
 			battle.flush_session()
 			UI.go("res://scenes/main.tscn")],
 	], self, false)
+
+
+func _refresh_setup_bar() -> void:
+	if _setup_bar == null:
+		return
+	var frozen := battle.setup_frozen() and not battle.finished
+	_setup_bar.visible = frozen
+	if not frozen:
+		return
+	if battle.resting:
+		_setup_label.text = battle.rest_reason if battle.rest_reason != "" else "정비 시간"
+	else:
+		_setup_label.text = "일시정지 · 배치 수정 가능"
 
 
 # ------------------------------------------------------------------ 종료

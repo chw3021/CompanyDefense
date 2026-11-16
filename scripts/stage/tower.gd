@@ -36,6 +36,7 @@ var attack_duration := 0.0
 var spawn_anim := 0.0   # 배치 직후 튀어나오는 연출
 var buff_glow := 0.0
 var stun_left := 0.0    # 전화기 벨소리에 통화 중 (공격도 스킬도 못 한다)
+var reposition_cd := 0  # 전설+ 자리 이동 남은 웨이브/라운드 수
 
 
 func _init(p_id: String, template: Dictionary, p_battle, p_cell: Vector2i) -> void:
@@ -75,6 +76,11 @@ func center() -> Vector2:
 func can_merge_with(other: Tower) -> bool:
 	return other != null and other != self and grade < GameData.MAX_GRADE \
 			and other.id == id and other.grade == grade
+
+
+## 전설(5성) 이상만 빈 책상으로 이동할 수 있다
+func can_reposition() -> bool:
+	return grade >= GameData.MAX_GRADE and reposition_cd <= 0
 
 
 ## 팀 업그레이드와 버프를 반영해 현재 능력치를 다시 계산

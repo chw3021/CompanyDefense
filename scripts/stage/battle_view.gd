@@ -27,7 +27,8 @@ var _frame_counts := {}   # sheet path -> 프레임 수
 var _boxes := {}          # 스타일박스 캐시: 색 -> {반지름 * 64 + 테두리 -> StyleBoxTexture}
 var _shapes := {}         # 미리 만든 흰색 도형 이미지 (원, 둥근 박스, 발판 고리, 별)
 var _path_cells := {}     # Vector2i -> true
-var _effect_alpha := 0.75  # 스킬 이펙트 불투명도 (설정값, 스테이지 시작 때 읽는다)
+var _effect_alpha := 0.75  # 스킬 이펙트 불투명도 (설정값)
+var _fx_quality := Save.FX_ON  # on / min / off (런타임에 바꿀 수 있다)
 
 # 연출 (게임 시간 기준으로 움직이고, 일시정지하면 멈춘다)
 var _fx: Array = []       # 파티클/고리/글자 {kind, pos, vel, age, life, size, color, rot, spin, text}
@@ -40,6 +41,7 @@ var _dragging := false
 var _drag_pos := Vector2.ZERO
 var _press_pos := Vector2.ZERO
 var _hover_target: Tower
+var _hover_desk := Vector2i(-1, -1)  # 전설+ 이동 후보 빈 책상
 
 
 func setup(p_battle: Battle) -> void:
@@ -49,7 +51,7 @@ func setup(p_battle: Battle) -> void:
 	_bg = load("res://assets/background/stage1.png")
 	_enemy_tex = load("res://assets/enemy/printer.png")
 	_bolt_tex = load("res://assets/tower/projectile.png")
-	_effect_alpha = Save.effect_alpha()
+	apply_effect_settings()
 	for row in battle.map.size():
 		for col in battle.map[row].size():
 			var v := float(battle.map[row][col])
@@ -73,7 +75,7 @@ func setup(p_battle: Battle) -> void:
 
 
 func _process(delta: float) -> void:
-	var dt := 0.0 if battle.paused else delta * battle.speed
+	var dt := 0.0 if battle.setup_frozen() else delta * battle.speed
 	_update_fx(dt)
 	_dyn.queue_redraw()
 
@@ -370,6 +372,10 @@ func _draw_tower_hud(t: Tower) -> void:
 		_star(row + Vector2((i - (t.grade - 1) / 2.0) * gap, 0), star_r, Color(grade_color.lightened(0.15), alpha))
 	if battle.selected == t:
 		_outline(Rect2(base, Vector2(c, c)).grow(-2), UI.TEXT, 12, 3)
+	# 전설+ 이동 쿨 표시
+	if t.grade >= GameData.MAX_GRADE and t.reposition_cd > 0:
+		_rounded(Rect2(center_x - c * 0.28, base.y + c * 0.02, c * 0.56, c * 0.2), Color(0, 0, 0, 0.7), 8)
+		_text(Vector2(center_x, base.y + c * 0.12), "이동 %d" % t.reposition_cd, 15, UI.MUTED)
 
 
 ## 다섯 꼭지 별
@@ -649,12 +655,42 @@ func _draw_effect(fx: Dictionary) -> void:
 # ------------------------------------------------------------------ 연출 (파티클, 데미지 숫자, 화면 흔들림)
 
 const MAX_FX := 400
+const MAX_FX_MIN := 80
+# 최소화에서 건너뛰는 무거운 장식 파티클 (데미지 글자·슬래시·빔 등은 유지)
+const FX_MIN_SKIP := {
+	"flash": true, "glyph": true, "paper": true, "coin": true, "heart": true,
+	"card": true, "pixel": true, "ray": true, "zone": true, "ghost": true,
+}
 const DMG_PHYSICAL := Color("ffcf7a")
 const DMG_MAGIC := Color("8fc8ff")
 
 
+## 설정 변경 시 호출 (메인/인게임). 끄기로 바꾸면 이미 떠 있는 이펙트도 즉시 비운다.
+func apply_effect_settings() -> void:
+	_effect_alpha = Save.effect_alpha()
+	_fx_quality = Save.effect_quality()
+	if _fx_quality == Save.FX_OFF:
+		_fx.clear()
+		_shake = 0.0
+		_red_flash = 0.0
+		position = Vector2.ZERO
+		if battle:
+			battle.effects.clear()
+	elif _fx_quality == Save.FX_MIN and _fx.size() > MAX_FX_MIN:
+		_fx = _fx.slice(_fx.size() - MAX_FX_MIN)
+
+
+func _fx_cap() -> int:
+	return MAX_FX_MIN if _fx_quality == Save.FX_MIN else MAX_FX
+
+
 func _add_fx(kind: String, pos: Vector2, life: float, size: float, color: Color, vel := Vector2.ZERO, rot := 0.0, spin := 0.0, text := "") -> Dictionary:
-	if _fx.size() >= MAX_FX:
+	if _fx_quality == Save.FX_OFF:
+		return {}
+	if _fx_quality == Save.FX_MIN and FX_MIN_SKIP.has(kind):
+		return {}
+	var cap := _fx_cap()
+	if _fx.size() >= cap:
 		_fx.pop_front()
 	var fx := {"kind": kind, "pos": pos, "vel": vel, "age": 0.0, "life": life, "size": size,
 			"color": color, "rot": rot, "spin": spin, "text": text}
@@ -663,6 +699,10 @@ func _add_fx(kind: String, pos: Vector2, life: float, size: float, color: Color,
 
 
 func _burst(kind: String, at: Vector2, count: int, speed: float, life: float, size: float, color: Color) -> void:
+	if _fx_quality == Save.FX_OFF:
+		return
+	if _fx_quality == Save.FX_MIN:
+		count = maxi(1, int(ceil(float(count) / 3.0)))
 	for i in count:
 		var a := randf() * TAU
 		var v := Vector2(cos(a), sin(a)) * speed * randf_range(0.4, 1.0)
@@ -670,6 +710,8 @@ func _burst(kind: String, at: Vector2, count: int, speed: float, life: float, si
 
 
 func _shake_screen(amount: float) -> void:
+	if _fx_quality != Save.FX_ON:
+		return
 	_shake = maxf(_shake, amount)
 
 
@@ -765,6 +807,9 @@ func _on_tower_attacked(t: Tower, target: Enemy, melee: bool) -> void:
 ## 원거리 기본 공격이 맞았을 때 (개발팀: 픽셀이 튐, 인사팀: 도장 자국)
 func _on_projectile_hit(p: Dictionary) -> void:
 	if p.sheet != null:
+		return
+	# 저사양·최소화·투사체가 많으면 히트 이펙트만 생략 (탄 자체는 유지)
+	if _fx_quality != Save.FX_ON or Save.lite_projectiles() or battle.projectiles.size() > 24:
 		return
 	var c := battle.cell
 	var at: Vector2 = p.target.pos
@@ -997,7 +1042,7 @@ func _update_fx(dt: float) -> void:
 	for e in _dmg.keys():
 		var entry: Array = _dmg[e]
 		entry[2] += dt
-		if entry[2] >= 0.25:
+		if entry[2] >= Save.dmg_batch_sec():
 			_flush_damage(e)
 	for e: Enemy in battle.enemies:
 		e.hp_trail = move_toward(e.hp_trail, e.hp_ratio(), dt * 0.9) if e.hit_flash <= 0 else e.hp_trail
@@ -1014,9 +1059,14 @@ func _update_fx(dt: float) -> void:
 			"spark", "text", "pixel", "arrow", "heart", "tag", "bubble":
 				fx.vel *= pow(0.08, dt)
 	_fx = _fx.filter(func(fx): return fx.age < fx.life)
-	_shake = maxf(0.0, _shake - dt * 2.5)
-	_red_flash = maxf(0.0, _red_flash - dt * 2.0)
-	position = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake * _shake * battle.cell * 0.12
+	if _fx_quality != Save.FX_ON:
+		_shake = 0.0
+		_red_flash = 0.0
+		position = Vector2.ZERO
+	else:
+		_shake = maxf(0.0, _shake - dt * 2.5)
+		_red_flash = maxf(0.0, _red_flash - dt * 2.0)
+		position = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake * _shake * battle.cell * 0.12
 
 
 func _draw_fx() -> void:
@@ -1129,7 +1179,10 @@ func _draw_fx() -> void:
 func _draw_drag() -> void:
 	var sprite := tex(GameData.asset(_press_tower.data.towerSpritePath))
 	var size := battle.cell * 1.1
-	var ring := UI.GOLD if _hover_target != null else Color(1, 1, 1, 0.6)
+	var ring := UI.GOLD if _hover_target != null or _hover_desk.x >= 0 else Color(1, 1, 1, 0.6)
+	if _hover_desk.x >= 0:
+		var desk := Rect2(Vector2(_hover_desk) * battle.cell, Vector2(battle.cell, battle.cell)).grow(-4)
+		_outline(desk, UI.GOLD, 12, 3)
 	_disc(_drag_pos, battle.cell * 0.55, Color(ring, 0.18))
 	ci.draw_arc(_drag_pos, battle.cell * 0.55, 0, TAU, 40, ring, 3, true)
 	ci.draw_texture_rect(sprite, Rect2(_drag_pos.x - size / 2, _drag_pos.y - size * 0.75, size, size), false, Color(1, 1, 1, 0.9))
@@ -1139,8 +1192,9 @@ func _draw_drag() -> void:
 
 ## 맵 영역(Control)의 gui_input 에 연결된다. 화면 Control 이 터치를 먼저 가져가므로
 ## _unhandled_input 으로는 받을 수 없다. 이 노드는 맵 영역의 (0, 0) 에 있어서 좌표가 같다.
+## 일시정지/정비 중에도 배치·승진·이동은 받는다 (시뮬만 멈춤).
 func handle_input(event: InputEvent) -> void:
-	if battle.finished or battle.paused:
+	if battle.finished:
 		return
 	if not (event is InputEventMouseButton or event is InputEventMouseMotion):
 		return
@@ -1153,19 +1207,26 @@ func handle_input(event: InputEvent) -> void:
 			_press_tower = battle.tower_at_cell(battle.cell_at(local))
 			_dragging = false
 			_hover_target = null
+			_hover_desk = Vector2i(-1, -1)
 			if _press_tower == null:
 				battle.select(null)
 			get_viewport().set_input_as_handled()
 		elif _press_tower != null:
 			if _dragging:
-				var other := battle.tower_at_cell(battle.cell_at(local))
+				var dest := battle.cell_at(local)
+				var other := battle.tower_at_cell(dest)
 				if _press_tower.can_merge_with(other):
 					battle.merge(_press_tower, other)
+				elif other == null and _press_tower.can_reposition():
+					battle.reposition(_press_tower, dest)
+				elif other == null and _press_tower.grade >= GameData.MAX_GRADE and _press_tower.reposition_cd > 0:
+					battle.message.emit("이동 쿨타임: %d웨이브 남음" % _press_tower.reposition_cd, UI.WARN)
 			else:
 				battle.select(null if battle.selected == _press_tower else _press_tower)
 			_press_tower = null
 			_dragging = false
 			_hover_target = null
+			_hover_desk = Vector2i(-1, -1)
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion and _press_tower != null:
 		_drag_pos = local
@@ -1173,8 +1234,11 @@ func handle_input(event: InputEvent) -> void:
 			_dragging = true
 			battle.select(_press_tower)
 		if _dragging:
-			var other := battle.tower_at_cell(battle.cell_at(local))
+			var dest := battle.cell_at(local)
+			var other := battle.tower_at_cell(dest)
 			_hover_target = other if _press_tower.can_merge_with(other) else null
+			_hover_desk = dest if _hover_target == null and other == null and _press_tower.can_reposition() \
+					and dest in battle.desk_cells else Vector2i(-1, -1)
 		get_viewport().set_input_as_handled()
 
 
