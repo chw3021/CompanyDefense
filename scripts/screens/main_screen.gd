@@ -649,7 +649,7 @@ func _open_settings() -> void:
 		vol_refresh.call(vol_slider.value)
 		v.add_child(vol_label)
 		v.add_child(vol_slider)
-	v.add_child(UI.wrap_label("볼륨은 오디오 버스에 바로 적용됩니다. (BGM/효과음 리소스가 추가되면 해당 버스로 재생됩니다)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(UI.wrap_label("효과음(클릭·타격·투사체·피격) 볼륨입니다. BGM은 없습니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
 	UI.modal("설정", v, [["닫기", UI.CARD_HI]], self)
 

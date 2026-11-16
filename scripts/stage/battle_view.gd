@@ -791,6 +791,11 @@ func _on_tower_placed(t: Tower, promoted: bool) -> void:
 
 ## 근접(영업팀): 금빛 휘두르기와 흩날리는 명함. 등급이 높을수록 크고 화려하게
 func _on_tower_attacked(t: Tower, target: Enemy, melee: bool) -> void:
+	if melee:
+		Audio.hit()
+		Audio.impact()
+	else:
+		Audio.projectile()
 	if not melee:
 		return
 	var c := battle.cell
@@ -806,6 +811,7 @@ func _on_tower_attacked(t: Tower, target: Enemy, melee: bool) -> void:
 
 ## 원거리 기본 공격이 맞았을 때 (개발팀: 픽셀이 튐, 인사팀: 도장 자국)
 func _on_projectile_hit(p: Dictionary) -> void:
+	Audio.impact()
 	if p.sheet != null:
 		return
 	# 저사양·최소화·투사체가 많으면 히트 이펙트만 생략 (탄 자체는 유지)

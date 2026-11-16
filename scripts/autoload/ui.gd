@@ -304,6 +304,7 @@ func backdrop(parent: Control, image_path: String, dim := 0.55) -> void:
 
 
 func _click_feedback(b: Control) -> void:
+	Audio.click()
 	b.pivot_offset = b.size / 2
 	var tw := b.create_tween()
 	tw.tween_property(b, "scale", Vector2(0.95, 0.95), 0.05)
