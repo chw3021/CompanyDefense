@@ -4,8 +4,9 @@ extends Node
 const BUS_MASTER := "Master"
 const BUS_BGM := "BGM"
 const BUS_SFX := "SFX"
-const POOL := 8
+const POOL := 10
 const SFX_DIR := "res://assets/sfx/"
+const SFX_IDS := ["click", "hit", "projectile", "impact", "promote", "wave", "boss", "win", "lose"]
 
 var _streams := {}  # id -> AudioStream
 var _players: Array[AudioStreamPlayer] = []
@@ -39,9 +40,9 @@ func _ensure_bus(name: String) -> void:
 
 
 func apply_volumes() -> void:
-	_set_bus_linear(BUS_MASTER, Save.volume_master())
+	_set_bus_linear(BUS_MASTER, 0.0 if Save.sfx_muted() else Save.volume_master())
 	_set_bus_linear(BUS_BGM, Save.volume_bgm())
-	_set_bus_linear(BUS_SFX, Save.volume_sfx())
+	_set_bus_linear(BUS_SFX, 0.0 if Save.sfx_muted() else Save.volume_sfx())
 
 
 func _set_bus_linear(bus: String, linear: float) -> void:
@@ -54,7 +55,7 @@ func _set_bus_linear(bus: String, linear: float) -> void:
 
 
 func _load_streams() -> void:
-	for id in ["click", "hit", "projectile", "impact"]:
+	for id in SFX_IDS:
 		var path: String = SFX_DIR + id + ".wav"
 		if ResourceLoader.exists(path):
 			_streams[id] = load(path)
@@ -62,7 +63,7 @@ func _load_streams() -> void:
 
 ## gap_ms 안이면 같은 효과음을 다시 안 낸다 (전투 스팸 방지)
 func play(id: String, pitch := 1.0, gap_ms := 40) -> void:
-	if not _streams.has(id) or _players.is_empty():
+	if Save.sfx_muted() or not _streams.has(id) or _players.is_empty():
 		return
 	if Save.volume_master() <= 0.001 or Save.volume_sfx() <= 0.001:
 		return
@@ -91,3 +92,23 @@ func projectile() -> void:
 
 func impact() -> void:
 	play("impact", randf_range(0.9, 1.15), 55)
+
+
+func promote() -> void:
+	play("promote", randf_range(0.95, 1.05), 80)
+
+
+func wave() -> void:
+	play("wave", 1.0, 120)
+
+
+func boss() -> void:
+	play("boss", 1.0, 200)
+
+
+func win() -> void:
+	play("win", 1.0, 300)
+
+
+func lose() -> void:
+	play("lose", 1.0, 300)

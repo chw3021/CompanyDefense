@@ -31,6 +31,9 @@ const ENEMIES := {
 	# ring: interval 초마다 radius 칸 안의 직원을 ring 초 동안 기절 (통화 중)
 	"phone": {"name": "전화기", "hp_mult": 1.3, "speed": 1.7, "pdef": 15, "mdef": 10, "scale": 1.1, "tint": Color(1, 0.55, 0.45), "reward": 12, "boss": false,
 			"interval": 5.0, "radius": 1.5, "ring": 1.5, "desc": "벨이 울리면 근처 직원이 통화하느라 잠시 멈춥니다"},
+	# jam: 근처 직원 공격 속도를 잠시 낮춘다
+	"stapler": {"name": "스테이플러", "hp_mult": 1.1, "speed": 2.1, "pdef": 20, "mdef": 10, "scale": 1.0, "tint": Color(0.75, 0.35, 0.35), "reward": 11, "boss": false,
+			"interval": 4.0, "radius": 1.4, "jam": 2.0, "desc": "근처 직원의 손맛을 방해해 공격 속도를 잠시 떨어뜨립니다"},
 }
 
 const STAGES := {
@@ -197,7 +200,7 @@ static func endless_wave(index: int) -> Array:
 			var third := "laptop" if special else "printer"
 			return [interval, [[third, hp, count / 3], ["copier", hp, maxi(1, count / 3)], ["server", hp, maxi(1, count / 3)]]]
 	if special:  # 지원형이 섞인 혼합 부대
-		return [interval * 0.8, [["printer", hp, count / 4], ["phone", hp, count / 6], ["water", hp, count / 6], ["laptop", hp, count / 4]]]
+		return [interval * 0.8, [["printer", hp, count / 4], ["phone", hp, count / 6], ["stapler", hp, count / 6], ["laptop", hp, count / 4]]]
 	return [interval * 0.8, [["printer", hp, count / 4], ["fax", hp, count / 4], ["copier", hp, count / 4], ["server", hp, count / 4]]]
 
 

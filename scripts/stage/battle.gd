@@ -24,11 +24,13 @@ signal rest_started(reason: String)  # 정비 시작 (UI가 배너/버튼 갱신
 signal rest_ended
 
 const SPAWN_COST := 100
+const HIRE_TEAM_COST := 130  # 팀 지정 고용 할증
 const TRADE_CHANCES := [0.8, 0.6, 0.4, 0.25, 0.1]  # 협상 성공 확률 (1~5성)
 const MAX_LIFE := 8
 const DT_CLAMP := 0.1
 const MOVE_COOLDOWN := 2   # 전설+ 자리 이동 쿨 (웨이브/라운드)
 const REST_EVERY := 10     # 야근: N라운드마다 자동 정비
+const EVENT_EVERY := 7     # 야근 랜덤 이벤트 주기(라운드)
 
 var stage_id: int
 var def: Dictionary
@@ -61,6 +63,13 @@ var max_enemies := 0
 var round_sec := 0.0
 var round_left := 0.0      # 다음 라운드까지 남은 시간
 var rest_reason := ""      # 정비 안내 문구
+var event_id := ""         # 이번 라운드 야근 이벤트
+var event_label := ""
+var hire_blocked := false  # 이벤트: 책상 부족
+var coin_mult := 1.0       # 이벤트: 야근 수당
+var target_mode := "auto"  # Save.target_mode 캐시
+var run_seed := 0
+var rng := RandomNumberGenerator.new()
 var _crowd_warned := false
 var boss_room := Vector2.ZERO  # 보스방 가운데 (고리 맵에 보스방이 있으면)
 var has_boss_room := false
@@ -75,7 +84,7 @@ var _since_spawn := 0.0
 var _tasks: Array = []       # [{left, interval, repeats, fn}]
 var _time := 0.0
 ## 이번 판 기록 (끝날 때 Save.record_session 으로 미션/업적에 반영)
-const NEW_SESSION := {"kills": 0, "boss_kills": 0, "merges": 0, "hires": 0, "skills": 0, "max_grade": 1}
+const NEW_SESSION := {"kills": 0, "boss_kills": 0, "merges": 0, "hires": 0, "skills": 0, "max_grade": 1, "mythics": 0, "damage": 0}
 var session := NEW_SESSION.duplicate()
 
 
@@ -88,6 +97,8 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 	round_sec = float(def.get("round_sec", 0.0))
 	cell = cell_size
 	map = def.map
+	target_mode = Save.target_mode()
+	_init_rng()
 	for wp in StageDefs.waypoints(map):
 		path.append(cell_center(wp))
 	for row in map.size():
@@ -112,6 +123,27 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 		for id in list:
 			var level: int = user.get("towers", {}).get(GameData.level_source(id), 1)
 			templates[id] = Tower.make_template(id, level, GameData.stat_bonus(user, GameData.towers[id].team))
+
+
+func _init_rng() -> void:
+	var pending := Save.pending_run_seed()
+	if pending != 0:
+		run_seed = pending
+		Save.clear_pending_run_seed()
+	else:
+		run_seed = int(Time.get_unix_time_from_system()) ^ (stage_id * 9973) ^ randi()
+	rng.seed = run_seed
+	Save.set_last_run_seed(run_seed)
+
+
+func pick_id(ids: Array) -> String:
+	if ids.is_empty():
+		return ""
+	return str(ids[rng.randi_range(0, ids.size() - 1)])
+
+
+func hire_cost() -> int:
+	return HIRE_TEAM_COST if Save.hire_team() != "" else SPAWN_COST
 
 
 func cell_center(c: Vector2i) -> Vector2:
@@ -245,7 +277,8 @@ func _queue_wave(index: int) -> void:
 func _next_round() -> void:
 	wave_index += 1
 	score += 100
-	var bonus := 30 + 10 * wave_index
+	_clear_round_event()
+	var bonus := int((30 + 10 * wave_index) * coin_mult)
 	coins += bonus
 	_tick_reposition_cds()
 	message.emit("라운드 보너스 +%d" % bonus, UI.GOLD)
@@ -284,10 +317,50 @@ func end_rest() -> void:
 
 
 func _resume_round() -> void:
+	_roll_round_event()
 	_queue_wave(wave_index)
 	round_left = round_sec
 	wave_started.emit(wave_index)
 	hud_changed.emit()
+
+
+func _clear_round_event() -> void:
+	event_id = ""
+	event_label = ""
+	hire_blocked = false
+	coin_mult = 1.0
+
+
+## 야근 랜덤 이벤트 (EVENT_EVERY 라운드마다, 보스 라운드는 제외)
+func _roll_round_event() -> void:
+	_clear_round_event()
+	if not loop:
+		return
+	var shown := wave_index + 1
+	if shown < 3 or shown % EVENT_EVERY != 0 or wave_has_boss(wave_index):
+		return
+	var pick := rng.randi_range(0, 3)
+	match pick:
+		0:
+			event_id = "overtime_pay"
+			event_label = "야근 수당 2배"
+			coin_mult = 2.0
+		1:
+			event_id = "power_hour"
+			event_label = "전력 질주 (공격 +30%)"
+			for t: Tower in towers:
+				t.buff_attack(0.3, round_sec)
+		2:
+			event_id = "desk_shortage"
+			event_label = "책상 부족 (이번 라운드 고용 불가)"
+			hire_blocked = true
+		_:
+			event_id = "rush"
+			event_label = "업무 폭주 (적 추가)"
+			var hp := 40.0 * pow(1.0 + wave_index / 10.0, 2.0)
+			for i in 4:
+				_pending.append(["stapler" if i % 2 == 0 else "fax", hp])
+	message.emit("이벤트: %s" % event_label, UI.WARN)
 
 
 func _tick_reposition_cds() -> void:
@@ -332,6 +405,7 @@ func _on_wave_cleared() -> void:
 # ------------------------------------------------------------------ 적
 
 func on_enemy_damaged(e: Enemy, amount: float, magic_share: float) -> void:
+	session.damage = int(session.damage) + int(amount)
 	enemy_damaged.emit(e, amount, magic_share)
 
 
@@ -409,7 +483,11 @@ func _remove(t: Tower) -> void:
 func hire() -> void:
 	if finished:
 		return
-	if coins < SPAWN_COST:
+	if hire_blocked:
+		message.emit("이벤트 중이라 고용할 수 없습니다", UI.WARN)
+		return
+	var cost := hire_cost()
+	if coins < cost:
 		message.emit("코인이 부족합니다", UI.DANGER)
 		return
 	var free := _free_desks_preferred()
@@ -417,11 +495,14 @@ func hire() -> void:
 		message.emit("빈 자리가 없습니다", UI.DANGER)
 		return
 	var candidates := GameData.towers_of_grade(1)
+	var team := Save.hire_team()
+	if team != "":
+		candidates = candidates.filter(func(id): return GameData.towers[id].team == team)
 	if candidates.is_empty():
 		message.emit("소환할 수 있는 직원이 없습니다", UI.DANGER)
 		return
-	coins -= SPAWN_COST
-	tower_placed.emit(_place(candidates.pick_random(), free[0]), false)
+	coins -= cost
+	tower_placed.emit(_place(pick_id(candidates), free[0]), false)
 	session.hires += 1
 	hud_changed.emit()
 
@@ -435,7 +516,7 @@ func summon_special() -> void:
 		message.emit("빈 자리가 없습니다", UI.DANGER)
 		return
 	relics -= 1
-	var t := _place(GameData.SPECIALS.keys().pick_random(), free[0])
+	var t := _place(pick_id(GameData.SPECIALS.keys()), free[0])
 	tower_placed.emit(t, true)
 	floating.emit("특수 직원!", t.center() + Vector2(0, -cell * 0.5), GameData.SPECIAL_COLOR)
 	select(t)
@@ -501,7 +582,7 @@ func merge(dragged: Tower, target: Tower, select_result := true) -> void:
 	var c := target.cell
 	_remove(dragged)
 	_remove(target)
-	var merged := _place(upgrades.pick_random(), c)
+	var merged := _place(pick_id(upgrades), c)
 	session.merges += 1
 	session.max_grade = maxi(session.max_grade, merged.grade)
 	tower_placed.emit(merged, true)
@@ -611,7 +692,7 @@ func trade(t: Tower) -> void:
 		var candidates := GameData.towers_of_grade(t.grade).filter(func(id): return id != t.id)
 		if candidates.is_empty():
 			candidates = GameData.towers_of_grade(t.grade)
-		var swapped := _place(candidates.pick_random(), c)
+		var swapped := _place(pick_id(candidates), c)
 		tower_placed.emit(swapped, false)
 		floating.emit("협상 성공!", swapped.center() + Vector2(0, -cell * 0.5), UI.SUCCESS)
 		select(swapped)
@@ -668,6 +749,7 @@ func awaken(t: Tower) -> void:
 	_remove(t)
 	var m := _place(mythic, c)
 	session.max_grade = maxi(session.max_grade, m.grade)
+	session.mythics = int(session.mythics) + 1
 	tower_placed.emit(m, true)
 	mythic_born.emit(m)
 	floating.emit("신화 각성!", m.center() + Vector2(0, -cell * 0.5), GameData.grade_color(m.grade))
@@ -822,10 +904,13 @@ func _end(p_won: bool) -> void:
 	session.wins = 1 if p_won else 0
 	if endless:
 		session.round = wave_index
+	var summary := {"kills": kills, "gold": gold, "score": score, "first_clear": first_clear,
+			"wave": wave_index, "new_record": new_record, "seed": run_seed,
+			"merges": int(session.merges), "hires": int(session.hires),
+			"damage": int(session.damage), "mythics": int(session.mythics)}
 	flush_session()
 	hud_changed.emit()
-	game_over.emit(p_won, {"kills": kills, "gold": gold, "score": score, "first_clear": first_clear,
-			"wave": wave_index, "new_record": new_record})
+	game_over.emit(p_won, summary)
 
 
 ## 이번 판 기록을 미션/업적에 반영하고 비운다 (끝났을 때, 또는 포기하고 나갈 때)

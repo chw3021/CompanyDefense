@@ -609,6 +609,13 @@ func _draw_enemy_body(type_id: String, r: Rect2, mod: Color, e: Enemy = null) ->
 					for i in 2:
 						ci.draw_arc(r.get_center() + Vector2(side * w * 0.3, -hh * 0.2), w * (0.35 + i * 0.18 + t * 0.2),
 								from, from + PI / 2, 8, Color(UI.WARN, 1.0 - t), 3, true)
+		"stapler":
+			var body := Rect2(cx - w * 0.38, foot - hh * 0.72, w * 0.76, hh * 0.55)
+			_rounded(body, Color(0.7, 0.28, 0.28) * mod, 6)
+			_rounded(Rect2(cx - w * 0.34, foot - hh * 0.88, w * 0.68, hh * 0.22), Color(0.55, 0.2, 0.2) * mod, 5)
+			ci.draw_rect(Rect2(cx - w * 0.08, foot - hh * 0.55, w * 0.16, hh * 0.28), Color(0.85, 0.85, 0.9) * mod)
+			if e != null and e.ability_flash > 0:
+				_disc(r.get_center(), w * 0.55, Color(1, 0.4, 0.35, 0.3 * e.ability_flash / 0.6))
 
 
 func _draw_projectile(p: Dictionary) -> void:
@@ -717,6 +724,7 @@ func _shake_screen(amount: float) -> void:
 
 func _on_enemy_spawned(e: Enemy) -> void:
 	if e.is_boss():
+		Audio.boss()
 		_shake_screen(0.8)
 		_red_flash = 0.6
 		_add_fx("ring", e.pos, 0.8, battle.cell * 1.6, UI.DANGER)
@@ -774,6 +782,7 @@ func _on_tower_placed(t: Tower, promoted: bool) -> void:
 	var c := battle.cell
 	var at := t.center() + Vector2(0, c * 0.3)
 	if promoted:
+		Audio.promote()
 		var color := GameData.grade_color(t.grade)
 		for i in 12:
 			_add_fx("ray", t.center(), 0.55, c * randf_range(0.9, 1.4), color, Vector2.ZERO, i * TAU / 12 + randf() * 0.2)
@@ -1236,7 +1245,8 @@ func handle_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion and _press_tower != null:
 		_drag_pos = local
-		if not _dragging and local.distance_to(_press_pos) > battle.cell * 0.25:
+		# 모바일에서 탭과 드래그를 구분하려고 임계값을 조금 크게 둔다
+		if not _dragging and local.distance_to(_press_pos) > battle.cell * 0.32:
 			_dragging = true
 			battle.select(_press_tower)
 		if _dragging:

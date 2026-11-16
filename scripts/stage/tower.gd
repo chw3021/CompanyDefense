@@ -120,8 +120,9 @@ func buff_cooldown(mult: float, duration: float) -> void:
 
 func _find_target() -> Enemy:
 	var best: Enemy = null
-	var best_value := 0.0
+	var best_value := -INF
 	var c := center()
+	var mode: String = battle.target_mode if battle.target_mode != "auto" else attack_type
 	for enemy: Enemy in battle.enemies:
 		if not battle.can_target(enemy):
 			continue
@@ -129,10 +130,19 @@ func _find_target() -> Enemy:
 		if distance > range_px:
 			continue
 		var value: float
-		match attack_type:
-			"furthest": value = enemy.progress   # 출구에 가장 가까운 적
-			"strongest": value = enemy.hp        # 체력이 가장 많은 적
-			_: value = -distance                 # 가장 가까운 적
+		match mode:
+			"furthest":
+				value = enemy.progress
+			"strongest":
+				value = enemy.hp
+			"weakest":
+				value = -enemy.hp
+			"boss":
+				value = (100000.0 if enemy.is_boss() else 0.0) + enemy.progress
+			"nearest", "closest":
+				value = -distance
+			_:
+				value = -distance
 		if best == null or value > best_value:
 			best_value = value
 			best = enemy

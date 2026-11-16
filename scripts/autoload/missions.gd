@@ -24,7 +24,11 @@ const ACHIEVEMENTS := [
 	{"id": "stages", "name": "승승장구", "desc": "스테이지 %d 클리어", "stat": "max_cleared",
 			"tiers": [[1, 200], [2, 500], [3, 1000]]},
 	{"id": "rounds", "name": "야근의 신", "desc": "무한 야근 %d라운드 버티기", "stat": "round_best",
-			"tiers": [[10, 500], [20, 1500], [30, 3000], [50, 6000], [80, 10000]]},
+			"tiers": [[10, 500], [20, 1500], [30, 3000], [50, 6000], [80, 10000], [100, 15000]]},
+	{"id": "mythics", "name": "신화 각성", "desc": "신화 각성 %d회", "stat": "mythics",
+			"tiers": [[1, 800], [5, 2500], [15, 6000]]},
+	{"id": "damage", "name": "화력 증명", "desc": "누적 피해 %d", "stat": "damage",
+			"tiers": [[100000, 400], [1000000, 1500], [10000000, 5000]]},
 ]
 
 ## 일일 미션 후보. 매일 날짜로 섞어 DAILY_COUNT 개를 뽑는다. best 는 한 판 최고값으로 센다
@@ -37,13 +41,15 @@ const DAILY_POOL := [
 	{"id": "skill", "desc": "스킬 %d회 사용", "stat": "skills", "goal": 50, "gold": 300},
 	{"id": "hire", "desc": "직원 %d명 고용", "stat": "hires", "goal": 40, "gold": 250},
 	{"id": "round", "desc": "무한 야근 한 판에 %d라운드", "stat": "round", "goal": 15, "gold": 500, "best": true},
+	{"id": "mythic", "desc": "신화 각성 %d회", "stat": "mythics", "goal": 1, "gold": 600},
+	{"id": "damage", "desc": "한 판에 피해 %d", "stat": "damage", "goal": 50000, "gold": 400, "best": true},
 ]
 const DAILY_COUNT := 3
 const DAILY_BONUS_GOLD := 500   # 오늘 미션을 모두 끝내면
 const DAILY_BONUS_TIME := 1
 
 ## 전투 한 판에서 세는 값 (Battle.session 의 키)
-const SESSION_KEYS := ["kills", "boss_kills", "merges", "hires", "skills", "max_grade", "games", "wins", "round"]
+const SESSION_KEYS := ["kills", "boss_kills", "merges", "hires", "skills", "max_grade", "games", "wins", "round", "mythics", "damage"]
 
 
 static func today() -> String:
@@ -128,7 +134,7 @@ static func claimable_count(user: Dictionary) -> int:
 ## 전투 한 판의 기록을 누적 기록과 오늘 미션에 반영 (저장은 부르는 쪽이)
 static func apply_session(user: Dictionary, session: Dictionary) -> void:
 	var stats: Dictionary = user.get("stats", {})
-	for key in ["kills", "boss_kills", "merges", "hires", "skills"]:
+	for key in ["kills", "boss_kills", "merges", "hires", "skills", "mythics", "damage"]:
 		stats[key] = int(stats.get(key, 0)) + int(session.get(key, 0))
 	stats["max_grade"] = maxi(int(stats.get("max_grade", 0)), int(session.get("max_grade", 0)))
 	user["stats"] = stats

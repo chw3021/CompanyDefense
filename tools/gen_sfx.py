@@ -116,6 +116,44 @@ def gen_impact() -> list[float]:
 	)
 
 
+def gen_promote() -> list[float]:
+	return mix(
+		sweep(0.18, 400, 900, 0.3, "sine"),
+		tone(0.12, 600, 0.2, 0.01, 0.4, "sine"),
+		tone(0.1, 900, 0.12, 0.02, 0.5, "sine"),
+	)
+
+
+def gen_wave() -> list[float]:
+	return mix(
+		tone(0.08, 520, 0.25, 0.005, 0.4, "square"),
+		tone(0.1, 780, 0.18, 0.02, 0.45, "sine"),
+	)
+
+
+def gen_boss() -> list[float]:
+	return mix(
+		sweep(0.28, 140, 60, 0.45, "sine"),
+		tone(0.2, 90, 0.35, 0.01, 0.5, "sine"),
+		tone(0.15, 1, 0.25, 0.001, 0.5, "noise"),
+	)
+
+
+def gen_win() -> list[float]:
+	return mix(
+		tone(0.12, 523, 0.28, 0.01, 0.35, "sine"),
+		tone(0.14, 659, 0.24, 0.04, 0.35, "sine"),
+		tone(0.2, 784, 0.3, 0.08, 0.4, "sine"),
+	)
+
+
+def gen_lose() -> list[float]:
+	return mix(
+		sweep(0.35, 300, 80, 0.35, "sine"),
+		tone(0.25, 110, 0.25, 0.02, 0.55, "sine"),
+	)
+
+
 def main() -> None:
 	random.seed(7)
 	sounds = {
@@ -123,6 +161,11 @@ def main() -> None:
 		"hit": gen_hit,
 		"projectile": gen_projectile,
 		"impact": gen_impact,
+		"promote": gen_promote,
+		"wave": gen_wave,
+		"boss": gen_boss,
+		"win": gen_win,
+		"lose": gen_lose,
 	}
 	for name, fn in sounds.items():
 		path = os.path.join(OUT, f"{name}.wav")

@@ -400,6 +400,10 @@ func open_menu() -> void:
 			UI.close_modal(ctx.modal)
 			_change_nickname()],
 		["설정", UI.PRIMARY, _open_settings],
+		["세이브 내보내기", UI.PRIMARY, _export_save],
+		["세이브 가져오기", UI.PRIMARY, func():
+			UI.close_modal(ctx.modal)
+			_import_save()],
 		["데이터 초기화", UI.DANGER, func():
 			UI.close_modal(ctx.modal)
 			_confirm_reset()],
@@ -628,6 +632,14 @@ func _open_settings() -> void:
 		lite_refresh.call()
 		UI.toast("저사양 프리셋을 적용했습니다.", UI.GOLD))
 	v.add_child(low_btn)
+	var mute_btn := UI.button("", UI.PRIMARY)
+	mute_btn.custom_minimum_size.y = 72
+	var mute_refresh := func(): mute_btn.text = "효과음: %s" % ("끔" if Save.sfx_muted() else "켬")
+	mute_btn.pressed.connect(func():
+		Save.toggle_sfx_muted()
+		mute_refresh.call())
+	mute_refresh.call()
+	v.add_child(mute_btn)
 	v.add_child(UI.wrap_label("저사양: 이펙트 끄기 + 투사체 히트 생략 + 데미지 숫자 합치기 강화", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	for item in [
 		["전체 볼륨", Save.volume_master, Save.set_volume_master],
@@ -652,6 +664,35 @@ func _open_settings() -> void:
 	v.add_child(UI.wrap_label("효과음(클릭·타격·투사체·피격) 볼륨입니다. BGM은 없습니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
 	UI.modal("설정", v, [["닫기", UI.CARD_HI]], self)
+
+
+func _export_save() -> void:
+	var text := Save.export_user_json()
+	DisplayServer.clipboard_set(text)
+	UI.toast("세이브 JSON을 클립보드에 복사했습니다.", UI.GOLD)
+
+
+func _import_save() -> void:
+	var v := UI.vbox(12)
+	v.add_child(UI.wrap_label("클립보드의 세이브 JSON을 붙여 넣으세요. 현재 데이터가 덮어씌워집니다.", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	var edit := TextEdit.new()
+	edit.custom_minimum_size = Vector2(560, 320)
+	edit.placeholder_text = "여기에 JSON 붙여넣기"
+	var clip := DisplayServer.clipboard_get()
+	if clip.strip_edges().begins_with("{"):
+		edit.text = clip
+	v.add_child(edit)
+	UI.modal("세이브 가져오기", v, [
+		["취소", UI.CARD_HI],
+		["가져오기", UI.DANGER, func():
+			var err := Save.import_user_json(edit.text)
+			if err != "":
+				UI.toast(err, UI.DANGER)
+			else:
+				UI.toast("세이브를 불러왔습니다.", UI.SUCCESS)
+				_refresh_avatar()
+				show_tab(0)],
+	], self)
 
 
 func _confirm_reset() -> void:

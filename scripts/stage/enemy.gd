@@ -157,6 +157,11 @@ func _update_ability(delta: float) -> void:
 			if t.center().distance_to(pos) <= radius:
 				t.stun(type.ring)
 		battle.on_enemy_ability(self)
+	elif type.has("jam"):
+		for t: Tower in battle.towers:
+			if t.center().distance_to(pos) <= radius:
+				t.buff_speed(-0.45, type.jam)
+		battle.on_enemy_ability(self)
 
 
 ## 물리/마법 피해에 방어력 적용: 피해 × (1 − 방어/(방어+100)). 보호막이 먼저 막는다

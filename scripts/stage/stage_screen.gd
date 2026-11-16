@@ -12,11 +12,16 @@ var _coin_label: Label
 var _wave_label: Label
 var _speed_button: Button
 var _fx_button: Button
+var _mute_button: Button
 var _wave_button: Button
 var _hire_button: Button
+var _hire_cost_label: Label
+var _hire_title_label: Label
 var _relic_button: Button
 var _relic_label: Label
 var _merge_button: Button  # 1성 모두 승진
+var _target_button: Button
+var _slot_button: Button
 var _sell_armed: Tower  # 퇴사 버튼을 한 번 눌러 확인을 기다리는 직원
 var _sell_token := 0
 var _map_area: Control
@@ -45,7 +50,9 @@ func _ready() -> void:
 	battle.floating.connect(_show_floating)
 	battle.tower_selected.connect(_on_tower_selected)
 	battle.game_over.connect(_on_game_over)
-	battle.wave_started.connect(_show_wave_banner)
+	battle.wave_started.connect(func(i: int):
+		Audio.wave()
+		_show_wave_banner(i))
 	battle.rest_started.connect(func(_reason: String): _refresh_setup_bar())
 	battle.rest_ended.connect(_refresh_setup_bar)
 	_last_life = battle.life
@@ -127,8 +134,11 @@ func _build_hud() -> Control:
 	_speed_button.custom_minimum_size = Vector2(72, 64)
 	row.add_child(_speed_button)
 	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 24)
-	_fx_button.custom_minimum_size = Vector2(72, 64)
+	_fx_button.custom_minimum_size = Vector2(64, 64)
 	row.add_child(_fx_button)
+	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 22)
+	_mute_button.custom_minimum_size = Vector2(64, 64)
+	row.add_child(_mute_button)
 	return hud
 
 
@@ -164,11 +174,17 @@ func _build_panel() -> Control:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tools.add_child(b)
 	_hint.add_child(tools)
-	var pref_row := UI.hbox(10)
+	var pref_row := UI.hbox(8)
 	pref_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	var save_pref := UI.button("선호 자리 저장", UI.PRIMARY, func(): battle.save_desk_prefs_from_towers(), 22)
-	var clear_pref := UI.button("선호 자리 삭제", UI.CARD_HI, func(): battle.clear_desk_prefs(), 22)
-	for b in [save_pref, clear_pref]:
+	_slot_button = UI.button("", UI.CARD_HI, func():
+		Save.cycle_desk_pref_slot()
+		_refresh_hud(), 20)
+	var save_pref := UI.button("자리 저장", UI.PRIMARY, func(): battle.save_desk_prefs_from_towers(), 20)
+	var clear_pref := UI.button("자리 삭제", UI.CARD_HI, func(): battle.clear_desk_prefs(), 20)
+	_target_button = UI.button("", UI.PRIMARY, func():
+		battle.target_mode = Save.cycle_target_mode()
+		_refresh_hud(), 20)
+	for b in [_slot_button, save_pref, clear_pref, _target_button]:
 		b.custom_minimum_size = Vector2(0, 56)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		pref_row.add_child(b)
@@ -189,6 +205,11 @@ func _build_panel() -> Control:
 	_hire_button = UI.button("", UI.SUCCESS, battle.hire)
 	_hire_button.custom_minimum_size.y = 112
 	_hire_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hire_button.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT:
+			Save.cycle_hire_team()
+			_refresh_hud()
+			get_viewport().set_input_as_handled())
 	var hire_content := UI.hbox(14)
 	hire_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -197,11 +218,18 @@ func _build_panel() -> Control:
 	var hire_text := UI.vbox(0)
 	hire_text.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hire_text.add_child(UI.label("직원 고용", 34))
-	hire_text.add_child(UI.coin_row(str(Battle.SPAWN_COST), 26))
+	_hire_title_label = UI.label("직원 고용", 30)
+	hire_text.add_child(_hire_title_label)
+	_hire_cost_label = UI.label(str(Battle.SPAWN_COST), 24, UI.GOLD)
+	hire_text.add_child(_hire_cost_label)
 	hire_content.add_child(hire_text)
 	_hire_button.add_child(hire_content)
 	actions.add_child(_hire_button)
+	var hire_team_btn := UI.button("팀", UI.CARD_HI, func():
+		Save.cycle_hire_team()
+		_refresh_hud(), 22)
+	hire_team_btn.custom_minimum_size = Vector2(72, 112)
+	actions.add_child(hire_team_btn)
 
 	# 유물 뽑기: 보스를 잡아 유물이 있을 때만 보인다
 	_relic_button = UI.button("", UI.PURPLE, battle.summon_special)
@@ -223,18 +251,21 @@ func _build_panel() -> Control:
 	actions.add_child(_wave_button)
 	col.add_child(actions)
 
-	_setup_bar = UI.panel(UI.CARD, 12, 12)
+	_setup_bar = UI.panel(UI.CARD, 14, 14)
 	_setup_bar.visible = false
+	var setup_col := UI.vbox(8)
+	_setup_bar.add_child(setup_col)
+	_setup_label = UI.label("", 26, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	setup_col.add_child(_setup_label)
+	setup_col.add_child(UI.wrap_label("고용 · 승진 · 전설 이동 · 팀 업그레이드로 정비하세요", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var setup_row := UI.hbox(10)
-	_setup_bar.add_child(setup_row)
-	_setup_label = UI.label("", 24, UI.GOLD)
-	_setup_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	setup_row.add_child(_setup_label)
-	var resume := UI.button("계속", UI.PRIMARY, _resume_setup, 24)
-	resume.custom_minimum_size = Vector2(120, 56)
+	setup_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	setup_col.add_child(setup_row)
+	var resume := UI.button("계속 / 정비 완료", UI.PRIMARY, _resume_setup, 24)
+	resume.custom_minimum_size = Vector2(220, 64)
 	setup_row.add_child(resume)
 	var give_up := UI.button("포기", UI.DANGER, _confirm_give_up, 24)
-	give_up.custom_minimum_size = Vector2(100, 56)
+	give_up.custom_minimum_size = Vector2(120, 64)
 	setup_row.add_child(give_up)
 	col.add_child(_setup_bar)
 	return panel
@@ -449,7 +480,12 @@ func _open_help() -> void:
 	section.call("전설 이동 · 정비")
 	line.call("전설(5성) 이상 직원은 빈 책상으로 끌어 이동할 수 있습니다. 이동 후 %d웨이브(라운드) 동안 다시 옮길 수 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
 	line.call("일시정지와 정비 시간에는 전투만 멈추고 고용·승진·이동이 가능합니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
-	line.call("선호 자리 저장: 지금 앉아 있는 칸을 기억해 두고, 직원 고용 시 그 빈자리를 먼저 씁니다.", UI.MUTED)
+	line.call("선호 자리 슬롯 1~3: 지금 배치를 저장해 두고 고용 시 그 빈자리를 먼저 씁니다.", UI.MUTED)
+	line.call("야근은 %d라운드마다 랜덤 이벤트(수당 2배, 전력 질주, 고용 불가, 업무 폭주)가 납니다." % Battle.EVENT_EVERY, UI.MUTED)
+
+	section.call("고용 · 공격 우선순위")
+	line.call("고용 옆 '팀'으로 인사/개발/영업만 고용할 수 있습니다 (비용 %d). 공격 우선순위는 힌트 줄 버튼으로 바꿉니다." % Battle.HIRE_TEAM_COST, UI.MUTED)
+	line.call("현재 고용: %s / 우선순위: %s / 시드: %d" % [Save.hire_team_label(), Save.target_mode_label(), battle.run_seed], UI.TEXT)
 
 	section.call("자동 승진")
 	line.call("현재 범위 1~%d성 / 팀: %s. '승진설정'에서 바꿀 수 있습니다." % [Save.merge_auto_grade(), Save.merge_auto_team_label()], UI.TEXT)
@@ -503,6 +539,9 @@ func _refresh_hud() -> void:
 		_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
 	_speed_button.text = "x%d" % int(battle.speed)
 	_fx_button.text = Save.effect_quality_label()
+	_mute_button.text = "음소거" if Save.sfx_muted() else "소리"
+	if battle.loop and battle.event_label != "":
+		_wave_label.text = "%s · %s" % [_wave_label.text, battle.event_label]
 	var can_start := battle.can_start_wave()
 	if battle.resting:
 		_wave_button.disabled = false
@@ -514,7 +553,13 @@ func _refresh_hud() -> void:
 		_wave_button.disabled = not can_start
 		var start_text := "야근 시작" if battle.loop else "웨이브 시작"
 		_wave_button.text = start_text if can_start else ("진행 중" if battle.wave_running else "종료")
-	_hire_button.modulate.a = 1.0 if battle.coins >= Battle.SPAWN_COST else 0.6
+	var cost := battle.hire_cost()
+	_hire_button.modulate.a = 0.45 if battle.hire_blocked else (1.0 if battle.coins >= cost else 0.6)
+	if _hire_title_label:
+		var team_name := Save.hire_team_label()
+		_hire_title_label.text = "고용(%s)" % team_name if team_name != "전체" else "직원 고용"
+	if _hire_cost_label:
+		_hire_cost_label.text = "막힘" if battle.hire_blocked else str(cost)
 	_relic_button.visible = battle.relics > 0
 	_relic_label.text = "유물 x%d" % battle.relics
 	var pairs := battle.merge_auto_pairs_count()
@@ -524,6 +569,10 @@ func _refresh_hud() -> void:
 		scope = "%s %s" % [team_tag, scope]
 	_merge_button.text = "자동 승진 %s (%d)" % [scope, pairs]
 	_merge_button.disabled = false
+	if _slot_button:
+		_slot_button.text = "슬롯 %d" % (Save.desk_pref_slot() + 1)
+	if _target_button:
+		_target_button.text = Save.target_mode_label()
 	_refresh_setup_bar()
 	for team in GameData.TEAMS:
 		_upgrade_labels[team].text = "%s Lv.%d" % [GameData.team_name(team), battle.team_level[team]]
@@ -688,6 +737,11 @@ func _toggle_fx() -> void:
 	_refresh_hud()
 
 
+func _toggle_mute() -> void:
+	Save.toggle_sfx_muted()
+	_refresh_hud()
+
+
 func _toggle_pause() -> void:
 	if battle.finished:
 		return
@@ -743,6 +797,10 @@ func _refresh_setup_bar() -> void:
 # ------------------------------------------------------------------ 종료
 
 func _on_game_over(won: bool, summary: Dictionary) -> void:
+	if won:
+		Audio.win()
+	else:
+		Audio.lose()
 	await get_tree().create_timer(0.6).timeout
 	var v := UI.vbox(10)
 	var text := "모든 웨이브를 막아냈습니다!" if won else "회사가 무너졌습니다..."
@@ -760,9 +818,20 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 40)
 	grid.add_theme_constant_override("v_separation", 8)
-	for pair in [["처치", str(summary.kills)], ["획득 골드", str(summary.gold)], ["점수", str(summary.score)]]:
-		grid.add_child(UI.label(pair[0], 28, UI.MUTED))
-		var value := UI.label(pair[1], 30, UI.GOLD if pair[0] == "획득 골드" else UI.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+	var rows := [
+		["처치", str(summary.kills)],
+		["획득 골드", str(summary.gold)],
+		["점수", str(summary.score)],
+		["승진", str(summary.get("merges", 0))],
+		["고용", str(summary.get("hires", 0))],
+		["피해", str(summary.get("damage", 0))],
+		["시드", str(summary.get("seed", 0))],
+	]
+	if int(summary.get("mythics", 0)) > 0:
+		rows.insert(6, ["신화", str(summary.mythics)])
+	for pair in rows:
+		grid.add_child(UI.label(pair[0], 26, UI.MUTED))
+		var value := UI.label(pair[1], 28, UI.GOLD if pair[0] == "획득 골드" else UI.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(value)
 	stats.add_child(grid)
@@ -775,7 +844,15 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 	if Missions.claimable_count(Save.user) > 0:
 		v.add_child(UI.label("받을 수 있는 미션 보상이 있어요! (메인 화면 > 미션)", 24, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 	var title := "야근 종료" if battle.endless else ("승리!" if won else "패배")
-	UI.modal(title, v, [
+	var buttons := [
 		["다시 하기", UI.CARD_HI, func(): UI.go("res://scenes/stage.tscn", func(s): s.stage_id = stage_id)],
 		["메인 화면", UI.PRIMARY, func(): UI.go("res://scenes/main.tscn")],
-	], self, false)
+	]
+	if battle.endless and int(summary.get("seed", 0)) != 0:
+		buttons.insert(0, ["같은 시드", UI.SUCCESS, func():
+			Save.set_pending_run_seed(int(summary.seed))
+			UI.go("res://scenes/stage.tscn", func(s): s.stage_id = stage_id)])
+		buttons.insert(1, ["시드 복사", UI.CARD_HI, func():
+			DisplayServer.clipboard_set(str(summary.seed))
+			UI.toast("시드를 복사했습니다.", UI.GOLD)])
+	UI.modal(title, v, buttons, self, false)

@@ -487,29 +487,73 @@ func merge_auto_team_label(team: Variant = null) -> String:
 	return GameData.team_name(t) if t in GameData.TEAMS else "전체"
 
 
-## 스테이지별 선호 책상 좌표 ["x,y", ...]
-func desk_prefs(stage_id: int) -> Array:
-	var raw = user.get("desk_prefs", {}).get(str(stage_id), [])
-	return raw if typeof(raw) == TYPE_ARRAY else []
+## 스테이지별 선호 책상. 슬롯 0~2. 옛 형식(배열)은 슬롯 0으로 읽는다
+const DESK_SLOTS := 3
 
 
-func set_desk_prefs(stage_id: int, cells: Array) -> void:
+func desk_pref_slot() -> int:
+	return clampi(int(settings.get_value("game", "desk_pref_slot", 0)), 0, DESK_SLOTS - 1)
+
+
+func set_desk_pref_slot(slot: int) -> void:
+	settings.set_value("game", "desk_pref_slot", clampi(slot, 0, DESK_SLOTS - 1))
+	settings.save(SETTINGS_PATH)
+
+
+func cycle_desk_pref_slot() -> int:
+	var next := (desk_pref_slot() + 1) % DESK_SLOTS
+	set_desk_pref_slot(next)
+	return next
+
+
+func desk_prefs(stage_id: int, slot := -1) -> Array:
+	var s := desk_pref_slot() if slot < 0 else slot
+	var raw = user.get("desk_prefs", {}).get(str(stage_id), null)
+	if typeof(raw) == TYPE_ARRAY:
+		return raw if s == 0 else []
+	if typeof(raw) == TYPE_DICTIONARY:
+		var cells = raw.get(str(s), [])
+		return cells if typeof(cells) == TYPE_ARRAY else []
+	return []
+
+
+func set_desk_prefs(stage_id: int, cells: Array, slot := -1) -> void:
 	if not user.has("desk_prefs") or typeof(user.desk_prefs) != TYPE_DICTIONARY:
 		user.desk_prefs = {}
+	var key := str(stage_id)
+	var bag = user.desk_prefs.get(key, {})
+	if typeof(bag) == TYPE_ARRAY:
+		bag = {"0": bag}
+	elif typeof(bag) != TYPE_DICTIONARY:
+		bag = {}
 	var encoded: Array = []
 	for c in cells:
 		if c is Vector2i:
 			encoded.append("%d,%d" % [c.x, c.y])
 		elif typeof(c) == TYPE_STRING:
 			encoded.append(c)
-	user.desk_prefs[str(stage_id)] = encoded
+	var s := desk_pref_slot() if slot < 0 else slot
+	bag[str(s)] = encoded
+	user.desk_prefs[key] = bag
 	save()
 
 
-func clear_desk_prefs(stage_id: int) -> void:
-	if user.get("desk_prefs", {}).has(str(stage_id)):
-		user.desk_prefs.erase(str(stage_id))
-		save()
+func clear_desk_prefs(stage_id: int, slot := -1) -> void:
+	var key := str(stage_id)
+	if not user.get("desk_prefs", {}).has(key):
+		return
+	var s := desk_pref_slot() if slot < 0 else slot
+	var bag = user.desk_prefs[key]
+	if typeof(bag) == TYPE_ARRAY:
+		if s == 0:
+			user.desk_prefs.erase(key)
+	elif typeof(bag) == TYPE_DICTIONARY:
+		bag.erase(str(s))
+		if bag.is_empty():
+			user.desk_prefs.erase(key)
+		else:
+			user.desk_prefs[key] = bag
+	save()
 
 
 func parse_desk_cell(key: String) -> Vector2i:
@@ -517,4 +561,111 @@ func parse_desk_cell(key: String) -> Vector2i:
 	if parts.size() != 2:
 		return Vector2i(-1, -1)
 	return Vector2i(int(parts[0]), int(parts[1]))
+
+
+func sfx_muted() -> bool:
+	return bool(settings.get_value("audio", "muted", false))
+
+
+func set_sfx_muted(on: bool) -> void:
+	settings.set_value("audio", "muted", on)
+	settings.save(SETTINGS_PATH)
+	Audio.apply_volumes()
+
+
+func toggle_sfx_muted() -> bool:
+	set_sfx_muted(not sfx_muted())
+	return sfx_muted()
+
+
+## 고용 팀 필터 ("" = 랜덤 전체). 지정 시 비용 할증
+func hire_team() -> String:
+	var team: String = str(settings.get_value("game", "hire_team", ""))
+	return team if team in GameData.TEAMS else ""
+
+
+func set_hire_team(team: String) -> void:
+	settings.set_value("game", "hire_team", team if team in GameData.TEAMS else "")
+	settings.save(SETTINGS_PATH)
+
+
+func cycle_hire_team() -> String:
+	var order: Array = [""] + GameData.TEAMS.duplicate()
+	var i := order.find(hire_team())
+	var next: String = order[(maxi(i, 0) + 1) % order.size()]
+	set_hire_team(next)
+	return next
+
+
+func hire_team_label(team: Variant = null) -> String:
+	var t: String = hire_team() if team == null else str(team)
+	return GameData.team_name(t) if t in GameData.TEAMS else "전체"
+
+
+## 공격 우선순위 오버라이드: auto / nearest / furthest / strongest / weakest / boss
+const TARGET_MODES := ["auto", "nearest", "furthest", "strongest", "weakest", "boss"]
+const TARGET_LABELS := {
+	"auto": "기본", "nearest": "가까운 적", "furthest": "앞선 적",
+	"strongest": "체력 높은 적", "weakest": "체력 낮은 적", "boss": "보스 우선",
+}
+
+
+func target_mode() -> String:
+	var m: String = str(settings.get_value("game", "target_mode", "auto"))
+	return m if m in TARGET_MODES else "auto"
+
+
+func set_target_mode(mode: String) -> void:
+	settings.set_value("game", "target_mode", mode if mode in TARGET_MODES else "auto")
+	settings.save(SETTINGS_PATH)
+
+
+func cycle_target_mode() -> String:
+	var i := TARGET_MODES.find(target_mode())
+	var next: String = TARGET_MODES[(maxi(i, 0) + 1) % TARGET_MODES.size()]
+	set_target_mode(next)
+	return next
+
+
+func target_mode_label(mode: Variant = null) -> String:
+	var m: String = target_mode() if mode == null else str(mode)
+	return TARGET_LABELS.get(m, "기본")
+
+
+func last_run_seed() -> int:
+	return int(settings.get_value("game", "last_run_seed", 0))
+
+
+func set_last_run_seed(seed: int) -> void:
+	settings.set_value("game", "last_run_seed", seed)
+	settings.save(SETTINGS_PATH)
+
+
+func pending_run_seed() -> int:
+	return int(settings.get_value("game", "pending_run_seed", 0))
+
+
+func set_pending_run_seed(seed: int) -> void:
+	settings.set_value("game", "pending_run_seed", seed)
+	settings.save(SETTINGS_PATH)
+
+
+func clear_pending_run_seed() -> void:
+	settings.set_value("game", "pending_run_seed", 0)
+	settings.save(SETTINGS_PATH)
+
+
+## 세이브 JSON 문자열 (민감정보 없이 진행 데이터만)
+func export_user_json() -> String:
+	return JSON.stringify(user, "\t")
+
+
+func import_user_json(text: String) -> String:
+	var parsed = JSON.parse_string(text.strip_edges())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return "형식이 올바르지 않습니다."
+	if String(parsed.get("name", "")).strip_edges() == "":
+		return "닉네임이 없는 데이터입니다."
+	replace_user(parsed)
+	return ""
 
