@@ -41,6 +41,7 @@ var _last_life := 0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	clip_contents = true
 	battle = Battle.new()
 	battle.setup(stage_id, MAP_CELL)
 	add_child(battle)
@@ -75,6 +76,7 @@ func _build() -> void:
 
 	var root := UI.vbox(0)
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.clip_contents = true
 	add_child(root)
 	root.add_child(_build_hud())
 
@@ -105,39 +107,43 @@ func _safe_top() -> float:
 
 func _build_hud() -> Control:
 	var hud := UI.panel(UI.PANEL, 0, 0)
+	hud.clip_contents = true
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_top", 12 + int(_safe_top()))
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
+	margin.add_theme_constant_override("margin_bottom", 8)
 	hud.add_child(margin)
-	var row := UI.hbox(10)
+	var row := UI.hbox(6)
 	margin.add_child(row)
 
 	# 고리 맵은 목숨 대신 필드에 있는 적 수 (n/100)
-	row.add_child(UI.icon("res://assets/enemy/printer.png", 40) if battle.loop else UI.icon("res://assets/icons/heart.svg", 30))
-	_life_label = UI.label("", 34)
-	_life_label.custom_minimum_size.x = 120 if battle.loop else 50
+	row.add_child(UI.icon("res://assets/enemy/printer.png", 34) if battle.loop else UI.icon("res://assets/icons/heart.svg", 28))
+	_life_label = UI.label("", 30)
+	_life_label.custom_minimum_size.x = 90 if battle.loop else 42
 	row.add_child(_life_label)
-	row.add_child(UI.icon("res://assets/icons/coin.svg", 40))
-	_coin_label = UI.label("", 34, UI.GOLD)
+	row.add_child(UI.icon("res://assets/icons/coin.svg", 34))
+	_coin_label = UI.label("", 30, UI.GOLD)
 	_coin_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_coin_label.clip_text = true
 	row.add_child(_coin_label)
-	_wave_label = UI.label("", 30)
+	_wave_label = UI.label("", 24)
+	_wave_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wave_label.clip_text = true
+	_wave_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(_wave_label)
-	row.add_child(UI.spacer(8, false))
 
-	var pause := UI.button("II", UI.CARD_HI, _toggle_pause, 28)
-	pause.custom_minimum_size = Vector2(72, 64)
+	var pause := UI.button("II", UI.CARD_HI, _toggle_pause, 24)
+	pause.custom_minimum_size = Vector2(52, 52)
 	row.add_child(pause)
-	_speed_button = UI.button("", UI.CARD_HI, _toggle_speed, 28)
-	_speed_button.custom_minimum_size = Vector2(72, 64)
+	_speed_button = UI.button("", UI.CARD_HI, _toggle_speed, 24)
+	_speed_button.custom_minimum_size = Vector2(52, 52)
 	row.add_child(_speed_button)
-	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 24)
-	_fx_button.custom_minimum_size = Vector2(64, 64)
+	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 20)
+	_fx_button.custom_minimum_size = Vector2(52, 52)
 	row.add_child(_fx_button)
-	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 22)
-	_mute_button.custom_minimum_size = Vector2(64, 64)
+	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 18)
+	_mute_button.custom_minimum_size = Vector2(52, 52)
 	row.add_child(_mute_button)
 	return hud
 
@@ -145,13 +151,14 @@ func _build_hud() -> Control:
 func _build_panel() -> Control:
 	var panel := UI.panel(UI.PANEL, 0, 0)
 	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.clip_contents = true
 	var margin := MarginContainer.new()
 	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 14)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 22)
+		margin.add_theme_constant_override("margin_" + side, 10)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_bottom", 14)
 	panel.add_child(margin)
-	var col := UI.vbox(12)
+	var col := UI.vbox(10)
 	margin.add_child(col)
 
 	# 가운데: 직원 정보 카드 또는 안내 문구
@@ -163,30 +170,32 @@ func _build_panel() -> Control:
 	_hint.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n전설 이상은 빈 책상으로 이동 (쿨 2웨이브)", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
-	var tools := UI.hbox(12)
+	var tools := UI.hbox(8)
 	tools.alignment = BoxContainer.ALIGNMENT_CENTER
-	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 22)
-	var merge_cfg := UI.button("승진설정", UI.CARD_HI, _open_merge_settings, 22)
-	var book := UI.button("신화 조합표", Color("7a3fb0"), _open_recipes, 22)
-	var help := UI.button("도움말", UI.CARD_HI, _open_help, 22)
+	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 20)
+	var merge_cfg := UI.button("승진설정", UI.CARD_HI, _open_merge_settings, 20)
+	var book := UI.button("신화표", Color("7a3fb0"), _open_recipes, 20)
+	var help := UI.button("도움", UI.CARD_HI, _open_help, 20)
 	for b in [_merge_button, merge_cfg, book, help]:
-		b.custom_minimum_size = Vector2(0, 64)
+		b.custom_minimum_size = Vector2(0, 56)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
 		tools.add_child(b)
 	_hint.add_child(tools)
-	var pref_row := UI.hbox(8)
+	var pref_row := UI.hbox(6)
 	pref_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_slot_button = UI.button("", UI.CARD_HI, func():
 		Save.cycle_desk_pref_slot()
-		_refresh_hud(), 20)
-	var save_pref := UI.button("자리 저장", UI.PRIMARY, func(): battle.save_desk_prefs_from_towers(), 20)
-	var clear_pref := UI.button("자리 삭제", UI.CARD_HI, func(): battle.clear_desk_prefs(), 20)
+		_refresh_hud(), 18)
+	var save_pref := UI.button("자리저장", UI.PRIMARY, func(): battle.save_desk_prefs_from_towers(), 18)
+	var clear_pref := UI.button("자리삭제", UI.CARD_HI, func(): battle.clear_desk_prefs(), 18)
 	_target_button = UI.button("", UI.PRIMARY, func():
 		battle.target_mode = Save.cycle_target_mode()
-		_refresh_hud(), 20)
+		_refresh_hud(), 18)
 	for b in [_slot_button, save_pref, clear_pref, _target_button]:
-		b.custom_minimum_size = Vector2(0, 56)
+		b.custom_minimum_size = Vector2(0, 48)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
 		pref_row.add_child(b)
 	_hint.add_child(pref_row)
 	_info_slot.add_child(_hint)
@@ -200,54 +209,55 @@ func _build_panel() -> Control:
 		_upgrades.add_child(_build_upgrade_card(team))
 	col.add_child(_upgrades)
 
-	# 직원 고용 / 웨이브 시작
-	var actions := UI.hbox(12)
+	# 직원 고용 / 웨이브 시작 (좁은 화면에서 잘리지 않게 최소 폭을 낮춘다)
+	var actions := UI.hbox(8)
 	_hire_button = UI.button("", UI.SUCCESS, battle.hire)
-	_hire_button.custom_minimum_size.y = 112
+	_hire_button.custom_minimum_size = Vector2(0, 100)
 	_hire_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hire_button.gui_input.connect(func(ev: InputEvent):
-		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT:
-			Save.cycle_hire_team()
-			_refresh_hud()
-			get_viewport().set_input_as_handled())
-	var hire_content := UI.hbox(14)
+	_hire_button.clip_text = true
+	var hire_content := UI.hbox(10)
 	hire_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hire_content.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hire_content.add_child(UI.icon("res://assets/icons/work.svg", 64))
+	hire_content.add_child(UI.icon("res://assets/icons/work.svg", 48))
 	var hire_text := UI.vbox(0)
 	hire_text.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hire_title_label = UI.label("직원 고용", 30)
+	_hire_title_label = UI.label("직원 고용", 26)
+	_hire_title_label.clip_text = true
 	hire_text.add_child(_hire_title_label)
-	_hire_cost_label = UI.label(str(Battle.SPAWN_COST), 24, UI.GOLD)
+	_hire_cost_label = UI.label(str(Battle.SPAWN_COST), 22, UI.GOLD)
 	hire_text.add_child(_hire_cost_label)
 	hire_content.add_child(hire_text)
 	_hire_button.add_child(hire_content)
 	actions.add_child(_hire_button)
+	# 팀 필터는 별도 큰 버튼 대신 좁은 토글 (폭 넘침 방지)
 	var hire_team_btn := UI.button("팀", UI.CARD_HI, func():
 		Save.cycle_hire_team()
-		_refresh_hud(), 22)
-	hire_team_btn.custom_minimum_size = Vector2(72, 112)
+		_refresh_hud(), 20)
+	hire_team_btn.custom_minimum_size = Vector2(56, 100)
 	actions.add_child(hire_team_btn)
 
 	# 유물 뽑기: 보스를 잡아 유물이 있을 때만 보인다
 	_relic_button = UI.button("", UI.PURPLE, battle.summon_special)
-	_relic_button.custom_minimum_size = Vector2(112, 112)
+	_relic_button.custom_minimum_size = Vector2(88, 100)
 	var relic_content := UI.vbox(0)
 	relic_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	relic_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	relic_content.set_anchors_preset(Control.PRESET_FULL_RECT)
-	relic_content.add_child(UI.icon("res://assets/icons/relic.svg", 52))
-	_relic_label = UI.label("", 22, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	relic_content.add_child(UI.icon("res://assets/icons/relic.svg", 44))
+	_relic_label = UI.label("", 20, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	relic_content.add_child(_relic_label)
 	_relic_button.add_child(relic_content)
 	actions.add_child(_relic_button)
 
-	_wave_button = UI.button("웨이브 시작", UI.DANGER, _on_wave_pressed, 34)
+	_wave_button = UI.button("웨이브 시작", UI.DANGER, _on_wave_pressed, 28)
 	_wave_button.icon = UI.play_icon()
-	_wave_button.custom_minimum_size.y = 112
+	_wave_button.custom_minimum_size = Vector2(0, 100)
 	_wave_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wave_button.clip_text = true
+	_wave_button.expand_icon = true
+	_wave_button.add_theme_constant_override("icon_max_width", 36)
 	actions.add_child(_wave_button)
 	col.add_child(actions)
 
@@ -258,14 +268,18 @@ func _build_panel() -> Control:
 	_setup_label = UI.label("", 26, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	setup_col.add_child(_setup_label)
 	setup_col.add_child(UI.wrap_label("고용 · 승진 · 전설 이동 · 팀 업그레이드로 정비하세요", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
-	var setup_row := UI.hbox(10)
-	setup_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var setup_row := UI.hbox(8)
+	setup_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	setup_col.add_child(setup_row)
-	var resume := UI.button("계속 / 정비 완료", UI.PRIMARY, _resume_setup, 24)
-	resume.custom_minimum_size = Vector2(220, 64)
+	var resume := UI.button("계속 / 정비 완료", UI.PRIMARY, _resume_setup, 22)
+	resume.custom_minimum_size = Vector2(0, 64)
+	resume.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	resume.clip_text = true
 	setup_row.add_child(resume)
-	var give_up := UI.button("포기", UI.DANGER, _confirm_give_up, 24)
-	give_up.custom_minimum_size = Vector2(120, 64)
+	var give_up := UI.button("포기", UI.DANGER, _confirm_give_up, 22)
+	give_up.custom_minimum_size = Vector2(0, 64)
+	give_up.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	give_up.clip_text = true
 	setup_row.add_child(give_up)
 	col.add_child(_setup_bar)
 	return panel
@@ -315,15 +329,17 @@ func _open_merge_settings() -> void:
 func _build_upgrade_card(team: String) -> Button:
 	var b := UI.button("", UI.CARD, func(): battle.upgrade_team(team))
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.custom_minimum_size.y = 132
+	b.custom_minimum_size = Vector2(0, 120)
+	b.clip_text = true
 	var v := UI.vbox(2)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.add_child(UI.icon("res://assets/icons/%sup.svg" % team, 54))
-	var name_label := UI.label("", 26, GameData.TEAM_COLORS[team].lightened(0.3), HORIZONTAL_ALIGNMENT_CENTER)
+	v.add_child(UI.icon("res://assets/icons/%sup.svg" % team, 44))
+	var name_label := UI.label("", 22, GameData.TEAM_COLORS[team].lightened(0.3), HORIZONTAL_ALIGNMENT_CENTER)
+	name_label.clip_text = true
 	v.add_child(name_label)
-	var cost := UI.coin_row("", 22)
+	var cost := UI.coin_row("", 20)
 	v.add_child(cost)
 	b.add_child(v)
 	_upgrade_labels[team] = name_label
@@ -383,8 +399,10 @@ func _build_tower_card() -> PanelContainer:
 	mythic.add_child(recipe)
 	var awaken := UI.button("신화 각성", Color("7a3fb0"), func():
 		if battle.selected:
-			battle.awaken(battle.selected), 26)
-	awaken.custom_minimum_size = Vector2(170, 56)
+			battle.awaken(battle.selected), 24)
+	awaken.custom_minimum_size = Vector2(0, 56)
+	awaken.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	awaken.clip_text = true
 	mythic.add_child(awaken)
 	v.add_child(mythic)
 	_card_widgets = {"portrait": portrait, "name": name_label, "grade": grade_label, "stats": stats,
@@ -435,7 +453,9 @@ func _open_recipes() -> void:
 		v.add_child(head)
 		if not unlocked:
 			v.add_child(UI.wrap_label(GameData.mythic_lock_text(Save.user, id), 20, UI.DANGER, HORIZONTAL_ALIGNMENT_LEFT))
-		var parts := UI.hbox(8)
+		var parts := HFlowContainer.new()
+		parts.add_theme_constant_override("h_separation", 8)
+		parts.add_theme_constant_override("v_separation", 6)
 		for need in [m.base] + m.recipe:
 			var t: Dictionary = GameData.towers[need]
 			var have: bool = on_field.call(need)
@@ -447,7 +467,7 @@ func _open_recipes() -> void:
 		v.add_child(UI.wrap_label("%s: %s" % [m.skill.skillName, m.skill.description], 21, Color("c9d4ff"), HORIZONTAL_ALIGNMENT_LEFT))
 		list.add_child(card)
 	var scroll := UI.scroll(list)
-	scroll.custom_minimum_size = Vector2(640, 760)
+	scroll.custom_minimum_size = UI.modal_scroll_size(560, 640)
 	var v := UI.vbox(10)
 	v.add_child(UI.wrap_label("세 팀의 전설 3명(또는 특수 직원 + 전설 2명)을 모으면 신화로 각성! 첫 번째 직원을 누르고 '신화 각성'.\n재료로 쓴 직원은 사라집니다. 초록색은 지금 필드에 있는 직원.\n신화는 직원 관리에서 그 팀 직원을 모두 레벨 %d 이상으로 올려야 해금됩니다." % GameData.MYTHIC_UNLOCK_LEVEL, 22, UI.MUTED))
 	v.add_child(scroll)
@@ -494,10 +514,13 @@ func _open_help() -> void:
 	line.call("받는 피해 = 피해 × (1 - 방어 ÷ (방어 + 100)). 괄호 안은 줄어드는 피해입니다.\n맵에서 체력바 옆 '물'(주황)·'마'(파랑) 표시는 그 피해가 잘 들어가는 적입니다.", UI.MUTED)
 	var grid := GridContainer.new()
 	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 18)
-	grid.add_theme_constant_override("v_separation", 6)
-	for head in ["적", "물리 방어", "마법 방어", "약점"]:
-		grid.add_child(UI.label(head, 22, UI.MUTED))
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 4)
+	for head in ["적", "물리", "마법", "약점"]:
+		var hl := UI.label(head, 18, UI.MUTED)
+		hl.clip_text = true
+		grid.add_child(hl)
 	for id in StageDefs.ENEMIES:
 		var e: Dictionary = StageDefs.ENEMIES[id]
 		var gap: float = e.pdef - e.mdef
@@ -506,14 +529,17 @@ func _open_help() -> void:
 		if absf(gap) >= BattleView.WEAK_GAP:
 			weak = "마법" if gap > 0 else "물리"
 			weak_color = BattleView.DMG_MAGIC if gap > 0 else BattleView.DMG_PHYSICAL
-		grid.add_child(UI.label(e.name, 22, UI.DANGER if e.boss else UI.TEXT))
-		grid.add_child(UI.label("%d (-%d%%)" % [e.pdef, roundi(100.0 * e.pdef / (e.pdef + 100.0))], 22, BattleView.DMG_PHYSICAL))
-		grid.add_child(UI.label("%d (-%d%%)" % [e.mdef, roundi(100.0 * e.mdef / (e.mdef + 100.0))], 22, BattleView.DMG_MAGIC))
-		grid.add_child(UI.label(weak, 22, weak_color))
+		var name_l := UI.label(e.name, 18, UI.DANGER if e.boss else UI.TEXT)
+		name_l.clip_text = true
+		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(name_l)
+		grid.add_child(UI.label("%d(-%d%%)" % [e.pdef, roundi(100.0 * e.pdef / (e.pdef + 100.0))], 17, BattleView.DMG_PHYSICAL))
+		grid.add_child(UI.label("%d(-%d%%)" % [e.mdef, roundi(100.0 * e.mdef / (e.mdef + 100.0))], 17, BattleView.DMG_MAGIC))
+		grid.add_child(UI.label(weak, 18, weak_color))
 	v.add_child(grid)
 
 	var scroll := UI.scroll(v)
-	scroll.custom_minimum_size = Vector2(640, 760)
+	scroll.custom_minimum_size = UI.modal_scroll_size(560, 640)
 	UI.modal("도움말", scroll, [["닫기", UI.CARD_HI]], self)
 
 
@@ -539,9 +565,10 @@ func _refresh_hud() -> void:
 		_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
 	_speed_button.text = "x%d" % int(battle.speed)
 	_fx_button.text = Save.effect_quality_label()
-	_mute_button.text = "음소거" if Save.sfx_muted() else "소리"
-	if battle.loop and battle.event_label != "":
-		_wave_label.text = "%s · %s" % [_wave_label.text, battle.event_label]
+	_mute_button.text = "음X" if Save.sfx_muted() else "음"
+	# 이벤트 문구는 HUD 폭을 넘기기 쉬워서 짧은 표시만 붙인다
+	if battle.loop and battle.event_id != "":
+		_wave_label.text = "%s · 이벤트" % _wave_label.text
 	var can_start := battle.can_start_wave()
 	if battle.resting:
 		_wave_button.disabled = false

@@ -26,9 +26,11 @@ var _exit_modal: Control
 func _ready() -> void:
 	if not Save.has_user():
 		Save.create_user(Save.DEFAULT_NAME)
+	clip_contents = true
 	UI.backdrop(self, "res://assets/menu/menu_background.jpg", 0.82)
 	var root := UI.vbox(0)
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.clip_contents = true
 	add_child(root)
 	root.add_child(_build_top_bar())
 	_content = MarginContainer.new()
@@ -82,17 +84,18 @@ func _safe_top() -> float:
 
 func _build_top_bar() -> Control:
 	var bar := UI.panel(Color(UI.PANEL, 0.92), 0, 0)
+	bar.clip_contents = true
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 14 + int(_safe_top()))
-	margin.add_theme_constant_override("margin_bottom", 14)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
+	margin.add_theme_constant_override("margin_bottom", 10)
 	bar.add_child(margin)
-	var row := UI.hbox(10)
+	var row := UI.hbox(6)
 	margin.add_child(row)
 	# 구글 계정을 연동했으면 맨 왼쪽에 프로필 사진 (누르면 내 정보)
 	_avatar = Avatar.new()
-	_avatar.custom_minimum_size = Vector2(68, 68)
+	_avatar.custom_minimum_size = Vector2(56, 56)
 	_avatar.pressed.connect(_open_profile)
 	row.add_child(_avatar)
 	Account.profile_changed.connect(_refresh_avatar)
@@ -101,32 +104,33 @@ func _build_top_bar() -> Control:
 	row.add_child(_gold_pill)
 	_time_pill = UI.pill("res://assets/icons/waste.svg", "")
 	row.add_child(_time_pill)
-	row.add_child(UI.spacer(0, false))
 
-	var mission_button := UI.button("미션", UI.CARD_HI, open_missions, 26)
-	mission_button.custom_minimum_size = Vector2(100, 68)
+	var mission_button := UI.button("미션", UI.CARD_HI, open_missions, 22)
+	mission_button.custom_minimum_size = Vector2(72, 56)
+	mission_button.clip_text = true
 	_mission_badge = _badge(mission_button)
 	row.add_child(mission_button)
 
-	_mail_button = UI.button("메일", UI.CARD_HI, open_mailbox, 26)
-	_mail_button.custom_minimum_size = Vector2(100, 68)
+	_mail_button = UI.button("메일", UI.CARD_HI, open_mailbox, 22)
+	_mail_button.custom_minimum_size = Vector2(72, 56)
+	_mail_button.clip_text = true
 	_mail_badge = _badge(_mail_button)
 	row.add_child(_mail_button)
 
 	var menu := UI.button("", UI.CARD_HI, open_menu)
 	menu.icon = load("res://assets/menu/menu.svg")
 	menu.expand_icon = true
-	menu.custom_minimum_size = Vector2(68, 68)
+	menu.custom_minimum_size = Vector2(56, 56)
 	row.add_child(menu)
 	return bar
 
 
 ## 버튼 오른쪽 위의 빨간 숫자 배지
 func _badge(b: Button) -> Label:
-	var badge := UI.label("", 20, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	badge.add_theme_stylebox_override("normal", UI.box(UI.DANGER, 14, 2))
-	badge.custom_minimum_size = Vector2(30, 28)
-	badge.position = Vector2(76, -8)
+	var badge := UI.label("", 18, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	badge.add_theme_stylebox_override("normal", UI.box(UI.DANGER, 12, 2))
+	badge.custom_minimum_size = Vector2(26, 24)
+	badge.position = Vector2(48, -6)
 	b.add_child(badge)
 	return badge
 
@@ -208,7 +212,7 @@ func show_tab(index: int) -> void:
 func open_mailbox() -> void:
 	var list := UI.vbox(12)
 	var scroll := UI.scroll(list)
-	scroll.custom_minimum_size = Vector2(620, 640)
+	scroll.custom_minimum_size = UI.modal_scroll_size(560, 560)
 	_fill_mails(list)
 	var actions := UI.hbox(10)
 	var claim_all := UI.button("모두 받기", UI.SUCCESS, func():
@@ -273,7 +277,7 @@ func _fill_mails(list: VBoxContainer) -> void:
 func open_missions() -> void:
 	var list := UI.vbox(12)
 	var scroll := UI.scroll(list)
-	scroll.custom_minimum_size = Vector2(620, 700)
+	scroll.custom_minimum_size = UI.modal_scroll_size(560, 600)
 	var tabs := UI.hbox(10)
 	var daily_tab := UI.button("일일 미션", UI.PRIMARY, Callable(), 26)
 	var achieve_tab := UI.button("업적", UI.CARD_HI, Callable(), 26)
@@ -663,7 +667,9 @@ func _open_settings() -> void:
 		v.add_child(vol_slider)
 	v.add_child(UI.wrap_label("효과음(클릭·타격·투사체·피격) 볼륨입니다. BGM은 없습니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
-	UI.modal("설정", v, [["닫기", UI.CARD_HI]], self)
+	var scroll := UI.scroll(v)
+	scroll.custom_minimum_size = UI.modal_scroll_size(560, 640)
+	UI.modal("설정", scroll, [["닫기", UI.CARD_HI]], self)
 
 
 func _export_save() -> void:
@@ -676,7 +682,8 @@ func _import_save() -> void:
 	var v := UI.vbox(12)
 	v.add_child(UI.wrap_label("클립보드의 세이브 JSON을 붙여 넣으세요. 현재 데이터가 덮어씌워집니다.", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	var edit := TextEdit.new()
-	edit.custom_minimum_size = Vector2(560, 320)
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edit.custom_minimum_size = UI.modal_scroll_size(520, 280)
 	edit.placeholder_text = "여기에 JSON 붙여넣기"
 	var clip := DisplayServer.clipboard_get()
 	if clip.strip_edges().begins_with("{"):

@@ -10,10 +10,13 @@ var _filter_buttons := {}
 func _ready() -> void:
 	add_theme_constant_override("separation", 14)
 	add_child(UI.label("직원", 44, UI.TEXT))
-	var filters := UI.hbox(10)
+	var filters := UI.hbox(8)
+	filters.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for pair in [["", "전체"], ["hr", "인사"], ["dv", "개발"], ["sl", "영업"]]:
-		var b := UI.button(pair[1], UI.CARD, _set_filter.bind(pair[0]), 26)
-		b.custom_minimum_size = Vector2(110, 64)
+		var b := UI.button(pair[1], UI.CARD, _set_filter.bind(pair[0]), 24)
+		b.custom_minimum_size = Vector2(0, 60)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
 		_filter_buttons[pair[0]] = b
 		filters.add_child(b)
 	add_child(filters)
@@ -179,6 +182,10 @@ func _fill_mythic(id: String, v: VBoxContainer, level_label: Label, stats: Label
 
 func _zoom(texture: Texture2D) -> void:
 	var big := UI.icon_texture(texture, 0)
-	big.custom_minimum_size = Vector2(540, 720)
+	var sz := UI.modal_scroll_size(480, 560)
+	big.custom_minimum_size = sz
+	big.custom_maximum_size = sz
+	big.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	big.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	big.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	UI.modal("", big, [["닫기", UI.CARD_HI]], main)

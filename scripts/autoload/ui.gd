@@ -253,18 +253,38 @@ func scroll(content: Control) -> ScrollContainer:
 	var s := ScrollContainer.new()
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	s.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.add_child(content)
 	return s
+
+
+## 모달 카드 가로폭 (좁은 웹/모바일에서 화면을 넘기지 않는다)
+func modal_width(prefer := 600.0) -> float:
+	var vp := get_viewport().get_visible_rect().size.x if get_viewport() else prefer
+	return minf(prefer, maxf(280.0, vp - 40.0))
+
+
+## 모달 안 스크롤 영역 크기
+func modal_scroll_size(prefer_w := 560.0, prefer_h := 640.0) -> Vector2:
+	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(prefer_w, prefer_h)
+	var w := minf(prefer_w, maxf(240.0, modal_width() - 48.0))
+	var h := minf(prefer_h, maxf(240.0, vp.y * 0.62))
+	return Vector2(w, h)
 
 
 ## 둥근 알약 모양 표시 (아이콘 + 글자)
 func pill(icon_path: String, text: String, color := TEXT) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", _pill_box())
-	var h := hbox(8)
-	h.add_child(icon(icon_path, 36))
-	var l := label(text, 28, color)
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.clip_contents = true
+	var h := hbox(6)
+	h.add_child(icon(icon_path, 32))
+	var l := label(text, 26, color)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	h.add_child(l)
 	p.add_child(h)
 	p.set_meta("text", l)
@@ -281,6 +301,7 @@ func _pill_box() -> StyleBoxFlat:
 func wrap_label(text: String, size := 26, color := MUTED, align := HORIZONTAL_ALIGNMENT_CENTER) -> Label:
 	var l := label(text, size, color, align)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.custom_minimum_size.x = 100
 	return l
 
@@ -314,13 +335,18 @@ func _click_feedback(b: Control) -> void:
 # ------------------------------------------------------------------ 토스트 / 모달
 
 func toast(text: String, color := TEXT) -> void:
-	var p := panel(Color(0.05, 0.06, 0.08, 0.92), 30, 18)
-	var l := label(text, 28, color, HORIZONTAL_ALIGNMENT_CENTER)
+	var p := panel(Color(0.05, 0.06, 0.08, 0.92), 24, 16)
+	p.clip_contents = true
+	var l := wrap_label(text, 26, color, HORIZONTAL_ALIGNMENT_CENTER)
 	p.add_child(l)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast_layer.add_child(p)
 	await get_tree().process_frame
 	var vp := get_viewport().get_visible_rect().size
+	var max_w := minf(vp.x - 40.0, 560.0)
+	p.custom_maximum_size = Vector2(max_w, 0)
+	p.reset_size()
+	await get_tree().process_frame
 	p.position = Vector2((vp.x - p.size.x) / 2, vp.y * 0.16)
 	p.modulate.a = 0
 	var tw := p.create_tween()
@@ -336,6 +362,7 @@ func modal(title: String, content: Control, buttons: Array = [], parent: Node = 
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.clip_contents = true
 
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.6)
@@ -346,21 +373,29 @@ func modal(title: String, content: Control, buttons: Array = [], parent: Node = 
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(center)
 
-	var card := panel(PANEL, 26, 28, true)
-	card.custom_minimum_size = Vector2(600, 0)
+	var card := panel(PANEL, 22, 22, true)
+	card.clip_contents = true
+	card.custom_minimum_size = Vector2(modal_width(), 0)
+	# 세로도 화면을 넘기지 않게 상한
+	var vp_h := get_viewport().get_visible_rect().size.y if get_viewport() else 1280.0
+	card.custom_maximum_size = Vector2(modal_width(), maxf(320.0, vp_h - 48.0))
 	center.add_child(card)
-	var v := vbox(22)
+	var v := vbox(16)
 	card.add_child(v)
 	if title != "":
-		v.add_child(label(title, 40, TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+		var title_l := label(title, 36, TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+		title_l.clip_text = true
+		v.add_child(title_l)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(content)
 	if not buttons.is_empty():
-		var row := hbox(14)
+		var row := hbox(10)
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		for spec in buttons:
-			var b := button(spec[0], spec[1])
+			var b := button(spec[0], spec[1], Callable(), 28)
 			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			b.custom_minimum_size.y = 84
+			b.custom_minimum_size = Vector2(0, 76)
+			b.clip_text = true
 			var cb: Callable = spec[2] if spec.size() > 2 else Callable()
 			b.pressed.connect(func():
 				close_modal(root)

@@ -37,8 +37,13 @@ func _stage_card(id: int) -> Control:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	text.add_child(UI.label(s.name, 40, UI.TEXT if unlocked else UI.MUTED))
-	var chips := UI.hbox(10)
+	var name_l := UI.label(s.name, 36, UI.TEXT if unlocked else UI.MUTED)
+	name_l.clip_text = true
+	name_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	text.add_child(name_l)
+	var chips := HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation", 8)
+	chips.add_theme_constant_override("v_separation", 6)
 	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chips.add_child(_chip(s.difficulty, DIFFICULTY_COLORS[s.difficulty]))
 	var endless := StageDefs.is_endless(id)

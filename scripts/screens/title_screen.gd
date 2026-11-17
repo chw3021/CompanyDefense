@@ -5,6 +5,7 @@ var _starting := false
 
 
 func _ready() -> void:
+	clip_contents = true
 	UI.backdrop(self, "res://assets/menu/menu_background.jpg", 0.25)
 	# 아래쪽을 어둡게 해서 버튼과 글자가 잘 보이게
 	var grad := TextureRect.new()
@@ -22,25 +23,34 @@ func _ready() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 60)
-	margin.add_theme_constant_override("margin_top", 200)
-	margin.add_theme_constant_override("margin_bottom", 140)
+		margin.add_theme_constant_override("margin_" + side, 28)
+	margin.add_theme_constant_override("margin_top", 160)
+	margin.add_theme_constant_override("margin_bottom", 100)
 	add_child(margin)
 	var v := UI.vbox(10)
 	margin.add_child(v)
 
-	var title := UI.outlined("컴퍼니 디펜스", 100, UI.TEXT, 18)
+	var title := UI.outlined("컴퍼니 디펜스", 72, UI.TEXT, 14)
+	title.clip_text = true
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(title)
-	v.add_child(UI.outlined("몰려오는 사무기기로부터 회사를 지켜라!", 32, Color("ffe7a3"), 10))
+	var subtitle := UI.outlined("몰려오는 사무기기로부터 회사를 지켜라!", 28, Color("ffe7a3"), 8)
+	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	subtitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(subtitle)
 	v.add_child(UI.spacer())
 	if Save.has_user():
-		v.add_child(UI.outlined("%s 님, 오늘도 화이팅!" % Save.user.name, 34, UI.GOLD, 10))
-	var start := UI.button("출근하기" if Save.has_user() else "입사하기", UI.PRIMARY, _on_start, 44)
-	start.custom_minimum_size = Vector2(0, 120)
+		var greet := UI.outlined("%s 님, 오늘도 화이팅!" % Save.user.name, 30, UI.GOLD, 8)
+		greet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		greet.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		v.add_child(greet)
+	var start := UI.button("출근하기" if Save.has_user() else "입사하기", UI.PRIMARY, _on_start, 40)
+	start.custom_minimum_size = Vector2(0, 110)
+	start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(start)
 
 	# 제목이 살짝 떠다니는 연출
-	title.pivot_offset = Vector2(300, 60)
+	title.resized.connect(func(): title.pivot_offset = title.size / 2)
 	var tw := title.create_tween().set_loops()
 	tw.tween_property(title, "position:y", -8.0, 1.6).as_relative().set_trans(Tween.TRANS_SINE)
 	tw.tween_property(title, "position:y", 8.0, 1.6).as_relative().set_trans(Tween.TRANS_SINE)
@@ -72,7 +82,8 @@ static func ask_nickname(title: String, initial: String, on_done: Callable, pare
 	edit.text = typed if error != "" else initial
 	edit.placeholder_text = Save.DEFAULT_NAME
 	edit.max_length = Save.NICKNAME_MAX
-	edit.custom_minimum_size = Vector2(520, 90)
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edit.custom_minimum_size = Vector2(0, 84)
 	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(edit)
 	if error != "":
