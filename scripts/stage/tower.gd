@@ -78,9 +78,13 @@ func can_merge_with(other: Tower) -> bool:
 			and other.id == id and other.grade == grade
 
 
-## 전설(5성) 이상만 빈 책상으로 이동할 수 있다
+## 영웅(4성) 이상만 빈 책상으로 이동할 수 있다
 func can_reposition() -> bool:
-	return grade >= GameData.MAX_GRADE and reposition_cd <= 0
+	return grade >= GameData.MOVE_MIN_GRADE and reposition_cd <= 0
+
+
+func can_ever_reposition() -> bool:
+	return grade >= GameData.MOVE_MIN_GRADE
 
 
 ## 팀 업그레이드와 버프를 반영해 현재 능력치를 다시 계산

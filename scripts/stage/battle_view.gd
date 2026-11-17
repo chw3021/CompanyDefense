@@ -41,7 +41,7 @@ var _dragging := false
 var _drag_pos := Vector2.ZERO
 var _press_pos := Vector2.ZERO
 var _hover_target: Tower
-var _hover_desk := Vector2i(-1, -1)  # 전설+ 이동 후보 빈 책상
+var _hover_desk := Vector2i(-1, -1)  # 영웅+ 이동 후보 빈 책상
 
 
 func setup(p_battle: Battle) -> void:
@@ -292,6 +292,14 @@ func _draw_merge_targets(src: Tower) -> void:
 		if src.can_merge_with(t):
 			var r := Rect2(t.cell.x * c, t.cell.y * c, c, c).grow(-1)
 			_outline(r, Color(UI.GOLD, 0.6 + 0.4 * pulse), 12, 5)
+	# 이동 가능하면 빈 책상을 청록색으로 표시
+	if src.can_reposition():
+		for cell: Vector2i in battle.desk_cells:
+			if battle.tower_at_cell(cell) != null:
+				continue
+			var r := Rect2(cell.x * c, cell.y * c, c, c).grow(-4)
+			_outline(r, Color(Color("5ad0c8"), 0.35 + 0.35 * pulse), 10, 2)
+			_rounded(r, Color(Color("5ad0c8"), 0.08 + 0.06 * pulse), 8)
 
 
 func _draw_range(t: Tower) -> void:
@@ -372,10 +380,17 @@ func _draw_tower_hud(t: Tower) -> void:
 		_star(row + Vector2((i - (t.grade - 1) / 2.0) * gap, 0), star_r, Color(grade_color.lightened(0.15), alpha))
 	if battle.selected == t:
 		_outline(Rect2(base, Vector2(c, c)).grow(-2), UI.TEXT, 12, 3)
-	# 전설+ 이동 쿨 표시
-	if t.grade >= GameData.MAX_GRADE and t.reposition_cd > 0:
-		_rounded(Rect2(center_x - c * 0.28, base.y + c * 0.02, c * 0.56, c * 0.2), Color(0, 0, 0, 0.7), 8)
-		_text(Vector2(center_x, base.y + c * 0.12), "이동 %d" % t.reposition_cd, 15, UI.MUTED)
+	# 영웅(4성)+ 이동 가능/쿨 표시 (특수문자 없이 ASCII·한글만)
+	if t.can_ever_reposition():
+		var badge := Rect2(center_x - c * 0.3, base.y + c * 0.02, c * 0.6, c * 0.2)
+		if t.reposition_cd > 0:
+			_rounded(badge, Color(0, 0, 0, 0.72), 8)
+			_text(Vector2(center_x, base.y + c * 0.12), "이동 %d" % t.reposition_cd, 14, UI.MUTED)
+		else:
+			var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 280.0 + t.cell.x)
+			_rounded(badge, Color(Color("1a5c58"), 0.75 + 0.15 * pulse), 8)
+			_outline(badge.grow(1), Color(Color("5ad0c8"), 0.5 + 0.4 * pulse), 8, 2)
+			_text(Vector2(center_x, base.y + c * 0.12), "이동", 14, Color("b8fff8"))
 
 
 ## 다섯 꼭지 별
@@ -1234,7 +1249,7 @@ func handle_input(event: InputEvent) -> void:
 					battle.merge(_press_tower, other)
 				elif other == null and _press_tower.can_reposition():
 					battle.reposition(_press_tower, dest)
-				elif other == null and _press_tower.grade >= GameData.MAX_GRADE and _press_tower.reposition_cd > 0:
+				elif other == null and _press_tower.can_ever_reposition() and _press_tower.reposition_cd > 0:
 					battle.message.emit("이동 쿨타임: %d웨이브 남음" % _press_tower.reposition_cd, UI.WARN)
 			else:
 				battle.select(null if battle.selected == _press_tower else _press_tower)

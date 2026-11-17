@@ -28,7 +28,7 @@ const HIRE_TEAM_COST := 130  # 팀 지정 고용 할증
 const TRADE_CHANCES := [0.8, 0.6, 0.4, 0.25, 0.1]  # 협상 성공 확률 (1~5성)
 const MAX_LIFE := 8
 const DT_CLAMP := 0.1
-const MOVE_COOLDOWN := 2   # 전설+ 자리 이동 쿨 (웨이브/라운드)
+const MOVE_COOLDOWN := 2   # 영웅(4성)+ 자리 이동 쿨 (웨이브/라운드)
 const REST_EVERY := 10     # 야근: N라운드마다 자동 정비
 const EVENT_EVERY := 7     # 야근 랜덤 이벤트 주기(라운드)
 
@@ -561,7 +561,7 @@ func clear_desk_prefs() -> void:
 	message.emit("배치 슬롯 %d 저장을 지웠습니다" % slot, UI.MUTED)
 
 
-## 전설+ 를 빈 책상으로 옮긴다 (쿨 MOVE_COOLDOWN 웨이브)
+## 영웅(4성)+ 를 빈 책상으로 옮긴다 (쿨 MOVE_COOLDOWN 웨이브)
 func reposition(t: Tower, dest: Vector2i) -> bool:
 	if finished or t == null or not t.can_reposition():
 		return false

@@ -9,6 +9,7 @@ const GRADE_COLORS := [Color("b8c0cc"), Color("4cd17a"), Color("4c9dff"), Color(
 const GRADE_NAMES := ["일반", "고급", "희귀", "영웅", "전설", "신화"]
 const MAX_GRADE := 5      # 승진(같은 직원 합치기)으로 오를 수 있는 최고 등급
 const MYTHIC_GRADE := 6   # 신화: 전설 + 조합 재료로만 각성
+const MOVE_MIN_GRADE := 4 # 영웅(4성) 이상: 빈 책상으로 자리 이동 가능
 
 ## 신화 직원. 전설(base)과 다른 두 팀의 전설 한 명씩, 전설 셋을 모으면 base 가 신화로 각성한다.
 ## 만들기가 아주 어려운 만큼 능력치는 전설의 MYTHIC_STAT_MULT 배, 스킬은 맵 전체급.

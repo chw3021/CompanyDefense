@@ -178,7 +178,7 @@ func _build_panel() -> Control:
 	_hint = UI.vbox(8)
 	_hint.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n전설 이상은 빈 책상으로 이동 (쿨 2웨이브)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n영웅(4성) 이상은 빈 책상으로 이동 (쿨 2웨이브)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	# 자동 승진은 한 줄 전체 폭 — 옆 버튼과 나눠 쓰면 글자가 잘린다
 	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 22)
 	_merge_button.custom_minimum_size = Vector2(0, 52)
@@ -535,8 +535,8 @@ func _open_help() -> void:
 	line.call("직원을 누르고 '협상'을 누르면 50 × 등급 코인을 내고 같은 등급의 다른 직원으로 바꿉니다.\n실패하면 그 직원은 퇴사하고 코인은 돌려받지 못합니다. 신화와 특수 직원은 협상할 수 없습니다.", UI.MUTED)
 	line.call("성공 확률: " + " · ".join(chances), UI.TEXT)
 
-	section.call("전설 이동 · 정비")
-	line.call("전설(5성) 이상 직원은 빈 책상으로 끌어 이동할 수 있습니다. 이동 후 %d웨이브(라운드) 동안 다시 옮길 수 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
+	section.call("자리 이동 / 정비")
+	line.call("영웅(4성) 이상 직원은 빈 책상으로 끌어 이동할 수 있습니다. 머리 위 '이동' 표시가 있는 직원이 대상입니다. 이동 후 %d웨이브(라운드) 동안 다시 옮길 수 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
 	line.call("일시정지와 정비 시간에는 전투만 멈추고 고용·승진·이동이 가능합니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
 	line.call("선호 배치: ① 배치1~3 슬롯 고르기 ② 원하는 책상에 직원 앉히기 ③ '배치저장'. 이후 고용 시 저장한 빈자리부터 채웁니다. '배치삭제'로 지울 수 있습니다.", UI.TEXT)
 	line.call("야근은 %d라운드마다 랜덤 이벤트(수당 2배, 전력 질주, 고용 불가, 업무 폭주)가 납니다." % Battle.EVENT_EVERY, UI.MUTED)
@@ -665,7 +665,7 @@ func _on_tower_selected(t: Tower) -> void:
 		return
 	_card_widgets.portrait.texture = load(GameData.asset(t.data.towerImagePath))
 	_card_widgets.name.text = t.name
-	_card_widgets.grade.text = "%s팀  |  %s" % [GameData.team_name(t.team), GameData.grade_label(t.data)]
+	_card_widgets.grade.text = "%s팀 / %s" % [GameData.team_name(t.team), GameData.grade_label(t.data)]
 	_card_widgets.grade.add_theme_color_override("font_color", GameData.tower_color(t.data))
 	_card_widgets.sell.text = "퇴사  +%d" % Battle.sell_price(t)
 	_card_widgets.trade.text = "협상  -%d (%d%%)" % [Battle.trade_cost(t), roundi(Battle.trade_chance(t) * 100)]
