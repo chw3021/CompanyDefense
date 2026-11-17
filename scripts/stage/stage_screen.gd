@@ -143,17 +143,16 @@ func _build_hud() -> Control:
 	UI.recolor_compact(_speed_button, UI.CARD_HI, 6)
 	row.add_child(_speed_button)
 	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 16)
-	_fx_button.custom_minimum_size = Vector2(48, 48)
-	_fx_button.expand_icon = true
-	_fx_button.add_theme_constant_override("icon_max_width", 28)
-	UI.recolor_compact(_fx_button, UI.CARD_HI, 6)
-	row.add_child(_fx_button)
 	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 16)
-	_mute_button.custom_minimum_size = Vector2(48, 48)
-	_mute_button.expand_icon = true
-	_mute_button.add_theme_constant_override("icon_max_width", 28)
-	UI.recolor_compact(_mute_button, UI.CARD_HI, 6)
-	row.add_child(_mute_button)
+	for b in [_fx_button, _mute_button]:
+		b.custom_minimum_size = Vector2(48, 48)
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 34)
+		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		UI.recolor_compact(b, UI.CARD_HI, 4)
+		row.add_child(b)
 	return hud
 
 
@@ -179,7 +178,7 @@ func _build_panel() -> Control:
 	_hint.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n영웅(4성) 이상은 빈 책상으로 이동 (쿨 2웨이브)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
-	# 자동 승진은 한 줄 전체 폭 — 옆 버튼과 나눠 쓰면 글자가 잘린다
+	# 자동 승진은 한 줄 전체 폭 - 옆 버튼과 나눠 쓰면 글자가 잘린다
 	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 22)
 	_merge_button.custom_minimum_size = Vector2(0, 52)
 	_merge_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -196,8 +195,8 @@ func _build_panel() -> Control:
 		UI.recolor_compact(b, pair[1], 6)
 		tools.add_child(b)
 	_hint.add_child(tools)
-	# 선호 배치: 슬롯 고르기 → 직원 앉히기 → 저장. 고용 시 그 빈자리부터 채움
-	_hint.add_child(UI.label("선호 배치: 슬롯 선택 → 직원 배치 후 저장 → 고용 시 그 자리 우선", 16, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	# 선호 배치 안내 (웹 폰트에 없는 화살표/중점 기호는 쓰지 않는다)
+	_hint.add_child(UI.label("선호 배치: 슬롯 선택 > 직원 배치 후 저장 > 고용 시 그 자리 우선", 16, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var pref_row := UI.hbox(6)
 	_slot_button = UI.button("", UI.CARD_HI, func():
 		Save.cycle_desk_pref_slot()
@@ -228,7 +227,7 @@ func _build_panel() -> Control:
 		_upgrades.add_child(_build_upgrade_card(team))
 	col.add_child(_upgrades)
 
-	# 고용 / 팀필터 / 웨이브 — 자식 위젯 없이 버튼 텍스트만 써서 잘림을 피한다
+	# 고용 / 팀필터 / 웨이브 - 자식 위젯 없이 버튼 텍스트만 써서 잘림을 피한다
 	var actions := UI.hbox(8)
 	_hire_button = UI.button("고용", UI.SUCCESS, battle.hire, 24)
 	_hire_button.icon = load("res://assets/icons/work.png")
@@ -271,7 +270,7 @@ func _build_panel() -> Control:
 	UI.recolor_compact(_wave_button, UI.DANGER, 8)
 	actions.add_child(_wave_button)
 	col.add_child(actions)
-	# 정비/일시정지 바는 패널 VBox에 넣지 않는다 (넣으면 맵·버튼이 위로 밀린다)
+	# 정비/일시정지 바는 패널 VBox에 넣지 않는다 (넣으면 맵/버튼이 위로 밀린다)
 	return panel
 
 
@@ -357,7 +356,7 @@ func _open_merge_settings() -> void:
 		_refresh_hud())
 	team_refresh.call()
 	v.add_child(team_btn)
-	v.add_child(UI.wrap_label("자동 승진 버튼을 누르면 선택한 범위·팀의 짝을 연쇄로 합칩니다.\n(모바일: 도움말에서도 바꿀 수 있습니다)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(UI.wrap_label("자동 승진 버튼을 누르면 선택한 범위/팀의 짝을 연쇄로 합칩니다.\n(모바일: 도움말에서도 바꿀 수 있습니다)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	UI.modal("자동 승진 설정", v, [["닫기", UI.CARD_HI]], self)
 
 
@@ -396,12 +395,17 @@ func _build_tower_card() -> PanelContainer:
 	var top := UI.hbox(18)
 	v.add_child(top)
 	var portrait_bg := UI.panel(Color("0f1319"), 16, 6)
+	portrait_bg.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var portrait := TextureRect.new()
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	portrait.custom_minimum_size = Vector2(96, 120)
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_bg.add_child(portrait)
+	portrait_bg.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_open_skill_detail())
 	top.add_child(portrait_bg)
 	var text := UI.vbox(4)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -468,11 +472,59 @@ func _fill_recipe(t: Tower) -> void:
 		# 카드 높이를 두 줄로 맞추려고 해금 조건을 짧게 붙인다 (자세한 문구는 신화 조합표)
 		var p := GameData.mythic_progress(Save.user, mythic)
 		lock = " (잠김: %s팀 Lv.%d 이상 %d/%d명)" % [GameData.team_name(GameData.towers[mythic].team), GameData.MYTHIC_UNLOCK_LEVEL, p[0], p[1]]
-	_card_widgets.recipe.text = "→ %s%s\n재료: %s" % [GameData.MYTHICS[mythic].name, lock, " + ".join(names)]
+	_card_widgets.recipe.text = "> %s%s\n재료: %s" % [GameData.MYTHICS[mythic].name, lock, " + ".join(names)]
 	var ok := battle.can_awaken(t)
 	_card_widgets.recipe.add_theme_color_override("font_color", UI.GOLD if ok else (UI.MUTED if unlocked else UI.DANGER))
 	_card_widgets.awaken.disabled = not ok
 	_card_widgets.awaken.text = "신화 각성" if unlocked else "잠김"
+
+
+## 하단 카드 초상화: 선택한 직원의 스킬 설명
+func _open_skill_detail() -> void:
+	var t := battle.selected
+	if t == null:
+		return
+	Audio.click()
+	var skill: Dictionary = t.skill.data
+	var v := UI.vbox(12)
+	var head := UI.hbox(14)
+	var frame := UI.panel(Color(GameData.TEAM_COLORS[t.team], 0.25), 14, 8)
+	var face := UI.icon_texture(_card_widgets.portrait.texture, 96)
+	face.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	frame.add_child(face)
+	head.add_child(frame)
+	var info := UI.vbox(6)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.alignment = BoxContainer.ALIGNMENT_CENTER
+	info.add_child(UI.wrap_label(t.name, 30, UI.TEXT, HORIZONTAL_ALIGNMENT_LEFT))
+	info.add_child(UI.wrap_label("%s팀 / %s" % [GameData.team_name(t.team), GameData.grade_label(t.data)], 22,
+			GameData.tower_color(t.data), HORIZONTAL_ALIGNMENT_LEFT))
+	head.add_child(info)
+	v.add_child(head)
+
+	var skill_box := UI.panel(UI.CARD, 16, 16)
+	var sv := UI.vbox(8)
+	skill_box.add_child(sv)
+	var skill_head := UI.hbox(10)
+	var skill_img: String = str(skill.get("skillImagePath", ""))
+	if skill_img != "" and skill_img.ends_with(".png") and ResourceLoader.exists(GameData.asset(skill_img)):
+		var skill_icon := UI.icon(GameData.asset(skill_img), 52)
+		skill_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		skill_head.add_child(skill_icon)
+	var skill_title := UI.label("스킬 " + str(skill.get("skillName", t.skill.name)), 28, Color("9fc3ff"))
+	skill_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skill_title.clip_text = true
+	skill_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	skill_head.add_child(skill_title)
+	sv.add_child(skill_head)
+	var description: String = skill.get("skillDescription", skill.get("description", ""))
+	var ready := t.skill.ready_ratio()
+	var cool := "쿨타임 %.1f초" % t.skill.cooldown
+	if ready < 1.0:
+		cool += " (충전 %d%%)" % roundi(ready * 100)
+	sv.add_child(UI.wrap_label("%s\n(%s)" % [description, cool], 24, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(skill_box)
+	UI.modal("스킬 상세", UI.bind_modal_scroll(UI.scroll(v)), [["닫기", UI.CARD_HI]], self)
 
 
 ## 신화 조합표: 신화마다 재료와 지금 필드에 있는지
@@ -521,27 +573,27 @@ func _open_help() -> void:
 		v.add_child(UI.wrap_label(text, 22, color, HORIZONTAL_ALIGNMENT_LEFT))
 
 	section.call("팀 레벨업 (인사 / 개발 / 영업)")
-	line.call("아래 팀 버튼을 누르면 그 팀 직원 모두의 물리·마법 공격력이 레벨당 10%씩 오릅니다.\n비용은 50 × 현재 레벨 코인이고, 이번 스테이지에서만 유지됩니다.", UI.MUTED)
+	line.call("아래 팀 버튼을 누르면 그 팀 직원 모두의 물리/마법 공격력이 레벨당 10%씩 오릅니다.\n비용은 50 x 현재 레벨 코인이고, 이번 스테이지에서만 유지됩니다.", UI.MUTED)
 	var roles := {"hr": "공격 속도 증가, 적 방어력 감소, 기절 등 지원", "dv": "마법 피해 스킬", "sl": "물리 피해 스킬과 코인 획득"}
 	for team in GameData.TEAMS:
 		var lv: int = battle.team_level[team]
-		line.call("%s팀 Lv.%d: 공격력 +%d%% → 다음 레벨 +%d%% (%d코인)\n  %s" % [GameData.team_name(team), lv, (lv - 1) * 10, lv * 10, battle.upgrade_cost(team), roles[team]],
+		line.call("%s팀 Lv.%d: 공격력 +%d%% > 다음 레벨 +%d%% (%d코인)\n  %s" % [GameData.team_name(team), lv, (lv - 1) * 10, lv * 10, battle.upgrade_cost(team), roles[team]],
 				GameData.TEAM_COLORS[team].lightened(0.3))
 
 	section.call("협상")
 	var chances := []
 	for i in Battle.TRADE_CHANCES.size():
 		chances.append("%d성 %d%%" % [i + 1, roundi(Battle.TRADE_CHANCES[i] * 100)])
-	line.call("직원을 누르고 '협상'을 누르면 50 × 등급 코인을 내고 같은 등급의 다른 직원으로 바꿉니다.\n실패하면 그 직원은 퇴사하고 코인은 돌려받지 못합니다. 신화와 특수 직원은 협상할 수 없습니다.", UI.MUTED)
-	line.call("성공 확률: " + " · ".join(chances), UI.TEXT)
+	line.call("직원을 누르고 '협상'을 누르면 50 x 등급 코인을 내고 같은 등급의 다른 직원으로 바꿉니다.\n실패하면 그 직원은 퇴사하고 코인은 돌려받지 못합니다. 신화와 특수 직원은 협상할 수 없습니다.", UI.MUTED)
+	line.call("성공 확률: " + " / ".join(chances), UI.TEXT)
 
 	section.call("자리 이동 / 정비")
 	line.call("영웅(4성) 이상 직원은 빈 책상으로 끌어 이동할 수 있습니다. 머리 위 '이동' 표시가 있는 직원이 대상입니다. 이동 후 %d웨이브(라운드) 동안 다시 옮길 수 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
-	line.call("일시정지와 정비 시간에는 전투만 멈추고 고용·승진·이동이 가능합니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
-	line.call("선호 배치: ① 배치1~3 슬롯 고르기 ② 원하는 책상에 직원 앉히기 ③ '배치저장'. 이후 고용 시 저장한 빈자리부터 채웁니다. '배치삭제'로 지울 수 있습니다.", UI.TEXT)
+	line.call("일시정지와 정비 시간에는 전투만 멈추고 고용/승진/이동이 가능합니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
+	line.call("선호 배치: 1) 배치1~3 슬롯 고르기 2) 원하는 책상에 직원 앉히기 3) '배치저장'. 이후 고용 시 저장한 빈자리부터 채웁니다. '배치삭제'로 지울 수 있습니다.", UI.TEXT)
 	line.call("야근은 %d라운드마다 랜덤 이벤트(수당 2배, 전력 질주, 고용 불가, 업무 폭주)가 납니다." % Battle.EVENT_EVERY, UI.MUTED)
 
-	section.call("고용 · 공격 우선순위")
+	section.call("고용 / 공격 우선순위")
 	line.call("고용 옆 '팀'으로 인사/개발/영업만 고용할 수 있습니다 (비용 %d). 공격 우선순위는 힌트 줄 버튼으로 바꿉니다." % Battle.HIRE_TEAM_COST, UI.MUTED)
 	line.call("현재 고용: %s / 우선순위: %s / 시드: %d" % [Save.hire_team_label(), Save.target_mode_label(), battle.run_seed], UI.TEXT)
 
@@ -549,7 +601,7 @@ func _open_help() -> void:
 	line.call("현재 범위 1~%d성 / 팀: %s. '승진설정'에서 바꿀 수 있습니다." % [Save.merge_auto_grade(), Save.merge_auto_team_label()], UI.TEXT)
 
 	section.call("적 방어력")
-	line.call("받는 피해 = 피해 × (1 - 방어 ÷ (방어 + 100)). 괄호 안은 줄어드는 피해입니다.\n맵에서 체력바 옆 '물'(주황)·'마'(파랑) 표시는 그 피해가 잘 들어가는 적입니다.", UI.MUTED)
+	line.call("받는 피해 = 피해 x (1 - 방어 / (방어 + 100)). 괄호 안은 줄어드는 피해입니다.\n맵에서 체력바 옆 '물'(주황)/'마'(파랑) 표시는 그 피해가 잘 들어가는 적입니다.", UI.MUTED)
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -592,7 +644,7 @@ func _refresh_hud() -> void:
 			_pulse(_life_label, UI.DANGER)
 		_last_life = battle.life
 	_coin_label.text = str(battle.coins)
-	# 특수문자(· 등)는 웹 폰트에서 깨져 보일 수 있어 ASCII만 쓴다
+	# 특수문자(/ 등)는 웹 폰트에서 깨져 보일 수 있어 ASCII만 쓴다
 	if battle.loop:
 		if battle.wave_running:
 			_wave_label.text = "라운드 %d  %d초" % [battle.display_wave(), ceili(maxf(0.0, battle.round_left))]
@@ -640,7 +692,7 @@ func _refresh_hud() -> void:
 	_merge_button.disabled = false
 	if _slot_button:
 		var n := Save.desk_prefs(battle.stage_id).size()
-		_slot_button.text = "배치%d" % (Save.desk_pref_slot() + 1) if n == 0 else "배치%d·%d" % [Save.desk_pref_slot() + 1, n]
+		_slot_button.text = "배치%d" % (Save.desk_pref_slot() + 1) if n == 0 else "배치%d/%d" % [Save.desk_pref_slot() + 1, n]
 	if _target_button:
 		_target_button.text = Save.target_mode_short()
 	_refresh_setup_bar()
@@ -826,7 +878,7 @@ func _toggle_pause() -> void:
 	_refresh_setup_bar()
 	_refresh_hud()
 	# 맵을 가리지 않도록 전체 모달 대신 안내만. 포기는 하단 바에서
-	battle.message.emit("일시정지 — 배치를 수정할 수 있습니다", UI.WARN)
+	battle.message.emit("일시정지 - 배치를 수정할 수 있습니다", UI.WARN)
 
 
 func _resume_setup() -> void:

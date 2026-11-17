@@ -20,7 +20,7 @@ const ENEMIES := {
 	"parcel": {"name": "택배 상자", "hp_mult": 1.0, "speed": 1.8, "pdef": 10, "mdef": 0, "scale": 1.1, "tint": Color(0.85, 0.62, 0.38), "reward": 8, "boss": false,
 			"split": ["parcel_mini", 0.25, 3], "desc": "부수면 작은 상자 3개로 나뉩니다"},
 	"parcel_mini": {"name": "작은 상자", "hp_mult": 0.3, "speed": 2.6, "pdef": 5, "mdef": 0, "scale": 0.65, "tint": Color(0.9, 0.7, 0.45), "reward": 2, "boss": false},
-	# heal: interval 초마다 radius 칸 안의 적을 자기 최대 체력 × heal 만큼 회복
+	# heal: interval 초마다 radius 칸 안의 적을 자기 최대 체력 x heal 만큼 회복
 	"water": {"name": "정수기", "hp_mult": 1.4, "speed": 1.6, "pdef": 10, "mdef": 20, "scale": 1.15, "tint": Color(0.5, 0.8, 1), "reward": 14, "boss": false,
 			"interval": 3.0, "radius": 1.6, "heal": 0.18, "desc": "주변 적의 체력을 회복시킵니다. 먼저 노리세요!"},
 	"vacuum": {"name": "로봇청소기", "hp_mult": 0.9, "speed": 2.8, "pdef": 15, "mdef": 15, "scale": 1.05, "tint": Color(0.45, 0.47, 0.55), "reward": 10, "boss": false,
@@ -155,8 +155,8 @@ const STAGES := {
 	},
 }
 
-## 무한 모드 난이도: 체력 = 기본 × (1 + 라운드/k)^p. 마리 수와 생성 속도도 늘어난다
-## 기하급수(매 라운드 ×1.22)였을 때는 강화로 전력이 2배가 돼도 3~4라운드밖에 못 버텨 강화 보람이 없었다.
+## 무한 모드 난이도: 체력 = 기본 x (1 + 라운드/k)^p. 마리 수와 생성 속도도 늘어난다
+## 기하급수(매 라운드 x1.22)였을 때는 강화로 전력이 2배가 돼도 3~4라운드밖에 못 버텨 강화 보람이 없었다.
 ## 다항식이면 전력이 2배일 때 버티는 라운드가 약 2^(1/p) 배로 늘어난다
 const ENDLESS_BASE_HP := 40.0
 static var endless_hp_power := 3.0  # 시뮬레이터가 --dev-power, --dev-k 로 바꿔 볼 수 있게 var

@@ -88,7 +88,7 @@ static func ask_nickname(title: String, initial: String, on_done: Callable, pare
 	v.add_child(edit)
 	if error != "":
 		v.add_child(UI.wrap_label(error, 22, UI.DANGER))
-	v.add_child(UI.label("최대 %d자 · 다른 사람과 같은 닉네임은 쓸 수 없습니다" % Save.NICKNAME_MAX, 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UI.label("최대 %d자 / 다른 사람과 같은 닉네임은 쓸 수 없습니다" % Save.NICKNAME_MAX, 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var submit := func():
 		var nick := edit.text.strip_edges().left(Save.NICKNAME_MAX)
 		if nick == "":

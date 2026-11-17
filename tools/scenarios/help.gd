@@ -1,4 +1,4 @@
-# 도움말/약점 표시 확인용: 스킬 이펙트 위로 체력바·등급 별·약점 표시가 보이는지, 도움말 창과 직원 카드의 ? 버튼을 찍는다.
+# 도움말/약점 표시 확인용: 스킬 이펙트 위로 체력바/등급 별/약점 표시가 보이는지, 도움말 창과 직원 카드의 ? 버튼을 찍는다.
 # godot --path . --resolution 720x1280 -- --dev-script=res://tools/scenarios/help.gd --dev-out=<dir>
 extends Node
 

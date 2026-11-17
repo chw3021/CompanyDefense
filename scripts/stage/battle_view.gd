@@ -380,7 +380,7 @@ func _draw_tower_hud(t: Tower) -> void:
 		_star(row + Vector2((i - (t.grade - 1) / 2.0) * gap, 0), star_r, Color(grade_color.lightened(0.15), alpha))
 	if battle.selected == t:
 		_outline(Rect2(base, Vector2(c, c)).grow(-2), UI.TEXT, 12, 3)
-	# 영웅(4성)+ 이동 가능/쿨 표시 (특수문자 없이 ASCII·한글만)
+	# 영웅(4성)+ 이동 가능/쿨 표시 (특수문자 없이 ASCII/한글만)
 	if t.can_ever_reposition():
 		var badge := Rect2(center_x - c * 0.3, base.y + c * 0.02, c * 0.6, c * 0.2)
 		if t.reposition_cd > 0:
@@ -449,7 +449,7 @@ func _ellipse_ring(center: Vector2, radius: float, color: Color, width: float, f
 ## 개발팀: 코드 기호가 튀어나옴, 인사팀: 도장을 쾅, 영업팀: 서류가방 휘두르기
 func _draw_attack_motion(t: Tower, at: Vector2, progress: float) -> void:
 	var c := battle.cell
-	var k := sin(progress * PI)  # 0 → 1 → 0
+	var k := sin(progress * PI)  # 0 > 1 > 0
 	var color: Color = GameData.TEAM_COLORS[t.team].lightened(0.35)
 	var grow := 1.0 + 0.1 * (t.grade - 1)
 	match t.team:
@@ -678,7 +678,7 @@ func _draw_effect(fx: Dictionary) -> void:
 
 const MAX_FX := 400
 const MAX_FX_MIN := 80
-# 최소화에서 건너뛰는 무거운 장식 파티클 (데미지 글자·슬래시·빔 등은 유지)
+# 최소화에서 건너뛰는 무거운 장식 파티클 (데미지 글자/슬래시/빔 등은 유지)
 const FX_MIN_SKIP := {
 	"flash": true, "glyph": true, "paper": true, "coin": true, "heart": true,
 	"card": true, "pixel": true, "ray": true, "zone": true, "ghost": true,
@@ -838,7 +838,7 @@ func _on_projectile_hit(p: Dictionary) -> void:
 	Audio.impact()
 	if p.sheet != null:
 		return
-	# 저사양·최소화·투사체가 많으면 히트 이펙트만 생략 (탄 자체는 유지)
+	# 저사양/최소화/투사체가 많으면 히트 이펙트만 생략 (탄 자체는 유지)
 	if _fx_quality != Save.FX_ON or Save.lite_projectiles() or battle.projectiles.size() > 24:
 		return
 	var c := battle.cell
@@ -1222,7 +1222,7 @@ func _draw_drag() -> void:
 
 ## 맵 영역(Control)의 gui_input 에 연결된다. 화면 Control 이 터치를 먼저 가져가므로
 ## _unhandled_input 으로는 받을 수 없다. 이 노드는 맵 영역의 (0, 0) 에 있어서 좌표가 같다.
-## 일시정지/정비 중에도 배치·승진·이동은 받는다 (시뮬만 멈춤).
+## 일시정지/정비 중에도 배치/승진/이동은 받는다 (시뮬만 멈춤).
 func handle_input(event: InputEvent) -> void:
 	if battle.finished:
 		return

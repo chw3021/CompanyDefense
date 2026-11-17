@@ -73,7 +73,7 @@ var rng := RandomNumberGenerator.new()
 var _crowd_warned := false
 var boss_room := Vector2.ZERO  # 보스방 가운데 (고리 맵에 보스방이 있으면)
 var has_boss_room := false
-var boss_blocking := false  # 보스방 보스가 살아 있음 → 직원은 보스만 공격
+var boss_blocking := false  # 보스방 보스가 살아 있음 > 직원은 보스만 공격
 var selected: Tower
 
 var wave_index := 0          # 진행 중이거나 다음에 시작할 웨이브
@@ -208,7 +208,7 @@ func _process(delta: float) -> void:
 	_update_effects(dt)
 
 
-## 일시정지·정비 중에는 시뮬만 멈추고 배치는 할 수 있다
+## 일시정지/정비 중에는 시뮬만 멈추고 배치는 할 수 있다
 func setup_frozen() -> bool:
 	return paused or resting
 
@@ -282,7 +282,7 @@ func _next_round() -> void:
 	coins += bonus
 	_tick_reposition_cds()
 	message.emit("라운드 보너스 +%d" % bonus, UI.GOLD)
-	# 10라운드마다(보스 라운드 포함) 정비 — 큐잉은 end_rest 에서
+	# 10라운드마다(보스 라운드 포함) 정비 - 큐잉은 end_rest 에서
 	if _should_auto_rest():
 		var boss := wave_has_boss(wave_index)
 		_begin_rest("보스 등장 전 정비" if boss else "%d라운드 정비" % REST_EVERY)
@@ -292,7 +292,7 @@ func _next_round() -> void:
 
 
 func _should_auto_rest() -> bool:
-	# 야근: 보스 라운드(5·10…) + 10라운드마다 정비
+	# 야근: 보스 라운드(5/10...) + 10라운드마다 정비
 	if not loop:
 		return false
 	var shown := wave_index + 1
@@ -552,7 +552,7 @@ func save_desk_prefs_from_towers() -> void:
 	if cells.is_empty():
 		message.emit("저장할 직원이 없습니다. 직원을 앉힌 뒤 다시 저장하세요", UI.WARN)
 	else:
-		message.emit("배치 슬롯 %d에 %d칸 저장 · 고용 시 이 빈자리부터 채웁니다" % [slot, cells.size()], UI.GOLD)
+		message.emit("배치 슬롯 %d에 %d칸 저장 / 고용 시 이 빈자리부터 채웁니다" % [slot, cells.size()], UI.GOLD)
 
 
 func clear_desk_prefs() -> void:
@@ -841,7 +841,7 @@ func _update_projectiles(dt: float) -> void:
 
 ## 스킬 이펙트 애니메이션 (게임 시간 기준으로 재생/삭제)
 func add_effect(sheet: String, at: Vector2, size: float, lifetime: float) -> void:
-	# 최소화/끄기에서는 시트 애니메이션을 아예 만들지 않는다 (드로우·업데이트 비용이 크다)
+	# 최소화/끄기에서는 시트 애니메이션을 아예 만들지 않는다 (드로우/업데이트 비용이 크다)
 	if Save.effect_quality() != Save.FX_ON:
 		return
 	effects.append({"sheet": sheet, "pos": at, "size": size, "life": lifetime, "age": 0.0})

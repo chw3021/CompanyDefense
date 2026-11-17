@@ -164,7 +164,7 @@ func _update_ability(delta: float) -> void:
 		battle.on_enemy_ability(self)
 
 
-## 물리/마법 피해에 방어력 적용: 피해 × (1 − 방어/(방어+100)). 보호막이 먼저 막는다
+## 물리/마법 피해에 방어력 적용: 피해 x (1 - 방어/(방어+100)). 보호막이 먼저 막는다
 func damage(physical: float, magic: float) -> void:
 	if dead:
 		return

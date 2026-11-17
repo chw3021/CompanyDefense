@@ -180,47 +180,53 @@ func play_icon() -> Texture2D:
 	return _play_icon
 
 
-## 이펙트 품질 아이콘 (on / min / off)
+## 이펙트 품질 아이콘 (on / min / off) - 버튼 안에서 잘 보이도록 굵고 크게
 func fx_icon(quality: String = "") -> Texture2D:
 	var q := quality if not quality.is_empty() else Save.effect_quality()
-	var kind := "fx_%s" % q
+	var kind := "fx2_%s" % q
 	if _hud_icons.has(kind):
 		return _hud_icons[kind]
 	var n := 3 if q == Save.FX_ON else (1 if q == Save.FX_MIN else 0)
-	var img := Image.create_empty(48, 48, false, Image.FORMAT_RGBA8)
-	var center := Vector2(24, 24)
-	# 가운데 점
-	_stamp_circle(img, center, 4.0, Color(1, 1, 1, 0.95 if n > 0 else 0.35))
-	# 사방으로 뻗는 빛줄기
+	var img := Image.create_empty(64, 64, false, Image.FORMAT_RGBA8)
+	var center := Vector2(32, 32)
+	_stamp_circle(img, center, 7.0, Color(1, 0.95, 0.7, 0.98 if n > 0 else 0.4))
+	_stamp_circle(img, center, 3.2, Color(1, 1, 1, 1.0 if n > 0 else 0.5))
 	for i in 8:
 		if n == 0:
 			break
 		if n == 1 and i % 2 == 1:
 			continue
-		var a := i * TAU / 8.0
-		var c := Color(1, 0.92, 0.55, 0.95) if n == 3 else Color(1, 1, 1, 0.75)
-		_stamp_line(img, center + Vector2(cos(a), sin(a)) * 8.0, center + Vector2(cos(a), sin(a)) * 20.0, 2.2, c)
+		var a := i * TAU / 8.0 + 0.2
+		var c := Color(1, 0.88, 0.35, 1.0) if n == 3 else Color(0.95, 0.95, 1.0, 0.9)
+		_stamp_line(img, center + Vector2(cos(a), sin(a)) * 10.0, center + Vector2(cos(a), sin(a)) * 26.0, 3.6, c)
+	# 바깥 고리로 존재감
+	if n > 0:
+		_stamp_arc(img, center, 22.0, Color(1, 1, 1, 0.35 if n == 1 else 0.55), -PI, PI)
 	if n == 0:
-		_stamp_line(img, Vector2(12, 12), Vector2(36, 36), 3.0, Color(1, 0.45, 0.45, 0.95))
+		_stamp_line(img, Vector2(14, 14), Vector2(50, 50), 5.0, Color(1, 0.4, 0.4, 1.0))
+		_stamp_line(img, Vector2(50, 14), Vector2(14, 50), 5.0, Color(1, 0.4, 0.4, 1.0))
 	_hud_icons[kind] = ImageTexture.create_from_image(img)
 	return _hud_icons[kind]
 
 
 ## 효과음 켜짐/꺼짐 아이콘
 func mute_icon(muted: bool = false) -> Texture2D:
-	var kind := "mute_on" if not muted else "mute_off"
+	var kind := "mute2_on" if not muted else "mute2_off"
 	if _hud_icons.has(kind):
 		return _hud_icons[kind]
-	var img := Image.create_empty(48, 48, false, Image.FORMAT_RGBA8)
-	# 스피커 몸통
-	var body := PackedVector2Array([Vector2(8, 18), Vector2(18, 18), Vector2(28, 10), Vector2(28, 38), Vector2(18, 30), Vector2(8, 30)])
-	_stamp_poly(img, body, Color(1, 1, 1, 0.95))
+	var img := Image.create_empty(64, 64, false, Image.FORMAT_RGBA8)
+	# 스피커 몸통 (더 크게)
+	var body := PackedVector2Array([
+		Vector2(10, 24), Vector2(24, 24), Vector2(38, 12), Vector2(38, 52), Vector2(24, 40), Vector2(10, 40),
+	])
+	_stamp_poly(img, body, Color(1, 1, 1, 0.98))
+	_stamp_circle(img, Vector2(16, 32), 3.0, Color(0.15, 0.16, 0.2, 0.9))
 	if muted:
-		_stamp_line(img, Vector2(12, 12), Vector2(40, 36), 3.2, Color(1, 0.45, 0.45, 0.95))
+		_stamp_line(img, Vector2(12, 12), Vector2(54, 52), 5.0, Color(1, 0.4, 0.4, 1.0))
 	else:
-		# 소리 파동
-		_stamp_arc(img, Vector2(30, 24), 8.0, Color(1, 1, 1, 0.7))
-		_stamp_arc(img, Vector2(30, 24), 14.0, Color(1, 1, 1, 0.45))
+		_stamp_arc(img, Vector2(40, 32), 10.0, Color(1, 1, 1, 0.85), -0.85, 0.85)
+		_stamp_arc(img, Vector2(40, 32), 17.0, Color(1, 1, 1, 0.55), -0.85, 0.85)
+		_stamp_arc(img, Vector2(40, 32), 24.0, Color(1, 1, 1, 0.3), -0.85, 0.85)
 	_hud_icons[kind] = ImageTexture.create_from_image(img)
 	return _hud_icons[kind]
 
@@ -252,13 +258,14 @@ func _stamp_poly(img: Image, poly: PackedVector2Array, color: Color) -> void:
 				img.set_pixel(x, y, color)
 
 
-func _stamp_arc(img: Image, at: Vector2, radius: float, color: Color) -> void:
-	for i in 12:
-		var t0 := -0.7 + 1.4 * float(i) / 11.0
-		var t1 := -0.7 + 1.4 * float(i + 1) / 11.0
+func _stamp_arc(img: Image, at: Vector2, radius: float, color: Color, a0 := -0.7, a1 := 0.7) -> void:
+	var steps := 16
+	for i in steps:
+		var t0 := lerpf(a0, a1, float(i) / steps)
+		var t1 := lerpf(a0, a1, float(i + 1) / steps)
 		var p0 := at + Vector2(cos(t0), sin(t0)) * radius
 		var p1 := at + Vector2(cos(t1), sin(t1)) * radius
-		_stamp_line(img, p0, p1, 1.8, color)
+		_stamp_line(img, p0, p1, 2.6, color)
 
 
 func icon(path: String, size: float) -> TextureRect:
@@ -362,7 +369,7 @@ func modal_width(prefer := 600.0) -> float:
 func modal_scroll_size(prefer_w := 560.0, prefer_h := 640.0) -> Vector2:
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(prefer_w, prefer_h)
 	var w := minf(prefer_w, maxf(240.0, modal_width() - 48.0))
-	# 제목·닫기 버튼 자리를 빼고 스크롤 뷰포트 높이를 고정한다
+	# 제목/닫기 버튼 자리를 빼고 스크롤 뷰포트 높이를 고정한다
 	var h := minf(prefer_h, maxf(220.0, vp.y - 280.0))
 	return Vector2(w, h)
 
@@ -459,7 +466,7 @@ func toast(text: String, color := TEXT) -> void:
 
 
 ## 화면을 어둡게 덮는 모달 창. content 를 카드 안에 넣어 보여 주고, 닫는 함수를 돌려준다.
-## buttons: [[텍스트, 색, 콜백], ...] — 콜백 뒤에 창이 닫힌다.
+## buttons: [[텍스트, 색, 콜백], ...] - 콜백 뒤에 창이 닫힌다.
 func modal(title: String, content: Control, buttons: Array = [], parent: Node = null, dismiss_on_backdrop := true) -> Control:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)

@@ -601,7 +601,7 @@ func _open_settings() -> void:
 		quality_refresh.call())
 	quality_refresh.call()
 	v.add_child(quality_button)
-	v.add_child(UI.wrap_label("켜기 → 최소화 → 끄기 순으로 바뀝니다. 최소화는 파티클·화면흔들림을 줄이고, 끄기는 연출을 모두 끕니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(UI.wrap_label("켜기 > 최소화 > 끄기 순으로 바뀝니다. 최소화는 파티클/화면흔들림을 줄이고, 끄기는 연출을 모두 끕니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	# 스킬 이펙트 진하기: 낮출수록 이펙트 뒤의 직원과 적이 잘 보인다
 	var fx_label := UI.label("", 26)
 	var fx_slider := HSlider.new()
@@ -663,7 +663,7 @@ func _open_settings() -> void:
 		vol_refresh.call(vol_slider.value)
 		v.add_child(vol_label)
 		v.add_child(vol_slider)
-	v.add_child(UI.wrap_label("효과음(클릭·타격·투사체·피격) 볼륨입니다. BGM은 없습니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(UI.wrap_label("효과음(클릭/타격/투사체/피격) 볼륨입니다. BGM은 없습니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
 	UI.modal("설정", UI.bind_modal_scroll(UI.scroll(v), 560, 640), [["닫기", UI.CARD_HI]], self)
 
