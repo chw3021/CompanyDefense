@@ -51,12 +51,21 @@ static func box(color: Color, radius := RADIUS, margin := 16, shadow := false) -
 
 
 ## 아래쪽이 조금 두꺼운 입체 버튼 모양
-static func button_box(color: Color, pressed := false) -> StyleBoxFlat:
-	var sb := box(color, 16, 14)
+## margin 을 줄이면 좁은 HUD/툴 버튼에서 글자가 덜 잘린다
+static func button_box(color: Color, pressed := false, margin := 14) -> StyleBoxFlat:
+	var sb := box(color, 16, margin)
 	sb.border_color = color.darkened(0.35)
 	sb.border_width_bottom = 2 if pressed else 6
-	sb.content_margin_top = 14 + (4 if pressed else 0)
+	sb.content_margin_top = margin + (4 if pressed else 0)
+	sb.content_margin_bottom = margin
 	return sb
+
+
+## 좁은 인게임 버튼용 (좌우 여백을 줄여 글자 공간을 확보)
+func recolor_compact(b: Button, color: Color, margin := 8) -> void:
+	for state in ["normal", "hover"]:
+		b.add_theme_stylebox_override(state, button_box(color, false, margin))
+	b.add_theme_stylebox_override("pressed", button_box(color.darkened(0.15), true, margin))
 
 
 func _build_theme() -> Theme:

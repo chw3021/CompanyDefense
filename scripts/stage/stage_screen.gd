@@ -133,17 +133,23 @@ func _build_hud() -> Control:
 	_wave_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(_wave_label)
 
-	var pause := UI.button("II", UI.CARD_HI, _toggle_pause, 24)
-	pause.custom_minimum_size = Vector2(52, 52)
+	var pause := UI.button("II", UI.CARD_HI, _toggle_pause, 22)
+	pause.custom_minimum_size = Vector2(48, 48)
+	UI.recolor_compact(pause, UI.CARD_HI, 6)
 	row.add_child(pause)
-	_speed_button = UI.button("", UI.CARD_HI, _toggle_speed, 24)
-	_speed_button.custom_minimum_size = Vector2(52, 52)
+	_speed_button = UI.button("", UI.CARD_HI, _toggle_speed, 20)
+	_speed_button.custom_minimum_size = Vector2(48, 48)
+	UI.recolor_compact(_speed_button, UI.CARD_HI, 6)
 	row.add_child(_speed_button)
-	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 20)
-	_fx_button.custom_minimum_size = Vector2(52, 52)
+	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 16)
+	_fx_button.custom_minimum_size = Vector2(48, 48)
+	_fx_button.clip_text = true
+	UI.recolor_compact(_fx_button, UI.CARD_HI, 6)
 	row.add_child(_fx_button)
-	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 18)
-	_mute_button.custom_minimum_size = Vector2(52, 52)
+	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 16)
+	_mute_button.custom_minimum_size = Vector2(48, 48)
+	_mute_button.clip_text = true
+	UI.recolor_compact(_mute_button, UI.CARD_HI, 6)
 	row.add_child(_mute_button)
 	return hud
 
@@ -172,30 +178,40 @@ func _build_panel() -> Control:
 	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n전설 이상은 빈 책상으로 이동 (쿨 2웨이브)", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var tools := UI.hbox(8)
 	tools.alignment = BoxContainer.ALIGNMENT_CENTER
-	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 20)
-	var merge_cfg := UI.button("승진설정", UI.CARD_HI, _open_merge_settings, 20)
-	var book := UI.button("신화표", Color("7a3fb0"), _open_recipes, 20)
-	var help := UI.button("도움", UI.CARD_HI, _open_help, 20)
-	for b in [_merge_button, merge_cfg, book, help]:
+	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 18)
+	var merge_cfg := UI.button("설정", UI.CARD_HI, _open_merge_settings, 18)
+	var book := UI.button("신화", Color("7a3fb0"), _open_recipes, 18)
+	var help := UI.button("도움", UI.CARD_HI, _open_help, 18)
+	var tool_colors := [UI.SUCCESS, UI.CARD_HI, Color("7a3fb0"), UI.CARD_HI]
+	var tool_btns := [_merge_button, merge_cfg, book, help]
+	for i in tool_btns.size():
+		var b: Button = tool_btns[i]
 		b.custom_minimum_size = Vector2(0, 56)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.clip_text = true
+		UI.recolor_compact(b, tool_colors[i], 8)
 		tools.add_child(b)
+	# 자동 승진 문구가 길어서 왼쪽 칸을 더 넓게
+	_merge_button.size_flags_stretch_ratio = 1.7
 	_hint.add_child(tools)
 	var pref_row := UI.hbox(6)
 	pref_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_slot_button = UI.button("", UI.CARD_HI, func():
 		Save.cycle_desk_pref_slot()
-		_refresh_hud(), 18)
-	var save_pref := UI.button("자리저장", UI.PRIMARY, func(): battle.save_desk_prefs_from_towers(), 18)
-	var clear_pref := UI.button("자리삭제", UI.CARD_HI, func(): battle.clear_desk_prefs(), 18)
+		_refresh_hud(), 16)
+	var save_pref := UI.button("저장", UI.PRIMARY, func(): battle.save_desk_prefs_from_towers(), 16)
+	var clear_pref := UI.button("삭제", UI.CARD_HI, func(): battle.clear_desk_prefs(), 16)
 	_target_button = UI.button("", UI.PRIMARY, func():
 		battle.target_mode = Save.cycle_target_mode()
-		_refresh_hud(), 18)
-	for b in [_slot_button, save_pref, clear_pref, _target_button]:
+		_refresh_hud(), 16)
+	var pref_colors := [UI.CARD_HI, UI.PRIMARY, UI.CARD_HI, UI.PRIMARY]
+	var pref_btns := [_slot_button, save_pref, clear_pref, _target_button]
+	for i in pref_btns.size():
+		var b: Button = pref_btns[i]
 		b.custom_minimum_size = Vector2(0, 48)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.clip_text = true
+		UI.recolor_compact(b, pref_colors[i], 8)
 		pref_row.add_child(b)
 	_hint.add_child(pref_row)
 	_info_slot.add_child(_hint)
@@ -212,21 +228,24 @@ func _build_panel() -> Control:
 	# 직원 고용 / 웨이브 시작 (좁은 화면에서 잘리지 않게 최소 폭을 낮춘다)
 	var actions := UI.hbox(8)
 	_hire_button = UI.button("", UI.SUCCESS, battle.hire)
-	_hire_button.custom_minimum_size = Vector2(0, 100)
+	_hire_button.custom_minimum_size = Vector2(0, 96)
 	_hire_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_hire_button.clip_text = true
-	var hire_content := UI.hbox(10)
+	UI.recolor_compact(_hire_button, UI.SUCCESS, 10)
+	var hire_content := UI.hbox(8)
 	hire_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hire_content.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hire_content.add_child(UI.icon("res://assets/icons/work.svg", 48))
+	hire_content.add_child(UI.icon("res://assets/icons/work.svg", 36))
 	var hire_text := UI.vbox(0)
 	hire_text.alignment = BoxContainer.ALIGNMENT_CENTER
 	hire_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hire_title_label = UI.label("직원 고용", 26)
+	_hire_title_label = UI.label("고용", 22)
 	_hire_title_label.clip_text = true
+	_hire_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hire_text.add_child(_hire_title_label)
-	_hire_cost_label = UI.label(str(Battle.SPAWN_COST), 22, UI.GOLD)
+	_hire_cost_label = UI.label(str(Battle.SPAWN_COST), 20, UI.GOLD)
+	_hire_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hire_text.add_child(_hire_cost_label)
 	hire_content.add_child(hire_text)
 	_hire_button.add_child(hire_content)
@@ -234,30 +253,34 @@ func _build_panel() -> Control:
 	# 팀 필터는 별도 큰 버튼 대신 좁은 토글 (폭 넘침 방지)
 	var hire_team_btn := UI.button("팀", UI.CARD_HI, func():
 		Save.cycle_hire_team()
-		_refresh_hud(), 20)
-	hire_team_btn.custom_minimum_size = Vector2(56, 100)
+		_refresh_hud(), 18)
+	hire_team_btn.custom_minimum_size = Vector2(52, 96)
+	UI.recolor_compact(hire_team_btn, UI.CARD_HI, 8)
 	actions.add_child(hire_team_btn)
 
 	# 유물 뽑기: 보스를 잡아 유물이 있을 때만 보인다
 	_relic_button = UI.button("", UI.PURPLE, battle.summon_special)
-	_relic_button.custom_minimum_size = Vector2(88, 100)
+	_relic_button.custom_minimum_size = Vector2(72, 96)
+	UI.recolor_compact(_relic_button, UI.PURPLE, 8)
 	var relic_content := UI.vbox(0)
 	relic_content.alignment = BoxContainer.ALIGNMENT_CENTER
 	relic_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	relic_content.set_anchors_preset(Control.PRESET_FULL_RECT)
-	relic_content.add_child(UI.icon("res://assets/icons/relic.svg", 44))
-	_relic_label = UI.label("", 20, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	relic_content.add_child(UI.icon("res://assets/icons/relic.svg", 36))
+	_relic_label = UI.label("", 18, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_relic_label.clip_text = true
 	relic_content.add_child(_relic_label)
 	_relic_button.add_child(relic_content)
 	actions.add_child(_relic_button)
 
-	_wave_button = UI.button("웨이브 시작", UI.DANGER, _on_wave_pressed, 28)
+	_wave_button = UI.button("야근 시작", UI.DANGER, _on_wave_pressed, 24)
 	_wave_button.icon = UI.play_icon()
-	_wave_button.custom_minimum_size = Vector2(0, 100)
+	_wave_button.custom_minimum_size = Vector2(0, 96)
 	_wave_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_wave_button.clip_text = true
 	_wave_button.expand_icon = true
-	_wave_button.add_theme_constant_override("icon_max_width", 36)
+	_wave_button.add_theme_constant_override("icon_max_width", 28)
+	UI.recolor_compact(_wave_button, UI.DANGER, 10)
 	actions.add_child(_wave_button)
 	col.add_child(actions)
 
@@ -329,17 +352,18 @@ func _open_merge_settings() -> void:
 func _build_upgrade_card(team: String) -> Button:
 	var b := UI.button("", UI.CARD, func(): battle.upgrade_team(team))
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.custom_minimum_size = Vector2(0, 120)
+	b.custom_minimum_size = Vector2(0, 110)
 	b.clip_text = true
+	UI.recolor_compact(b, UI.CARD, 8)
 	var v := UI.vbox(2)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.add_child(UI.icon("res://assets/icons/%sup.svg" % team, 44))
-	var name_label := UI.label("", 22, GameData.TEAM_COLORS[team].lightened(0.3), HORIZONTAL_ALIGNMENT_CENTER)
+	v.add_child(UI.icon("res://assets/icons/%sup.svg" % team, 36))
+	var name_label := UI.label("", 20, GameData.TEAM_COLORS[team].lightened(0.3), HORIZONTAL_ALIGNMENT_CENTER)
 	name_label.clip_text = true
 	v.add_child(name_label)
-	var cost := UI.coin_row("", 20)
+	var cost := UI.coin_row("", 18)
 	v.add_child(cost)
 	b.add_child(v)
 	_upgrade_labels[team] = name_label
@@ -564,7 +588,7 @@ func _refresh_hud() -> void:
 	else:
 		_wave_label.text = "웨이브 %d/%d" % [battle.display_wave(), battle.wave_count()]
 	_speed_button.text = "x%d" % int(battle.speed)
-	_fx_button.text = Save.effect_quality_label()
+	_fx_button.text = Save.effect_quality_short()
 	_mute_button.text = "음X" if Save.sfx_muted() else "음"
 	# 이벤트 문구는 HUD 폭을 넘기기 쉬워서 짧은 표시만 붙인다
 	if battle.loop and battle.event_id != "":
@@ -584,22 +608,22 @@ func _refresh_hud() -> void:
 	_hire_button.modulate.a = 0.45 if battle.hire_blocked else (1.0 if battle.coins >= cost else 0.6)
 	if _hire_title_label:
 		var team_name := Save.hire_team_label()
-		_hire_title_label.text = "고용(%s)" % team_name if team_name != "전체" else "직원 고용"
+		_hire_title_label.text = team_name if team_name != "전체" else "고용"
 	if _hire_cost_label:
 		_hire_cost_label.text = "막힘" if battle.hire_blocked else str(cost)
 	_relic_button.visible = battle.relics > 0
-	_relic_label.text = "유물 x%d" % battle.relics
+	_relic_label.text = "x%d" % battle.relics
 	var pairs := battle.merge_auto_pairs_count()
-	var team_tag := Save.merge_auto_team_label()
-	var scope := "1~%d성" % Save.merge_auto_grade()
-	if team_tag != "전체":
-		scope = "%s %s" % [team_tag, scope]
-	_merge_button.text = "자동 승진 %s (%d)" % [scope, pairs]
+	var team_tag := Save.merge_auto_team()
+	var scope := "1~%d" % Save.merge_auto_grade()
+	if team_tag in GameData.TEAMS:
+		scope = "%s%s" % [GameData.team_name(team_tag).left(1), scope]
+	_merge_button.text = "승진 %s(%d)" % [scope, pairs]
 	_merge_button.disabled = false
 	if _slot_button:
-		_slot_button.text = "슬롯 %d" % (Save.desk_pref_slot() + 1)
+		_slot_button.text = "슬롯%d" % (Save.desk_pref_slot() + 1)
 	if _target_button:
-		_target_button.text = Save.target_mode_label()
+		_target_button.text = Save.target_mode_short()
 	_refresh_setup_bar()
 	for team in GameData.TEAMS:
 		_upgrade_labels[team].text = "%s Lv.%d" % [GameData.team_name(team), battle.team_level[team]]

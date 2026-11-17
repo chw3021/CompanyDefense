@@ -608,6 +608,11 @@ const TARGET_LABELS := {
 	"auto": "기본", "nearest": "가까운 적", "furthest": "앞선 적",
 	"strongest": "체력 높은 적", "weakest": "체력 낮은 적", "boss": "보스 우선",
 }
+## 인게임 좁은 버튼용 짧은 표시
+const TARGET_LABELS_SHORT := {
+	"auto": "기본", "nearest": "근접", "furthest": "선두",
+	"strongest": "강적", "weakest": "약적", "boss": "보스",
+}
 
 
 func target_mode() -> String:
@@ -630,6 +635,22 @@ func cycle_target_mode() -> String:
 func target_mode_label(mode: Variant = null) -> String:
 	var m: String = target_mode() if mode == null else str(mode)
 	return TARGET_LABELS.get(m, "기본")
+
+
+func target_mode_short(mode: Variant = null) -> String:
+	var m: String = target_mode() if mode == null else str(mode)
+	return TARGET_LABELS_SHORT.get(m, "기본")
+
+
+## 인게임 HUD 이펙트 버튼용 (좁은 칸)
+func effect_quality_short(quality := "") -> String:
+	match quality if not quality.is_empty() else effect_quality():
+		FX_MIN:
+			return "최소"
+		FX_OFF:
+			return "끔"
+		_:
+			return "이펙"
 
 
 func last_run_seed() -> int:
