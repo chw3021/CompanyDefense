@@ -64,6 +64,21 @@ jobs:
           ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
           test -f build/web/index.html
 
+      - name: 에셋 캐시 무력화
+        run: |
+          # 모바일 브라우저가 옛 index.pck/wasm 을 붙잡고 있어서 배포가 안 먹는 것처럼 보임
+          SHA="${GITHUB_SHA:0:8}"
+          echo "cache-bust=$SHA"
+          for f in build/web/index.html build/web/index.js; do
+            if [ -f "$f" ]; then
+              sed -i "s|index\\.wasm|index.wasm?v=${SHA}|g; s|index\\.pck|index.pck?v=${SHA}|g" "$f"
+            fi
+          done
+          # HTML 자체도 재받도록
+          if [ -f build/web/index.html ]; then
+            sed -i "s|<head>|<head><meta http-equiv=\"Cache-Control\" content=\"no-cache\"><meta name=\"cd-build\" content=\"${SHA}\">|" build/web/index.html || true
+          fi
+
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: build/web

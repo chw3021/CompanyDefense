@@ -35,14 +35,14 @@ func _catalog(team_filter: String) -> Array[String]:
 		if team_filter != "" and team != team_filter:
 			continue
 		for id in GameData.tower_ids:
-			if GameData.towers[id].team == team:
-				out.append(id)
-		for id in GameData.SPECIALS:
-			if GameData.towers[id].team == team:
-				out.append(id)
-		for id in GameData.MYTHICS:
-			if GameData.towers[id].team == team:
-				out.append(id)
+			if str(GameData.towers[id].team) == team:
+				out.append(str(id))
+		for id in GameData.SPECIALS.keys():
+			if GameData.towers.has(id) and str(GameData.towers[id].team) == team:
+				out.append(str(id))
+		for id in GameData.MYTHICS.keys():
+			if GameData.towers.has(id) and str(GameData.towers[id].team) == team:
+				out.append(str(id))
 	return out
 
 

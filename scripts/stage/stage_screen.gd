@@ -122,34 +122,44 @@ func _build_hud() -> Control:
 	row.add_child(UI.icon("res://assets/enemy/printer.png", 28) if battle.loop else UI.icon("res://assets/icons/heart.svg", 26))
 	_life_label = UI.label("", 26)
 	_life_label.custom_minimum_size.x = 72 if battle.loop else 36
+	_life_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	row.add_child(_life_label)
-	# PNG + 고정 최소폭: 좁은 화면에서 코인 숫자가 버튼/웨이브에 먹히지 않게 한다
-	row.add_child(UI.icon("res://assets/icons/money.png", 26))
-	_coin_label = UI.label("", 26, UI.GOLD)
-	_coin_label.custom_minimum_size.x = 84
+	# 코인은 줄어들지 않는 알약: 웨이브/버튼에 폭을 빼앗겨도 숫자가 남는다
+	var coin_pill := UI.panel(Color(0, 0, 0, 0.4), 12, 6)
+	coin_pill.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	coin_pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	coin_pill.custom_minimum_size = Vector2(118, 40)
+	coin_pill.clip_contents = false
+	var coin_row := UI.hbox(4)
+	coin_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	coin_row.add_child(UI.icon("res://assets/icons/money.png", 26))
+	_coin_label = UI.label("0", 26, UI.GOLD)
 	_coin_label.clip_text = false
-	row.add_child(_coin_label)
-	_wave_label = UI.label("", 22)
+	_coin_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	coin_row.add_child(_coin_label)
+	coin_pill.add_child(coin_row)
+	row.add_child(coin_pill)
+	_wave_label = UI.label("", 20)
 	_wave_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_wave_label.clip_text = true
 	_wave_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(_wave_label)
 
-	var pause := UI.button("II", UI.CARD_HI, _toggle_pause, 22)
-	pause.custom_minimum_size = Vector2(48, 48)
-	UI.recolor_compact(pause, UI.CARD_HI, 6)
+	var pause := UI.button("II", UI.CARD_HI, _toggle_pause, 20)
+	pause.custom_minimum_size = Vector2(44, 44)
+	UI.recolor_compact(pause, UI.CARD_HI, 4)
 	row.add_child(pause)
-	_speed_button = UI.button("", UI.CARD_HI, _toggle_speed, 20)
-	_speed_button.custom_minimum_size = Vector2(48, 48)
-	UI.recolor_compact(_speed_button, UI.CARD_HI, 6)
+	_speed_button = UI.button("", UI.CARD_HI, _toggle_speed, 18)
+	_speed_button.custom_minimum_size = Vector2(44, 44)
+	UI.recolor_compact(_speed_button, UI.CARD_HI, 4)
 	row.add_child(_speed_button)
-	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 16)
-	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 16)
+	_fx_button = UI.button("", UI.CARD_HI, _toggle_fx, 14)
+	_mute_button = UI.button("", UI.CARD_HI, _toggle_mute, 14)
 	for b in [_fx_button, _mute_button]:
-		b.custom_minimum_size = Vector2(48, 48)
+		b.custom_minimum_size = Vector2(44, 44)
 		b.expand_icon = true
-		b.add_theme_constant_override("icon_max_width", 34)
+		b.add_theme_constant_override("icon_max_width", 30)
 		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
