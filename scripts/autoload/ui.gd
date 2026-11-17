@@ -158,6 +158,8 @@ func recolor(b: Button, color: Color) -> void:
 
 
 var _play_icon: ImageTexture
+var _hud_icons := {}  # kind -> ImageTexture (웹에서 이모지/폰트 깨짐 방지)
+
 
 ## 흰색 재생 삼각형 (폰트에 ▶ 글자가 없어서 직접 만든다)
 func play_icon() -> Texture2D:
@@ -176,6 +178,87 @@ func play_icon() -> Texture2D:
 				image.set_pixel(x, y, Color(1, 1, 1, hits / 16.0))
 		_play_icon = ImageTexture.create_from_image(image)
 	return _play_icon
+
+
+## 이펙트 품질 아이콘 (on / min / off)
+func fx_icon(quality: String = "") -> Texture2D:
+	var q := quality if not quality.is_empty() else Save.effect_quality()
+	var kind := "fx_%s" % q
+	if _hud_icons.has(kind):
+		return _hud_icons[kind]
+	var n := 3 if q == Save.FX_ON else (1 if q == Save.FX_MIN else 0)
+	var img := Image.create_empty(48, 48, false, Image.FORMAT_RGBA8)
+	var center := Vector2(24, 24)
+	# 가운데 점
+	_stamp_circle(img, center, 4.0, Color(1, 1, 1, 0.95 if n > 0 else 0.35))
+	# 사방으로 뻗는 빛줄기
+	for i in 8:
+		if n == 0:
+			break
+		if n == 1 and i % 2 == 1:
+			continue
+		var a := i * TAU / 8.0
+		var c := Color(1, 0.92, 0.55, 0.95) if n == 3 else Color(1, 1, 1, 0.75)
+		_stamp_line(img, center + Vector2(cos(a), sin(a)) * 8.0, center + Vector2(cos(a), sin(a)) * 20.0, 2.2, c)
+	if n == 0:
+		_stamp_line(img, Vector2(12, 12), Vector2(36, 36), 3.0, Color(1, 0.45, 0.45, 0.95))
+	_hud_icons[kind] = ImageTexture.create_from_image(img)
+	return _hud_icons[kind]
+
+
+## 효과음 켜짐/꺼짐 아이콘
+func mute_icon(muted: bool = false) -> Texture2D:
+	var kind := "mute_on" if not muted else "mute_off"
+	if _hud_icons.has(kind):
+		return _hud_icons[kind]
+	var img := Image.create_empty(48, 48, false, Image.FORMAT_RGBA8)
+	# 스피커 몸통
+	var body := PackedVector2Array([Vector2(8, 18), Vector2(18, 18), Vector2(28, 10), Vector2(28, 38), Vector2(18, 30), Vector2(8, 30)])
+	_stamp_poly(img, body, Color(1, 1, 1, 0.95))
+	if muted:
+		_stamp_line(img, Vector2(12, 12), Vector2(40, 36), 3.2, Color(1, 0.45, 0.45, 0.95))
+	else:
+		# 소리 파동
+		_stamp_arc(img, Vector2(30, 24), 8.0, Color(1, 1, 1, 0.7))
+		_stamp_arc(img, Vector2(30, 24), 14.0, Color(1, 1, 1, 0.45))
+	_hud_icons[kind] = ImageTexture.create_from_image(img)
+	return _hud_icons[kind]
+
+
+func _stamp_circle(img: Image, at: Vector2, radius: float, color: Color) -> void:
+	var r2 := radius * radius
+	var x0 := maxi(0, int(at.x - radius - 1))
+	var y0 := maxi(0, int(at.y - radius - 1))
+	var x1 := mini(img.get_width() - 1, int(at.x + radius + 1))
+	var y1 := mini(img.get_height() - 1, int(at.y + radius + 1))
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			var d := Vector2(x + 0.5, y + 0.5).distance_squared_to(at)
+			if d <= r2:
+				var a := color.a * clampf(1.0 - d / r2, 0.15, 1.0)
+				img.set_pixel(x, y, Color(color.r, color.g, color.b, a))
+
+
+func _stamp_line(img: Image, a: Vector2, b: Vector2, width: float, color: Color) -> void:
+	var steps := maxi(8, int(a.distance_to(b) * 2.0))
+	for i in steps + 1:
+		_stamp_circle(img, a.lerp(b, float(i) / steps), width * 0.5, color)
+
+
+func _stamp_poly(img: Image, poly: PackedVector2Array, color: Color) -> void:
+	for y in img.get_height():
+		for x in img.get_width():
+			if Geometry2D.is_point_in_polygon(Vector2(x + 0.5, y + 0.5), poly):
+				img.set_pixel(x, y, color)
+
+
+func _stamp_arc(img: Image, at: Vector2, radius: float, color: Color) -> void:
+	for i in 12:
+		var t0 := -0.7 + 1.4 * float(i) / 11.0
+		var t1 := -0.7 + 1.4 * float(i + 1) / 11.0
+		var p0 := at + Vector2(cos(t0), sin(t0)) * radius
+		var p1 := at + Vector2(cos(t1), sin(t1)) * radius
+		_stamp_line(img, p0, p1, 1.8, color)
 
 
 func icon(path: String, size: float) -> TextureRect:
@@ -261,6 +344,7 @@ func card_button(color := CARD, on_pressed: Callable = Callable()) -> Array:
 func scroll(content: Control) -> ScrollContainer:
 	var s := ScrollContainer.new()
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	s.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	s.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -274,12 +358,21 @@ func modal_width(prefer := 600.0) -> float:
 	return minf(prefer, maxf(280.0, vp - 40.0))
 
 
-## 모달 안 스크롤 영역 크기
+## 모달 안 스크롤 영역 크기 (최대 높이도 같게 맞춰야 스크롤이 동작한다)
 func modal_scroll_size(prefer_w := 560.0, prefer_h := 640.0) -> Vector2:
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(prefer_w, prefer_h)
 	var w := minf(prefer_w, maxf(240.0, modal_width() - 48.0))
-	var h := minf(prefer_h, maxf(240.0, vp.y * 0.62))
+	# 제목·닫기 버튼 자리를 빼고 스크롤 뷰포트 높이를 고정한다
+	var h := minf(prefer_h, maxf(220.0, vp.y - 280.0))
 	return Vector2(w, h)
+
+
+## ScrollContainer 높이를 고정해 내용이 길면 스크롤되게 한다
+func bind_modal_scroll(scroll: ScrollContainer, prefer_w := 560.0, prefer_h := 640.0) -> ScrollContainer:
+	var sz := modal_scroll_size(prefer_w, prefer_h)
+	scroll.custom_minimum_size = sz
+	scroll.custom_maximum_size = sz
+	return scroll
 
 
 ## 둥근 알약 모양 표시 (아이콘 + 글자)
@@ -396,6 +489,16 @@ func modal(title: String, content: Control, buttons: Array = [], parent: Node = 
 		title_l.clip_text = true
 		v.add_child(title_l)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# 스크롤은 높이를 고정해야 내용이 길 때 실제로 스크롤된다
+	if content is ScrollContainer:
+		var room := maxf(200.0, vp_h - 240.0)
+		var want_h := content.custom_minimum_size.y if content.custom_minimum_size.y > 0.0 else room
+		var want_w := content.custom_minimum_size.x if content.custom_minimum_size.x > 0.0 else modal_width() - 48.0
+		var h := minf(want_h, room)
+		var w := minf(want_w, modal_width() - 40.0)
+		content.custom_minimum_size = Vector2(w, h)
+		content.custom_maximum_size = Vector2(w, h)
+		content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(content)
 	if not buttons.is_empty():
 		var row := hbox(10)

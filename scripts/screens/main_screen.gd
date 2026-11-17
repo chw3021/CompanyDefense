@@ -211,8 +211,7 @@ func show_tab(index: int) -> void:
 
 func open_mailbox() -> void:
 	var list := UI.vbox(12)
-	var scroll := UI.scroll(list)
-	scroll.custom_minimum_size = UI.modal_scroll_size(560, 560)
+	var scroll := UI.bind_modal_scroll(UI.scroll(list), 560, 560)
 	_fill_mails(list)
 	var actions := UI.hbox(10)
 	var claim_all := UI.button("모두 받기", UI.SUCCESS, func():
@@ -276,8 +275,7 @@ func _fill_mails(list: VBoxContainer) -> void:
 
 func open_missions() -> void:
 	var list := UI.vbox(12)
-	var scroll := UI.scroll(list)
-	scroll.custom_minimum_size = UI.modal_scroll_size(560, 600)
+	var scroll := UI.bind_modal_scroll(UI.scroll(list), 560, 600)
 	var tabs := UI.hbox(10)
 	var daily_tab := UI.button("일일 미션", UI.PRIMARY, Callable(), 26)
 	var achieve_tab := UI.button("업적", UI.CARD_HI, Callable(), 26)
@@ -667,9 +665,7 @@ func _open_settings() -> void:
 		v.add_child(vol_slider)
 	v.add_child(UI.wrap_label("효과음(클릭·타격·투사체·피격) 볼륨입니다. BGM은 없습니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
-	var scroll := UI.scroll(v)
-	scroll.custom_minimum_size = UI.modal_scroll_size(560, 640)
-	UI.modal("설정", scroll, [["닫기", UI.CARD_HI]], self)
+	UI.modal("설정", UI.bind_modal_scroll(UI.scroll(v), 560, 640), [["닫기", UI.CARD_HI]], self)
 
 
 func _export_save() -> void:

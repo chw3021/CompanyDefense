@@ -548,12 +548,17 @@ func save_desk_prefs_from_towers() -> void:
 	for t: Tower in towers:
 		cells.append(t.cell)
 	Save.set_desk_prefs(stage_id, cells)
-	message.emit("선호 자리 %d칸 저장" % cells.size(), UI.GOLD)
+	var slot := Save.desk_pref_slot() + 1
+	if cells.is_empty():
+		message.emit("저장할 직원이 없습니다. 직원을 앉힌 뒤 다시 저장하세요", UI.WARN)
+	else:
+		message.emit("배치 슬롯 %d에 %d칸 저장 · 고용 시 이 빈자리부터 채웁니다" % [slot, cells.size()], UI.GOLD)
 
 
 func clear_desk_prefs() -> void:
+	var slot := Save.desk_pref_slot() + 1
 	Save.clear_desk_prefs(stage_id)
-	message.emit("선호 자리를 지웠습니다", UI.MUTED)
+	message.emit("배치 슬롯 %d 저장을 지웠습니다" % slot, UI.MUTED)
 
 
 ## 전설+ 를 빈 책상으로 옮긴다 (쿨 MOVE_COOLDOWN 웨이브)

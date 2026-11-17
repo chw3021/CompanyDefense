@@ -12,6 +12,7 @@ var _streams := {}  # id -> AudioStream
 var _players: Array[AudioStreamPlayer] = []
 var _cursor := 0
 var _last_ms := {}  # id -> 마지막 재생 시각(ms)
+var _web_unlocked := false
 
 
 func _ready() -> void:
@@ -23,6 +24,22 @@ func _ready() -> void:
 		p.bus = BUS_SFX
 		add_child(p)
 		_players.append(p)
+	# 모바일/웹 브라우저는 첫 터치 전에 AudioContext 가 잠긴다
+	if OS.has_feature("web"):
+		set_process_input(true)
+
+
+func _input(event: InputEvent) -> void:
+	if _web_unlocked or not OS.has_feature("web"):
+		return
+	var tap := event is InputEventMouseButton or event is InputEventScreenTouch or event is InputEventKey
+	if not tap or not event.is_pressed():
+		return
+	_web_unlocked = true
+	set_process_input(false)
+	# 제스처 안에서 한 번 재생해야 이후 SFX 가 나온다
+	if not Save.sfx_muted() and _streams.has("click"):
+		play("click", 1.0, 0)
 
 
 func _ensure_buses() -> void:
