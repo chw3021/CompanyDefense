@@ -78,7 +78,7 @@ func can_merge_with(other: Tower) -> bool:
 			and other.id == id and other.grade == grade
 
 
-## 영웅(4성) 이상만 빈 책상으로 이동할 수 있다
+## 영웅(4성) 이상만 책상 이동/자리 교체가 가능하다
 func can_reposition() -> bool:
 	return grade >= GameData.MOVE_MIN_GRADE and reposition_cd <= 0
 

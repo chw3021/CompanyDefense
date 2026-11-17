@@ -363,6 +363,9 @@ func scroll(content: Control) -> ScrollContainer:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.add_child(content)
 	_wire_touch_scroll(content)
+	# 웹/모바일에서 자식이 이벤트를 먹어도 드래그 스크롤이 되도록 릴레이를 붙인다
+	var relay: Node = load("res://scripts/ui/touch_scroll_relay.gd").new()
+	s.add_child(relay)
 	return s
 
 
@@ -412,18 +415,25 @@ func bind_modal_scroll(scroll: ScrollContainer, prefer_w := 560.0, prefer_h := 6
 	return scroll
 
 
-## 둥근 알약 모양 표시 (아이콘 + 글자)
-func pill(icon_path: String, text: String, color := TEXT) -> PanelContainer:
+## 둥근 알약 모양 표시 (아이콘 + 글자). expand=false 면 내용 폭만 쓰고 줄어들지 않게 최소폭을 둔다.
+func pill(icon_path: String, text: String, color := TEXT, expand := true) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", _pill_box())
-	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if expand:
+		p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	else:
+		p.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		p.custom_minimum_size.x = 108
 	p.clip_contents = true
 	var h := hbox(6)
 	h.add_child(icon(icon_path, 32))
 	var l := label(text, 26, color)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	l.clip_text = true
-	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	if expand:
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	else:
+		l.clip_text = false
 	h.add_child(l)
 	p.add_child(h)
 	p.set_meta("text", l)

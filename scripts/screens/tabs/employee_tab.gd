@@ -1,4 +1,4 @@
-# 직원 탭: 18명의 직원 카드와 레벨 업, 신화 카드와 해금 현황
+# 직원 탭: 일반/특수/신화 카드, 레벨 업(일반만), 해금 현황
 extends VBoxContainer
 
 var main
@@ -28,20 +28,36 @@ func _ready() -> void:
 	_set_filter("")
 
 
+## 팀별로 일반 > 특수 > 신화 순. 같은 부서가 붙도록 팀 단위로 묶는다.
+func _catalog(team_filter: String) -> Array[String]:
+	var out: Array[String] = []
+	for team in GameData.TEAMS:
+		if team_filter != "" and team != team_filter:
+			continue
+		for id in GameData.tower_ids:
+			if GameData.towers[id].team == team:
+				out.append(id)
+		for id in GameData.SPECIALS:
+			if GameData.towers[id].team == team:
+				out.append(id)
+		for id in GameData.MYTHICS:
+			if GameData.towers[id].team == team:
+				out.append(id)
+	return out
+
+
 func _set_filter(team: String) -> void:
 	_filter = team
 	for key in _filter_buttons:
 		UI.recolor(_filter_buttons[key], UI.PRIMARY if key == team else UI.CARD)
 	for child in _grid.get_children():
 		child.queue_free()
-	for id in GameData.tower_ids + GameData.MYTHICS.keys():
-		if team == "" or GameData.towers[id].team == team:
-			_grid.add_child(_card(id))
+	for id in _catalog(team):
+		_grid.add_child(_card(id))
 
 
 func _card(id: String) -> Control:
 	var t: Dictionary = GameData.towers[id]
-	var grade := int(t.towerGrade)
 	var locked := GameData.MYTHICS.has(id) and not GameData.mythic_unlocked(Save.user, id)
 	var parts := UI.card_button(UI.CARD, _open.bind(id))
 	var b: Button = parts[0]
@@ -70,7 +86,7 @@ func _card(id: String) -> Control:
 		info.add_child(UI.label("해금 필요", 22, UI.DANGER))
 	else:
 		info.add_child(UI.label("Lv.%d" % Save.user.towers[GameData.level_source(id)], 22, UI.GOLD))
-	info.add_child(UI.label(GameData.GRADE_NAMES[grade - 1], 22, GameData.grade_color(grade)))
+	info.add_child(UI.label(GameData.grade_label(t), 22, GameData.tower_color(t)))
 	v.add_child(info)
 	return b
 
@@ -89,7 +105,6 @@ static func stats_text(id: String, level: int) -> String:
 func _open(id: String) -> void:
 	var t: Dictionary = GameData.towers[id]
 	var skill: Dictionary = GameData.skill_for_tower(t)
-	var grade := int(t.towerGrade)
 	var v := UI.vbox(14)
 
 	var top := UI.hbox(20)
@@ -106,8 +121,8 @@ func _open(id: String) -> void:
 	var info := UI.vbox(8)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
-	info.add_child(UI.wrap_label("%s팀 / %d등급 %s" % [GameData.team_name(t.team), grade, GameData.GRADE_NAMES[grade - 1]], 26,
-			GameData.grade_color(grade), HORIZONTAL_ALIGNMENT_LEFT))
+	info.add_child(UI.wrap_label("%s팀 / %s" % [GameData.team_name(t.team), GameData.grade_label(t)], 26,
+			GameData.tower_color(t), HORIZONTAL_ALIGNMENT_LEFT))
 	var level_label := UI.label("", 30)
 	info.add_child(level_label)
 	var stats := UI.wrap_label("", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT)
@@ -132,13 +147,17 @@ func _open(id: String) -> void:
 	skill_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	skill_head.add_child(skill_title)
 	sv.add_child(skill_head)
-	# 신화 스킬은 GameData.MYTHICS 에 정의되어 설명 키가 description 이다
+	# 신화/특수 스킬은 description 키를 쓴다
 	var description: String = skill.get("skillDescription", skill.get("description", ""))
 	sv.add_child(UI.wrap_label("%s\n(쿨타임 %d초)" % [description, int(skill.get("cooldown", 0))], 24, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(skill_box)
 
 	if GameData.MYTHICS.has(id):
 		_fill_mythic(id, v, level_label, stats)
+		UI.modal(t.towerName, UI.bind_modal_scroll(UI.scroll(v)), [["닫기", UI.CARD_HI]], main)
+		return
+	if GameData.SPECIALS.has(id):
+		_fill_special(id, v, level_label, stats)
 		UI.modal(t.towerName, UI.bind_modal_scroll(UI.scroll(v)), [["닫기", UI.CARD_HI]], main)
 		return
 
@@ -188,6 +207,21 @@ func _fill_mythic(id: String, v: VBoxContainer, level_label: Label, stats: Label
 	else:
 		bv.add_child(UI.label("잠김", 26, UI.DANGER))
 		bv.add_child(UI.wrap_label(GameData.mythic_lock_text(Save.user, id) + "\n해금 전에는 전투에서 각성할 수 없습니다.", 22, UI.DANGER, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(box)
+
+
+## 특수 상세: 레벨은 바탕 전설을 따르고, 유물로만 뽑힌다는 안내 (레벨 업 없음)
+func _fill_special(id: String, v: VBoxContainer, level_label: Label, stats: Label) -> void:
+	var s: Dictionary = GameData.SPECIALS[id]
+	var source: String = s.base
+	var level: int = Save.user.towers[GameData.level_source(id)]
+	level_label.text = "레벨 %d" % level
+	stats.text = stats_text(id, level) + "\n(%s의 레벨을 따릅니다)" % GameData.towers[source].towerName
+	var box := UI.panel(UI.CARD, 16, 16)
+	var bv := UI.vbox(8)
+	box.add_child(bv)
+	bv.add_child(UI.label("특수 직원", 28, GameData.SPECIAL_COLOR))
+	bv.add_child(UI.wrap_label("보스 유물로만 고용할 수 있습니다. 레벨 업은 %s에서 하세요." % GameData.towers[source].towerName, 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(box)
 
 

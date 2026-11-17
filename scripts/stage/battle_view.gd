@@ -41,7 +41,7 @@ var _dragging := false
 var _drag_pos := Vector2.ZERO
 var _press_pos := Vector2.ZERO
 var _hover_target: Tower
-var _hover_desk := Vector2i(-1, -1)  # 영웅+ 이동 후보 빈 책상
+var _hover_desk := Vector2i(-1, -1)  # 영웅+ 이동/교체 후보 책상
 
 
 func setup(p_battle: Battle) -> void:
@@ -292,14 +292,19 @@ func _draw_merge_targets(src: Tower) -> void:
 		if src.can_merge_with(t):
 			var r := Rect2(t.cell.x * c, t.cell.y * c, c, c).grow(-1)
 			_outline(r, Color(UI.GOLD, 0.6 + 0.4 * pulse), 12, 5)
-	# 이동 가능하면 빈 책상을 청록색으로 표시
+	# 이동 가능하면 빈 책상(청록) / 교환 대상 책상(보라) 표시
 	if src.can_reposition():
 		for cell: Vector2i in battle.desk_cells:
-			if battle.tower_at_cell(cell) != null:
+			var occ := battle.tower_at_cell(cell)
+			if occ == src:
 				continue
 			var r := Rect2(cell.x * c, cell.y * c, c, c).grow(-4)
-			_outline(r, Color(Color("5ad0c8"), 0.35 + 0.35 * pulse), 10, 2)
-			_rounded(r, Color(Color("5ad0c8"), 0.08 + 0.06 * pulse), 8)
+			if occ == null:
+				_outline(r, Color(Color("5ad0c8"), 0.35 + 0.35 * pulse), 10, 2)
+				_rounded(r, Color(Color("5ad0c8"), 0.08 + 0.06 * pulse), 8)
+			elif not src.can_merge_with(occ):
+				_outline(r, Color(Color("c89bff"), 0.4 + 0.35 * pulse), 10, 2)
+				_rounded(r, Color(Color("c89bff"), 0.08 + 0.06 * pulse), 8)
 
 
 func _draw_range(t: Tower) -> void:
@@ -380,6 +385,13 @@ func _draw_tower_hud(t: Tower) -> void:
 		_star(row + Vector2((i - (t.grade - 1) / 2.0) * gap, 0), star_r, Color(grade_color.lightened(0.15), alpha))
 	if battle.selected == t:
 		_outline(Rect2(base, Vector2(c, c)).grow(-2), UI.TEXT, 12, 3)
+	# 신화 각성 가능하면 머리 위 ! 표시
+	if battle.can_awaken(t):
+		var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 200.0 + t.cell.x)
+		var bang := Rect2(center_x + c * 0.18, base.y - c * 0.02, c * 0.28, c * 0.28)
+		_rounded(bang, Color(UI.GOLD, 0.85 + 0.15 * pulse), 10)
+		_outline(bang.grow(1), Color(1, 1, 1, 0.55 + 0.35 * pulse), 10, 2)
+		_text(bang.get_center(), "!", 20, Color(0.15, 0.1, 0.05))
 	# 영웅(4성)+ 이동 가능/쿨 표시 (특수문자 없이 ASCII/한글만)
 	if t.can_ever_reposition():
 		var badge := Rect2(center_x - c * 0.3, base.y + c * 0.02, c * 0.6, c * 0.2)
@@ -1247,9 +1259,11 @@ func handle_input(event: InputEvent) -> void:
 				var other := battle.tower_at_cell(dest)
 				if _press_tower.can_merge_with(other):
 					battle.merge(_press_tower, other)
-				elif other == null and _press_tower.can_reposition():
+				elif dest in battle.desk_cells and _press_tower.can_reposition() \
+						and (other == null or other != _press_tower):
 					battle.reposition(_press_tower, dest)
-				elif other == null and _press_tower.can_ever_reposition() and _press_tower.reposition_cd > 0:
+				elif dest in battle.desk_cells and _press_tower.can_ever_reposition() \
+						and _press_tower.reposition_cd > 0 and (other == null or not _press_tower.can_merge_with(other)):
 					battle.message.emit("이동 쿨타임: %d웨이브 남음" % _press_tower.reposition_cd, UI.WARN)
 			else:
 				battle.select(null if battle.selected == _press_tower else _press_tower)
@@ -1268,8 +1282,8 @@ func handle_input(event: InputEvent) -> void:
 			var dest := battle.cell_at(local)
 			var other := battle.tower_at_cell(dest)
 			_hover_target = other if _press_tower.can_merge_with(other) else null
-			_hover_desk = dest if _hover_target == null and other == null and _press_tower.can_reposition() \
-					and dest in battle.desk_cells else Vector2i(-1, -1)
+			_hover_desk = dest if _hover_target == null and _press_tower.can_reposition() \
+					and dest in battle.desk_cells and other != _press_tower else Vector2i(-1, -1)
 		get_viewport().set_input_as_handled()
 
 

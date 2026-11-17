@@ -561,20 +561,40 @@ func clear_desk_prefs() -> void:
 	message.emit("배치 슬롯 %d 저장을 지웠습니다" % slot, UI.MUTED)
 
 
-## 영웅(4성)+ 를 빈 책상으로 옮긴다 (쿨 MOVE_COOLDOWN 웨이브)
+## 영웅(4성)+ 를 책상으로 옮긴다. 상대가 있으면 자리 교환 (상대는 등급/쿨 무관, 쿨 미소모).
 func reposition(t: Tower, dest: Vector2i) -> bool:
 	if finished or t == null or not t.can_reposition():
 		return false
-	if not dest in desk_cells or tower_at_cell(dest) != null:
-		message.emit("빈 책상으로만 이동할 수 있습니다", UI.DANGER)
+	if not dest in desk_cells:
+		message.emit("책상으로만 이동할 수 있습니다", UI.DANGER)
 		return false
-	t.cell = dest
-	t.reposition_cd = MOVE_COOLDOWN
-	floating.emit("이동!", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
-	tower_placed.emit(t, false)
+	var other := tower_at_cell(dest)
+	if other == t:
+		return false
+	var from := t.cell
+	if other != null:
+		other.cell = from
+		t.cell = dest
+		t.reposition_cd = MOVE_COOLDOWN
+		floating.emit("교체!", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
+		tower_placed.emit(t, false)
+		tower_placed.emit(other, false)
+	else:
+		t.cell = dest
+		t.reposition_cd = MOVE_COOLDOWN
+		floating.emit("이동!", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
+		tower_placed.emit(t, false)
 	select(t)
 	hud_changed.emit()
 	return true
+
+
+## 필드에 신화 각성 가능한 전설이 있는지
+func any_can_awaken() -> bool:
+	for t: Tower in towers:
+		if can_awaken(t):
+			return true
+	return false
 
 
 ## dragged 를 target 위에 놓았을 때: 둘을 합쳐 한 등급 높은 무작위 직원으로

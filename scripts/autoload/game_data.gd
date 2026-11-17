@@ -48,7 +48,7 @@ const MYTHICS := {
 const MYTHIC_STAT_MULT := 4.0
 const MYTHIC_UNLOCK_LEVEL := 5
 
-## 특수 직원. 보스를 잡으면 떨어지는 유물로만 뽑을 수 있다 (고용, 승진, 협상, 직원 탭 대상이 아님).
+## 특수 직원. 보스를 잡으면 떨어지는 유물로만 뽑을 수 있다 (고용, 승진, 협상 대상이 아님. 직원 탭에는 표시).
 ## 능력치는 base 전설의 SPECIAL_STAT_MULT 배, 레벨은 base 의 레벨을 따른다. 그림은 image(.svg / _sprite.svg)
 const SPECIALS := {
 	"tower_dv7": {"base": "tower_dv5_1", "name": "AI 연구원", "image": "tower/dv/dv7",
@@ -96,7 +96,7 @@ func _init() -> void:
 	_add_specials()
 
 
-## 신화 직원을 전설 데이터에서 만들어 towers / skills 에 넣는다 (tower_ids 에는 넣지 않는다: 고용, 직원 탭 대상이 아님)
+## 신화 직원을 전설 데이터에서 만들어 towers / skills 에 넣는다 (tower_ids 에는 넣지 않는다: 고용 대상이 아님)
 func _add_mythics() -> void:
 	for id in MYTHICS:
 		var m: Dictionary = MYTHICS[id]
