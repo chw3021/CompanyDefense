@@ -323,9 +323,11 @@ func spacer(min_size := 0.0, vertical := true) -> Control:
 	return c
 
 
-## 카드 모양 버튼. 안쪽 내용은 돌려받은 VBox 에 넣는다 (버튼 크기는 내용에 맞춰진다)
+## 카드 모양 버튼. 안쪽 내용은 돌려받은 VBox 에 넣는다 (버튼 크기는 내용에 맞춰진다).
+## mouse_filter 는 PASS: 스크롤 목록에서 카드 위를 드래그해도 부모 ScrollContainer 가 스크롤된다.
 func card_button(color := CARD, on_pressed: Callable = Callable()) -> Array:
 	var b := button("", color, on_pressed)
+	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	for state in ["normal", "hover"]:
 		b.add_theme_stylebox_override(state, box(color, RADIUS, 14))
 	var pressed := box(color.darkened(0.15), RADIUS, 14)
@@ -347,16 +349,44 @@ func card_button(color := CARD, on_pressed: Callable = Callable()) -> Array:
 	return [b, v]
 
 
-## 세로 스크롤 영역 (가로 스크롤 없음)
+## 세로 스크롤 영역 (가로 스크롤 없음).
+## 모바일/웹에서는 자식 Button/Panel 이 터치를 가로채면 드래그 스크롤이 죽어서,
+## STOP 인 컨트롤만 PASS 로 바꿔 ScrollContainer 까지 이벤트가 올라가게 한다 (IGNORE 는 유지).
 func scroll(content: Control) -> ScrollContainer:
 	var s := ScrollContainer.new()
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	s.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	s.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# 짧은 탭은 클릭, 이 이상 움직이면 스크롤로 본다
+	s.scroll_deadzone = 24
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.add_child(content)
+	_wire_touch_scroll(content)
 	return s
+
+
+## 스크롤 내용 트리에 터치 드래그가 통과되게 연결한다
+func _wire_touch_scroll(node: Node) -> void:
+	if node is Control:
+		var c := node as Control
+		if c.mouse_filter == Control.MOUSE_FILTER_STOP:
+			c.mouse_filter = Control.MOUSE_FILTER_PASS
+	if node is Container and not node.has_meta("_ui_touch_scroll"):
+		node.set_meta("_ui_touch_scroll", true)
+		node.child_entered_tree.connect(_on_touch_scroll_child)
+	for child in node.get_children():
+		_wire_touch_scroll(child)
+
+
+func _on_touch_scroll_child(node: Node) -> void:
+	# card_button 이 IGNORE 자식을 붙인 뒤에 적용하려고 한 프레임 미룬다
+	call_deferred("_wire_touch_scroll_if_valid", node)
+
+
+func _wire_touch_scroll_if_valid(node: Node) -> void:
+	if is_instance_valid(node):
+		_wire_touch_scroll(node)
 
 
 ## 모달 카드 가로폭 (좁은 웹/모바일에서 화면을 넘기지 않는다)

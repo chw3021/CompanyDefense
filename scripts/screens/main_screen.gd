@@ -202,6 +202,8 @@ func show_tab(index: int) -> void:
 		child.queue_free()
 	var tab: Control = load(TABS[index][2]).new()
 	tab.set("main", self)
+	tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_content.add_child(tab)
 	tab.modulate.a = 0
 	tab.create_tween().tween_property(tab, "modulate:a", 1.0, 0.15)
