@@ -394,7 +394,7 @@ func _fill_daily(list: VBoxContainer) -> void:
 	for m: Dictionary in d.missions:
 		var def := Missions.daily_def(m.id)
 		var state := "claimed" if m.claimed else ("ready" if Missions.daily_done(m) else "progress")
-		var ad_ready := m.claimed and not m.get("ad_bonus", false)
+		var ad_ready: bool = bool(m.claimed) and not bool(m.get("ad_bonus", false))
 		list.add_child(_mission_card(def.desc % def.goal, "", int(m.progress), int(def.goal), int(def.gold), 0, state, func():
 			if Save.claim_daily(m):
 				UI.toast("보상을 받았습니다!", UI.GOLD)
@@ -406,7 +406,7 @@ func _fill_daily(list: VBoxContainer) -> void:
 				_fill_daily(list)))
 	var done: int = d.missions.filter(func(m): return Missions.daily_done(m)).size()
 	var bonus_state := "claimed" if d.bonus_claimed else ("ready" if Missions.daily_all_done(Save.user) else "progress")
-	var bonus_ad := d.bonus_claimed and not d.get("bonus_ad", false)
+	var bonus_ad: bool = bool(d.bonus_claimed) and not bool(d.get("bonus_ad", false))
 	list.add_child(_mission_card("오늘의 미션 모두 완료", "보너스", done, d.missions.size(), Missions.DAILY_BONUS_GOLD,
 			Missions.DAILY_BONUS_TIME, bonus_state, func():
 				if Save.claim_daily_bonus():
@@ -432,8 +432,8 @@ func _fill_achievements(list: VBoxContainer) -> void:
 		var value := Missions.stat_value(Save.user, a.stat)
 		if tier.is_empty():
 			var last: Array = a.tiers[a.tiers.size() - 1]
-			var last_i := a.tiers.size() - 1
-			var ad_done := Save.achievement_ad_done(a, last_i)
+			var last_i: int = a.tiers.size() - 1
+			var ad_done: bool = Save.achievement_ad_done(a, last_i)
 			list.add_child(_mission_card(a.desc % last[0], stage, int(last[0]), int(last[0]), int(last[1]) / 2, 0, "claimed", Callable(), not ad_done, func():
 				if not await Ads.show_rewarded("mission_bonus"):
 					return
@@ -442,9 +442,9 @@ func _fill_achievements(list: VBoxContainer) -> void:
 				_fill_achievements(list)))
 			continue
 		var state := "ready" if Missions.achievement_ready(Save.user, a) else "progress"
-		var claimed_n := Missions.claimed_tiers(Save.user, a)
-		var ad_ready := claimed_n > 0 and not Save.achievement_ad_done(a, claimed_n - 1)
-		var last_gold := int(a.tiers[claimed_n - 1][1]) if claimed_n > 0 else 0
+		var claimed_n: int = Missions.claimed_tiers(Save.user, a)
+		var ad_ready: bool = claimed_n > 0 and not Save.achievement_ad_done(a, claimed_n - 1)
+		var last_gold: int = int(a.tiers[claimed_n - 1][1]) if claimed_n > 0 else 0
 		list.add_child(_mission_card(a.desc % tier[0], stage, value, int(tier[0]), int(tier[1]), 0, state, func():
 			if Save.claim_achievement(a):
 				UI.toast("업적 달성! %s" % a.name, UI.GOLD)

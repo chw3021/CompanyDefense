@@ -78,7 +78,7 @@ func _shop_card(item: Dictionary) -> Control:
 	elif item.get("ad", false):
 		text.add_child(UI.label("오늘 남은 횟수 %d" % Save.corp_ad_left(), 24, UI.GOLD))
 	row.add_child(text)
-	var label := status if locked else ("광고" if item.get("ad", false) else "구매")
+	var label: String = status if locked else ("광고" if bool(item.get("ad", false)) else "구매")
 	var b := UI.button(label, UI.SUCCESS if not locked else UI.CARD_HI, func(): _buy(item), 24)
 	b.disabled = locked
 	b.custom_minimum_size = Vector2(120, 72)
@@ -179,8 +179,8 @@ func _pass_level_row(level: int, reached: int, p: Dictionary) -> Control:
 
 func _pass_claim_line(title: String, reward: Dictionary, level: int, premium: bool, unlocked: bool, p: Dictionary) -> Control:
 	var line := UI.hbox(8)
-	var locked_prem := premium and not p.premium
-	var claimed := Save.is_pass_claimed(level, premium)
+	var locked_prem: bool = premium and not bool(p.premium)
+	var claimed: bool = Save.is_pass_claimed(level, premium)
 	var name_l := UI.label(title, 22, UI.GOLD if premium else UI.MUTED)
 	name_l.custom_minimum_size.x = 90
 	line.add_child(name_l)
@@ -188,7 +188,7 @@ func _pass_claim_line(title: String, reward: Dictionary, level: int, premium: bo
 	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	desc.clip_text = true
 	line.add_child(desc)
-	var can := unlocked and not claimed and not locked_prem and Save.can_claim_pass(level, premium)
+	var can: bool = unlocked and not claimed and not locked_prem and Save.can_claim_pass(level, premium)
 	var b_text := "완료" if claimed else ("잠김" if locked_prem or not unlocked else "받기")
 	var b := UI.button(b_text, UI.SUCCESS if can else UI.CARD_HI, func():
 		if Save.claim_pass_reward(level, premium):
