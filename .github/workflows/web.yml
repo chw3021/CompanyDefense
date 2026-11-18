@@ -71,12 +71,12 @@ jobs:
           echo "cache-bust=$SHA"
           for f in build/web/index.html build/web/index.js; do
             if [ -f "$f" ]; then
-              sed -i "s|index\\.wasm|index.wasm?v=${SHA}|g; s|index\\.pck|index.pck?v=${SHA}|g" "$f"
+              sed -i "s|index\\.wasm|index.wasm?v=${SHA}|g; s|index\\.pck|index.pck?v=${SHA}|g; s|index\\.js\"|index.js?v=${SHA}\"|g; s|index\\.js'|index.js?v=${SHA}'|g" "$f"
             fi
           done
           # HTML 자체도 재받도록
           if [ -f build/web/index.html ]; then
-            sed -i "s|<head>|<head><meta http-equiv=\"Cache-Control\" content=\"no-cache\"><meta name=\"cd-build\" content=\"${SHA}\">|" build/web/index.html || true
+            sed -i "s|<head>|<head><meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\"><meta name=\"cd-build\" content=\"${SHA}\">|" build/web/index.html || true
           fi
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
