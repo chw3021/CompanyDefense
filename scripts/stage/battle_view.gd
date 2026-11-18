@@ -392,17 +392,6 @@ func _draw_tower_hud(t: Tower) -> void:
 		_rounded(bang, Color(UI.GOLD, 0.85 + 0.15 * pulse), 10)
 		_outline(bang.grow(1), Color(1, 1, 1, 0.55 + 0.35 * pulse), 10, 2)
 		_text(bang.get_center(), "!", 20, Color(0.15, 0.1, 0.05))
-	# 영웅(4성)+ 이동 가능/쿨 표시 (특수문자 없이 ASCII/한글만)
-	if t.can_ever_reposition():
-		var badge := Rect2(center_x - c * 0.3, base.y + c * 0.02, c * 0.6, c * 0.2)
-		if t.reposition_cd > 0:
-			_rounded(badge, Color(0, 0, 0, 0.72), 8)
-			_text(Vector2(center_x, base.y + c * 0.12), "이동 %d" % t.reposition_cd, 14, UI.MUTED)
-		else:
-			var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 280.0 + t.cell.x)
-			_rounded(badge, Color(Color("1a5c58"), 0.75 + 0.15 * pulse), 8)
-			_outline(badge.grow(1), Color(Color("5ad0c8"), 0.5 + 0.4 * pulse), 8, 2)
-			_text(Vector2(center_x, base.y + c * 0.12), "이동", 14, Color("b8fff8"))
 
 
 ## 다섯 꼭지 별

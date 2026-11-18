@@ -5,7 +5,7 @@ const TABS := [
 	["스테이지", "res://assets/menu/stage.svg", "res://scripts/screens/tabs/stage_tab.gd"],
 	["직원", "res://assets/menu/human.svg", "res://scripts/screens/tabs/employee_tab.gd"],
 	["취미", "res://assets/menu/hobbies.svg", "res://scripts/screens/tabs/hobby_tab.gd"],
-	["사무용품", "res://assets/menu/auto.svg", "res://scripts/screens/tabs/equipment_tab.gd"],
+	["사무용품", "res://assets/menu/equipment.svg", "res://scripts/screens/tabs/equipment_tab.gd"],
 	["상점", "res://assets/icons/money.png", "res://scripts/screens/tabs/shop_tab.gd"],
 ]
 
@@ -88,70 +88,66 @@ func _build_top_bar() -> Control:
 	var bar := UI.panel(Color(UI.PANEL, 0.92), 0, 0)
 	bar.clip_contents = true
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_right", 8)
 	margin.add_theme_constant_override("margin_top", 8 + int(_safe_top()))
 	margin.add_theme_constant_override("margin_bottom", 8)
 	bar.add_child(margin)
-	# 재화 줄 + 버튼 줄로 나눠 찌그러짐을 막는다
-	var col := UI.vbox(8)
-	margin.add_child(col)
 
-	var res_row := UI.hbox(6)
-	col.add_child(res_row)
+	var row := UI.hbox(6)
+	margin.add_child(row)
 	_avatar = Avatar.new()
-	_avatar.custom_minimum_size = Vector2(48, 48)
+	_avatar.custom_minimum_size = Vector2(44, 44)
 	_avatar.pressed.connect(_open_profile)
-	res_row.add_child(_avatar)
+	row.add_child(_avatar)
 	Account.profile_changed.connect(_refresh_avatar)
 	_refresh_avatar()
 
 	_gold_pill = UI.pill("res://assets/icons/coin.svg", "", UI.GOLD, true)
 	_gold_pill.custom_minimum_size.x = 0
-	res_row.add_child(_gold_pill)
+	row.add_child(_gold_pill)
 	_corp_pill = UI.pill("res://assets/icons/corp_card.svg", "", UI.PURPLE, false)
-	_corp_pill.custom_minimum_size.x = 88
+	_corp_pill.custom_minimum_size.x = 72
 	_corp_pill.gui_input.connect(_on_corp_pill_input)
 	_corp_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_corp_pill.tooltip_text = "법인카드 (탭하여 광고 충전)"
-	res_row.add_child(_corp_pill)
+	row.add_child(_corp_pill)
 	_time_pill = UI.pill("res://assets/icons/waste.svg", "", UI.TEXT, false)
-	_time_pill.custom_minimum_size.x = 100
+	_time_pill.custom_minimum_size.x = 84
 	_time_pill.gui_input.connect(_on_time_pill_input)
 	_time_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_time_pill.tooltip_text = "시간 (탭하여 광고 충전)"
-	res_row.add_child(_time_pill)
+	row.add_child(_time_pill)
 
-	var btn_row := UI.hbox(8)
-	col.add_child(btn_row)
-	var mission_button := UI.button("미션", UI.CARD_HI, open_missions, 22)
-	mission_button.custom_minimum_size = Vector2(0, 52)
-	mission_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mission_button.clip_text = true
+	var mission_button := _icon_bar_button("res://assets/icons/mission.svg", open_missions, "미션")
 	_mission_badge = _badge(mission_button)
-	btn_row.add_child(mission_button)
+	row.add_child(mission_button)
 
-	_mail_button = UI.button("메일", UI.CARD_HI, open_mailbox, 22)
-	_mail_button.custom_minimum_size = Vector2(0, 52)
-	_mail_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_mail_button.clip_text = true
+	_mail_button = _icon_bar_button("res://assets/icons/mail.svg", open_mailbox, "메일")
 	_mail_badge = _badge(_mail_button)
-	btn_row.add_child(_mail_button)
+	row.add_child(_mail_button)
 
-	var menu := UI.button("", UI.CARD_HI, open_menu)
-	menu.icon = load("res://assets/menu/menu.svg")
-	menu.expand_icon = true
-	menu.custom_minimum_size = Vector2(52, 52)
-	btn_row.add_child(menu)
+	var menu := _icon_bar_button("res://assets/menu/menu.svg", open_menu, "메뉴")
+	row.add_child(menu)
 	return bar
+
+
+func _icon_bar_button(icon_path: String, on_pressed: Callable, tip: String) -> Button:
+	var b := UI.button("", UI.CARD_HI, on_pressed)
+	b.icon = load(icon_path)
+	b.expand_icon = true
+	b.custom_minimum_size = Vector2(48, 48)
+	b.add_theme_constant_override("icon_max_width", 28)
+	b.tooltip_text = tip
+	return b
 
 
 ## 버튼 오른쪽 위의 빨간 숫자 배지
 func _badge(b: Button) -> Label:
-	var badge := UI.label("", 18, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	badge.add_theme_stylebox_override("normal", UI.box(UI.DANGER, 12, 2))
-	badge.custom_minimum_size = Vector2(26, 24)
-	badge.position = Vector2(48, -6)
+	var badge := UI.label("", 16, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	badge.add_theme_stylebox_override("normal", UI.box(UI.DANGER, 10, 2))
+	badge.custom_minimum_size = Vector2(22, 20)
+	badge.position = Vector2(28, -4)
 	b.add_child(badge)
 	return badge
 
@@ -159,13 +155,15 @@ func _badge(b: Button) -> Label:
 func refresh_top_bar() -> void:
 	if not Save.has_user():
 		return
-	_gold_pill.get_meta("text").text = str(Save.gold())
-	_corp_pill.get_meta("text").text = str(Save.corp_card())
+	_gold_pill.get_meta("text").text = UI.compact_num(Save.gold())
+	_gold_pill.tooltip_text = "골드 %d" % Save.gold()
+	_corp_pill.get_meta("text").text = UI.compact_num(Save.corp_card())
+	_corp_pill.tooltip_text = "법인카드 %d (탭하여 광고 충전)" % Save.corp_card()
 	var t: int = Save.user.time
 	var text := str(t) if t > Save.MAX_TIME else "%d/%d" % [t, Save.MAX_TIME]
 	var left := Save.seconds_until_next_time()
 	if left > 0:
-		text += "  %d:%02d" % [left / 60, left % 60]
+		text += " %d:%02d" % [left / 60, left % 60]
 	_time_pill.get_meta("text").text = text
 	var unclaimed := Save.unclaimed_mail_count()
 	_mail_badge.visible = unclaimed > 0
@@ -189,8 +187,12 @@ func _offer_time_ad() -> void:
 	if Save.time_ad_left() <= 0:
 		UI.toast("오늘은 시간 광고 한도에 도달했습니다.", UI.MUTED)
 		return
+	var cool := Save.ad_cooldown_left()
+	if cool > 0:
+		UI.toast("광고 보상은 %d분 %d초 후에 다시 받을 수 있습니다." % [cool / 60, cool % 60], UI.WARN)
+		return
 	var body := UI.vbox(10)
-	body.add_child(UI.label("광고를 보면 시간 +%d\n오늘 남은 횟수 %d회" % [Save.TIME_AD_AMOUNT, Save.time_ad_left()], 28, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	body.add_child(UI.label("광고를 보면 시간 +%d\n오늘 남은 횟수 %d회\n(광고 보상 쿨타임 30분)" % [Save.TIME_AD_AMOUNT, Save.time_ad_left()], 28, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	UI.modal("시간 충전", body, [
 		["닫기", UI.CARD_HI],
 		["광고 보기", UI.SUCCESS, func(): _watch_time_ad()],
@@ -212,8 +214,12 @@ func _offer_corp_ad() -> void:
 	if Save.corp_ad_left() <= 0:
 		UI.toast("오늘은 법인카드 광고 한도에 도달했습니다.", UI.MUTED)
 		return
+	var cool := Save.ad_cooldown_left()
+	if cool > 0:
+		UI.toast("광고 보상은 %d분 %d초 후에 다시 받을 수 있습니다." % [cool / 60, cool % 60], UI.WARN)
+		return
 	var body := UI.vbox(10)
-	body.add_child(UI.label("광고를 보면 법인카드 +%d\n오늘 남은 횟수 %d회\n(전투 중 운영비 / 유물 리롤에 사용)" % [Save.CORP_AD_AMOUNT, Save.corp_ad_left()], 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	body.add_child(UI.label("광고를 보면 법인카드 +%d\n오늘 남은 횟수 %d회\n(광고 보상 쿨타임 30분)" % [Save.CORP_AD_AMOUNT, Save.corp_ad_left()], 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	UI.modal("법인카드 충전", body, [
 		["닫기", UI.CARD_HI],
 		["광고 보기", UI.PURPLE, func(): _watch_corp_ad()],
@@ -727,7 +733,13 @@ func _open_settings() -> void:
 	speed_button.custom_minimum_size.y = 86
 	var refresh := func(): speed_button.text = "게임 속도: x%d" % int(Save.game_speed())
 	speed_button.pressed.connect(func():
-		Save.set_game_speed(1.0 if Save.game_speed() >= 2.0 else 2.0)
+		var cur := Save.game_speed()
+		var next := 1.0
+		if cur < 1.5:
+			next = 2.0
+		elif cur < 2.5:
+			next = 3.0
+		Save.set_game_speed(next)
 		refresh.call())
 	refresh.call()
 	v.add_child(speed_button)
@@ -802,7 +814,7 @@ func _open_settings() -> void:
 		vol_refresh.call(vol_slider.value)
 		v.add_child(vol_label)
 		v.add_child(vol_slider)
-	v.add_child(UI.wrap_label("효과음(클릭/타격/투사체/피격) 볼륨입니다. BGM은 없습니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	v.add_child(UI.wrap_label("BGM/효과음 볼륨입니다. 음소거 시 효과음만 꺼지고 BGM은 볼륨 슬라이더를 따릅니다.", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 	v.add_child(UI.wrap_label("컴퍼니 디펜스 v2.0\n데이터는 이 기기에 저장되며, 내 정보에서 구글 계정을 연동하면 클라우드에도 저장됩니다.\n\n사무실 이미지: pikisuperstar / Freepik\n글꼴: Jua (SIL OFL)", 24))
 	UI.modal("설정", UI.bind_modal_scroll(UI.scroll(v), 560, 640), [["닫기", UI.CARD_HI]], self)
 

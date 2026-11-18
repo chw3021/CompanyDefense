@@ -1,4 +1,4 @@
-# 효과음 재생 + 버스 볼륨. BGM 은 없고 SFX 만 쓴다.
+# 효과음 + BGM. 버스 볼륨은 Save 설정을 따른다.
 extends Node
 
 const BUS_MASTER := "Master"
@@ -6,6 +6,7 @@ const BUS_BGM := "BGM"
 const BUS_SFX := "SFX"
 const POOL := 10
 const SFX_DIR := "res://assets/sfx/"
+const BGM_PATH := "res://assets/bgm/office.wav"
 const SFX_IDS := ["click", "hit", "projectile", "impact", "promote", "wave", "boss", "win", "lose"]
 
 var _streams := {}  # id -> AudioStream
@@ -13,6 +14,8 @@ var _players: Array[AudioStreamPlayer] = []
 var _cursor := 0
 var _last_ms := {}  # id -> 마지막 재생 시각(ms)
 var _web_unlocked := false
+var _bgm: AudioStreamPlayer
+var _bgm_id := ""
 
 
 func _ready() -> void:
@@ -24,9 +27,14 @@ func _ready() -> void:
 		p.bus = BUS_SFX
 		add_child(p)
 		_players.append(p)
+	_bgm = AudioStreamPlayer.new()
+	_bgm.bus = BUS_BGM
+	add_child(_bgm)
 	# 모바일/웹 브라우저는 첫 터치 전에 AudioContext 가 잠긴다
 	if OS.has_feature("web"):
 		set_process_input(true)
+	else:
+		play_bgm("office")
 
 
 func _input(event: InputEvent) -> void:
@@ -37,9 +45,10 @@ func _input(event: InputEvent) -> void:
 		return
 	_web_unlocked = true
 	set_process_input(false)
-	# 제스처 안에서 한 번 재생해야 이후 SFX 가 나온다
+	# 제스처 안에서 한 번 재생해야 이후 오디오가 나온다
 	if not Save.sfx_muted() and _streams.has("click"):
 		play("click", 1.0, 0)
+	play_bgm("office")
 
 
 func _ensure_buses() -> void:
@@ -57,8 +66,9 @@ func _ensure_bus(name: String) -> void:
 
 
 func apply_volumes() -> void:
-	_set_bus_linear(BUS_MASTER, 0.0 if Save.sfx_muted() else Save.volume_master())
+	_set_bus_linear(BUS_MASTER, Save.volume_master())
 	_set_bus_linear(BUS_BGM, Save.volume_bgm())
+	# 음소거 토글은 효과음만 끈다. BGM 은 슬라이더를 따른다.
 	_set_bus_linear(BUS_SFX, 0.0 if Save.sfx_muted() else Save.volume_sfx())
 
 
@@ -76,6 +86,11 @@ func _load_streams() -> void:
 		var path: String = SFX_DIR + id + ".wav"
 		if ResourceLoader.exists(path):
 			_streams[id] = load(path)
+	if ResourceLoader.exists(BGM_PATH):
+		var stream: AudioStream = load(BGM_PATH)
+		if stream is AudioStreamWAV:
+			(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+		_streams["office"] = stream
 
 
 ## gap_ms 안이면 같은 효과음을 다시 안 낸다 (전투 스팸 방지)
@@ -93,6 +108,22 @@ func play(id: String, pitch := 1.0, gap_ms := 40) -> void:
 	p.stream = _streams[id]
 	p.pitch_scale = clampf(pitch, 0.7, 1.4)
 	p.play()
+
+
+func play_bgm(id: String = "office") -> void:
+	if not _streams.has(id) or _bgm == null:
+		return
+	if _bgm_id == id and _bgm.playing:
+		return
+	_bgm_id = id
+	_bgm.stream = _streams[id]
+	_bgm.play()
+
+
+func stop_bgm() -> void:
+	_bgm_id = ""
+	if _bgm:
+		_bgm.stop()
 
 
 func click() -> void:

@@ -15,6 +15,8 @@ const TIME_AD_AMOUNT := 2
 const TIME_AD_DAILY_MAX := 5
 const CORP_AD_AMOUNT := 1
 const CORP_AD_DAILY_MAX := 5
+## 광고로 보상 받는 행위 공통 쿨타임
+const AD_COOLDOWN_SEC := 30 * 60
 const START_COIN_AD_BONUS := 120
 const REST_COIN_BONUS := 150
 const REST_CORP_COST := 1
@@ -268,6 +270,23 @@ func corp_ad_left() -> int:
 	if user.is_empty():
 		return 0
 	return maxi(0, CORP_AD_DAILY_MAX - int(_ads_daily().get("corp", 0)))
+
+
+## 광고 보상 공통 쿨타임 남은 초. 0 이면 시청 가능.
+func ad_cooldown_left() -> int:
+	if user.is_empty():
+		return 0
+	var last := int(user.get("last_reward_ad_at", 0))
+	if last <= 0:
+		return 0
+	return maxi(0, AD_COOLDOWN_SEC - (_now() - last))
+
+
+func mark_reward_ad() -> void:
+	if user.is_empty():
+		return
+	user["last_reward_ad_at"] = _now()
+	save()
 
 
 ## 광고 시청 성공 후 호출. 성공하면 충전된 시간 수, 실패(한도)면 0
@@ -654,11 +673,21 @@ func set_user_name(user_name: String) -> void:
 # ------------------------------------------------------------------ 설정
 
 func game_speed() -> float:
-	return settings.get_value("game", "speed", 1.0)
+	var raw := float(settings.get_value("game", "speed", 1.0))
+	if raw >= 2.5:
+		return 3.0
+	if raw >= 1.5:
+		return 2.0
+	return 1.0
 
 
 func set_game_speed(speed: float) -> void:
-	settings.set_value("game", "speed", speed)
+	var v := 1.0
+	if speed >= 2.5:
+		v = 3.0
+	elif speed >= 1.5:
+		v = 2.0
+	settings.set_value("game", "speed", v)
 	settings.save(SETTINGS_PATH)
 
 

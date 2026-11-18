@@ -25,11 +25,20 @@ func show_rewarded(placement: String) -> bool:
 	if not can_show_rewarded():
 		UI.toast("전투가 끝난 뒤에 광고를 볼 수 있습니다.", UI.WARN)
 		return false
+	var cool := Save.ad_cooldown_left()
+	if cool > 0:
+		UI.toast("광고 보상은 %d분 %d초 후에 다시 받을 수 있습니다." % [cool / 60, cool % 60], UI.WARN)
+		return false
 	UI.toast("광고 시청 중… (%s)" % _label(placement), UI.MUTED)
 	await get_tree().create_timer(0.4).timeout
 	if not can_show_rewarded():
 		UI.toast("전투가 끝난 뒤에 광고를 볼 수 있습니다.", UI.WARN)
 		return false
+	cool = Save.ad_cooldown_left()
+	if cool > 0:
+		UI.toast("광고 보상은 %d분 %d초 후에 다시 받을 수 있습니다." % [cool / 60, cool % 60], UI.WARN)
+		return false
+	Save.mark_reward_ad()
 	return true
 
 

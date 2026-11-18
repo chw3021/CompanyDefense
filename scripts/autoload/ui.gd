@@ -415,6 +415,28 @@ func bind_modal_scroll(scroll: ScrollContainer, prefer_w := 560.0, prefer_h := 6
 	return scroll
 
 
+## 큰 숫자는 K/M/B 로 줄여 상단 바 폭을 아낀다.
+static func compact_num(n: int) -> String:
+	var sign := "-" if n < 0 else ""
+	var a := absi(n)
+	if a < 1000:
+		return sign + str(a)
+	if a < 1_000_000:
+		return sign + _compact_unit(float(a) / 1000.0, "K")
+	if a < 1_000_000_000:
+		return sign + _compact_unit(float(a) / 1_000_000.0, "M")
+	return sign + _compact_unit(float(a) / 1_000_000_000.0, "B")
+
+
+static func _compact_unit(v: float, suffix: String) -> String:
+	if v >= 100.0:
+		return "%d%s" % [int(round(v)), suffix]
+	var rounded: float = roundf(v * 10.0) / 10.0
+	if is_equal_approx(rounded, roundf(rounded)):
+		return "%d%s" % [int(roundf(rounded)), suffix]
+	return "%.1f%s" % [rounded, suffix]
+
+
 ## 둥근 알약 모양 표시 (아이콘 + 글자). expand=false 면 내용 폭만 쓰고 줄어들지 않게 최소폭을 둔다.
 func pill(icon_path: String, text: String, color := TEXT, expand := true) -> PanelContainer:
 	var p := PanelContainer.new()
@@ -441,9 +463,9 @@ func pill(icon_path: String, text: String, color := TEXT, expand := true) -> Pan
 
 
 func _pill_box() -> StyleBoxFlat:
-	var sb := box(Color(0, 0, 0, 0.35), 40, 8)
-	sb.content_margin_left = 12
-	sb.content_margin_right = 18
+	var sb := box(Color(0, 0, 0, 0.35), 40, 6)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 12
 	return sb
 
 

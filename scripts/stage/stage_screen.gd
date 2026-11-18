@@ -196,7 +196,7 @@ func _build_panel() -> Control:
 	_hint = UI.vbox(8)
 	_hint.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n영웅(4성)+ 는 빈 책상/다른 직원과 자리 교체 (쿨 2웨이브)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	_hint.add_child(UI.label("직원을 누르면 정보를 볼 수 있어요\n같은 직원끼리 끌어다 놓으면 승진!\n영웅(4성)+ 는 끌어 자리 이동/교체 (쿨 2웨이브)", 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	# 자동 승진은 한 줄 전체 폭 - 옆 버튼과 나눠 쓰면 글자가 잘린다
 	_merge_button = UI.button("", UI.SUCCESS, _on_merge_pressed, 22)
 	_merge_button.custom_minimum_size = Vector2(0, 52)
@@ -321,26 +321,20 @@ func _build_setup_overlay() -> void:
 	_setup_label = UI.label("", 24, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	_setup_label.clip_text = true
 	setup_col.add_child(_setup_label)
-	setup_col.add_child(UI.label("고용/승진/이동으로 정비 후 계속", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	setup_col.add_child(UI.label("고용/승진/이동으로 정비 후, 상단 II 또는 계속하기로 진행", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var setup_row := UI.hbox(8)
 	setup_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	setup_col.add_child(setup_row)
-	var resume := UI.button("정비 완료", UI.PRIMARY, _resume_setup, 22)
-	resume.custom_minimum_size = Vector2(0, 56)
-	resume.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UI.recolor_compact(resume, UI.PRIMARY, 8)
-	setup_row.add_child(resume)
 	var rest_coin := UI.button("운영비", UI.GOLD, _buy_rest_coin, 20)
 	rest_coin.name = "RestCoinBtn"
 	rest_coin.custom_minimum_size = Vector2(0, 56)
 	rest_coin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rest_coin.size_flags_stretch_ratio = 0.7
 	UI.recolor_compact(rest_coin, UI.GOLD, 8)
 	setup_row.add_child(rest_coin)
 	var give_up := UI.button("포기", UI.DANGER, _confirm_give_up, 22)
 	give_up.custom_minimum_size = Vector2(0, 56)
 	give_up.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	give_up.size_flags_stretch_ratio = 0.55
+	give_up.size_flags_stretch_ratio = 0.7
 	UI.recolor_compact(give_up, UI.DANGER, 8)
 	setup_row.add_child(give_up)
 
@@ -355,11 +349,12 @@ func _on_wave_pressed() -> void:
 
 
 func _on_merge_pressed() -> void:
+	# 설정은 '승진설정' 버튼으로. 자동 승진은 합치기만.
 	if battle.merge_auto_pairs_count() == 0:
-		_open_merge_settings()
-	else:
-		battle.merge_auto()
-		_refresh_hud()
+		UI.toast("합칠 직원이 없습니다. 아래에서 승진설정을 바꿔 보세요.", UI.MUTED)
+		return
+	battle.merge_auto()
+	_refresh_hud()
 
 
 func _open_merge_settings() -> void:
@@ -630,8 +625,8 @@ func _open_help() -> void:
 	line.call("성공 확률: " + " / ".join(chances), UI.TEXT)
 
 	section.call("자리 이동 / 정비")
-	line.call("영웅(4성) 이상 직원은 빈 책상이나 다른 직원이 앉은 책상으로 끌어 자리를 옮기거나 바꿀 수 있습니다. 머리 위 '이동' 표시가 있는 직원이 대상입니다. 이동한 쪽만 %d웨이브 쿨이 돌고, 바뀐 상대는 쿨이 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
-	line.call("일시정지와 정비 시간에는 전투만 멈추고 고용/승진/이동이 가능합니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
+	line.call("영웅(4성) 이상 직원은 빈 책상이나 다른 직원이 앉은 책상으로 끌어 자리를 옮기거나 바꿀 수 있습니다. 이동한 쪽만 %d웨이브 쿨이 돌고, 바뀐 상대는 쿨이 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
+	line.call("일시정지(II)와 정비 시간에는 전투만 멈추고 고용/승진/이동이 가능합니다. 정비/일시정지는 상단 II 또는 '계속하기'로 이어갑니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
 	line.call("선호 배치: 1) 배치1~3 슬롯 고르기 2) 원하는 책상에 직원 앉히기 3) '배치저장'. 이후 고용 시 저장한 빈자리부터 채웁니다. '배치삭제'로 지울 수 있습니다.", UI.TEXT)
 	line.call("야근은 %d라운드마다 랜덤 이벤트(수당 2배, 전력 질주, 고용 불가, 업무 폭주)가 납니다." % Battle.EVENT_EVERY, UI.MUTED)
 
@@ -704,10 +699,7 @@ func _refresh_hud() -> void:
 	_mute_button.text = ""
 	_mute_button.icon = UI.mute_icon(Save.sfx_muted())
 	var can_start := battle.can_start_wave()
-	if battle.resting:
-		_wave_button.disabled = false
-		_wave_button.text = "정비 완료"
-	elif battle.paused:
+	if battle.resting or battle.paused:
 		_wave_button.disabled = false
 		_wave_button.text = "계속하기"
 	else:
@@ -903,7 +895,13 @@ func _show_banner() -> void:
 # ------------------------------------------------------------------ 일시정지 / 속도
 
 func _toggle_speed() -> void:
-	battle.set_speed(1.0 if battle.speed >= 2.0 else 2.0)
+	# 1x -> 2x -> 3x -> 1x
+	var next := 1.0
+	if battle.speed < 1.5:
+		next = 2.0
+	elif battle.speed < 2.5:
+		next = 3.0
+	battle.set_speed(next)
 	_refresh_hud()
 
 
@@ -994,7 +992,10 @@ func _refresh_setup_bar() -> void:
 		rest_btn.visible = battle.resting
 		if battle.resting:
 			rest_btn.disabled = battle.rest_coin_used or Save.corp_card() < Save.REST_CORP_COST
-			rest_btn.text = "사용함" if battle.rest_coin_used else "운영비 +%d" % Save.REST_COIN_BONUS
+			if battle.rest_coin_used:
+				rest_btn.text = "사용함"
+			else:
+				rest_btn.text = "운영비 +%d (%d/%d)" % [Save.REST_COIN_BONUS, Save.REST_CORP_COST, Save.corp_card()]
 
 
 # ------------------------------------------------------------------ 유물 / 부활
@@ -1026,7 +1027,7 @@ func _open_relic_picker() -> void:
 	v.add_child(img)
 	v.add_child(name_l)
 	v.add_child(hint)
-	var reroll_btn := UI.button("리롤 (법인카드 %d · 보유 %d)" % [Save.REROLL_CORP_COST, Save.corp_card()], UI.PURPLE, Callable(), 24)
+	var reroll_btn := UI.button("리롤 %d장 (보유 %d)" % [Save.REROLL_CORP_COST, Save.corp_card()], UI.PURPLE, Callable(), 24)
 	reroll_btn.custom_minimum_size.y = 72
 	reroll_btn.pressed.connect(func():
 		if not Save.spend_corp_card(Save.REROLL_CORP_COST):
@@ -1034,7 +1035,7 @@ func _open_relic_picker() -> void:
 			return
 		state.id = battle.roll_special_id()
 		refresh.call()
-		reroll_btn.text = "리롤 (법인카드 %d · 보유 %d)" % [Save.REROLL_CORP_COST, Save.corp_card()]
+		reroll_btn.text = "리롤 %d장 (보유 %d)" % [Save.REROLL_CORP_COST, Save.corp_card()]
 		UI.toast("특수 직원을 다시 뽑았습니다.", UI.PURPLE))
 	v.add_child(reroll_btn)
 	UI.modal("유물 사용", v, [
