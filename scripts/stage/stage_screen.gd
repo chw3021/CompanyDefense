@@ -36,6 +36,7 @@ var _pause_modal: Control
 var _setup_bar: PanelContainer  # 일시정지/정비 중 맵을 가리지 않는 하단 바
 var _setup_label: Label
 var _last_life := 0
+var _revive_from_give_up := false
 
 
 func _ready() -> void:
@@ -55,9 +56,15 @@ func _ready() -> void:
 		_show_wave_banner(i))
 	battle.rest_started.connect(func(_reason: String): _refresh_setup_bar())
 	battle.rest_ended.connect(_refresh_setup_bar)
+	battle.revive_offered.connect(_on_revive_offered)
+	Ads.set_live_battle(true)
 	_last_life = battle.life
 	_refresh_hud()
 	_show_banner()
+
+
+func _exit_tree() -> void:
+	Ads.set_live_battle(false)
 
 
 func _notification(what: int) -> void:
@@ -262,7 +269,7 @@ func _build_panel() -> Control:
 	actions.add_child(_hire_team_button)
 
 	# 유물 뽑기: 보스를 잡아 유물이 있을 때만 보인다
-	_relic_button = UI.button("유물", UI.PURPLE, battle.summon_special, 18)
+	_relic_button = UI.button("유물", UI.PURPLE, _open_relic_picker, 18)
 	_relic_button.icon = load("res://assets/icons/relic.svg")
 	_relic_button.expand_icon = true
 	_relic_button.add_theme_constant_override("icon_max_width", 28)
@@ -323,6 +330,13 @@ func _build_setup_overlay() -> void:
 	resume.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UI.recolor_compact(resume, UI.PRIMARY, 8)
 	setup_row.add_child(resume)
+	var rest_coin := UI.button("운영비", UI.GOLD, _buy_rest_coin, 20)
+	rest_coin.name = "RestCoinBtn"
+	rest_coin.custom_minimum_size = Vector2(0, 56)
+	rest_coin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rest_coin.size_flags_stretch_ratio = 0.7
+	UI.recolor_compact(rest_coin, UI.GOLD, 8)
+	setup_row.add_child(rest_coin)
 	var give_up := UI.button("포기", UI.DANGER, _confirm_give_up, 22)
 	give_up.custom_minimum_size = Vector2(0, 56)
 	give_up.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -905,7 +919,7 @@ func _toggle_mute() -> void:
 
 
 func _toggle_pause() -> void:
-	if battle.finished:
+	if battle.finished or battle.revive_pending:
 		return
 	# 정비 중 II: 정비 종료. 일시정지 중 II: 재개
 	if battle.resting:
@@ -922,6 +936,8 @@ func _toggle_pause() -> void:
 
 
 func _resume_setup() -> void:
+	if battle.revive_pending:
+		return
 	if battle.resting:
 		battle.end_rest()
 		return
@@ -938,9 +954,28 @@ func _confirm_give_up() -> void:
 	_pause_modal = UI.modal("포기하기", text, [
 		["취소", UI.CARD_HI],
 		["포기하기", UI.DANGER, func():
-			battle.flush_session()
-			UI.go("res://scenes/main.tscn")],
+			if battle.can_offer_revive():
+				_offer_revive_from_give_up()
+			else:
+				Ads.set_live_battle(false)
+				battle.flush_session()
+				UI.go("res://scenes/main.tscn")],
 	], self, false)
+
+
+func _buy_rest_coin() -> void:
+	if not battle.resting:
+		UI.toast("정비 중에만 사용할 수 있습니다.", UI.WARN)
+		return
+	if battle.rest_coin_used:
+		UI.toast("이번 정비에서는 이미 사용했습니다.", UI.MUTED)
+		return
+	if Save.corp_card() < Save.REST_CORP_COST:
+		UI.toast("법인카드가 부족합니다. 로비에서 광고로 충전할 수 있습니다.", UI.WARN)
+		return
+	battle.buy_rest_coin_bonus()
+	_refresh_setup_bar()
+	_refresh_hud()
 
 
 func _refresh_setup_bar() -> void:
@@ -954,11 +989,109 @@ func _refresh_setup_bar() -> void:
 		_setup_label.text = battle.rest_reason if battle.rest_reason != "" else "정비 시간"
 	else:
 		_setup_label.text = "일시정지 - 배치 수정 가능"
+	var rest_btn := _setup_bar.find_child("RestCoinBtn", true, false) as Button
+	if rest_btn:
+		rest_btn.visible = battle.resting
+		if battle.resting:
+			rest_btn.disabled = battle.rest_coin_used or Save.corp_card() < Save.REST_CORP_COST
+			rest_btn.text = "사용함" if battle.rest_coin_used else "운영비 +%d" % Save.REST_COIN_BONUS
+
+
+# ------------------------------------------------------------------ 유물 / 부활
+
+func _open_relic_picker() -> void:
+	if battle.finished or battle.relics <= 0:
+		return
+	var free_check := false
+	for c in battle.desk_cells:
+		if battle.tower_at_cell(c) == null:
+			free_check = true
+			break
+	if not free_check:
+		UI.toast("빈 자리가 없습니다.", UI.DANGER)
+		return
+	var state := {"id": battle.roll_special_id()}
+	var v := UI.vbox(12)
+	var name_l := UI.label("", 32, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	var img := TextureRect.new()
+	img.custom_minimum_size = Vector2(160, 160)
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var hint := UI.label("법인카드 %d장으로 다른 특수 직원을 다시 뽑을 수 있습니다.\n(전투 중 광고 없음)" % Save.REROLL_CORP_COST, 22, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	var refresh := func():
+		var spec: Dictionary = GameData.SPECIALS[state.id]
+		name_l.text = spec.name
+		img.texture = load(GameData.asset(GameData.towers[state.id].towerImagePath))
+	refresh.call()
+	v.add_child(img)
+	v.add_child(name_l)
+	v.add_child(hint)
+	var reroll_btn := UI.button("리롤 (법인카드 %d · 보유 %d)" % [Save.REROLL_CORP_COST, Save.corp_card()], UI.PURPLE, Callable(), 24)
+	reroll_btn.custom_minimum_size.y = 72
+	reroll_btn.pressed.connect(func():
+		if not Save.spend_corp_card(Save.REROLL_CORP_COST):
+			UI.toast("법인카드가 부족합니다.", UI.WARN)
+			return
+		state.id = battle.roll_special_id()
+		refresh.call()
+		reroll_btn.text = "리롤 (법인카드 %d · 보유 %d)" % [Save.REROLL_CORP_COST, Save.corp_card()]
+		UI.toast("특수 직원을 다시 뽑았습니다.", UI.PURPLE))
+	v.add_child(reroll_btn)
+	UI.modal("유물 사용", v, [
+		["취소", UI.CARD_HI],
+		["배치하기", UI.SUCCESS, func():
+			if not battle.place_special(state.id):
+				UI.toast("배치에 실패했습니다.", UI.DANGER)],
+	], self, false)
+
+
+func _on_revive_offered() -> void:
+	_revive_from_give_up = false
+	Ads.set_live_battle(false)
+	_show_revive_modal()
+
+
+func _offer_revive_from_give_up() -> void:
+	_revive_from_give_up = true
+	battle.revive_pending = true
+	battle.paused = true
+	Ads.set_live_battle(false)
+	_show_revive_modal()
+
+
+func _show_revive_modal() -> void:
+	var body := UI.vbox(12)
+	body.add_child(UI.label("광고를 보면 한 번 더 이어갈 수 있습니다.\n(판당 1회)", 28, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	UI.modal("비상 예산 투입", body, [
+		["그만두기", UI.CARD_HI, func():
+			if _revive_from_give_up:
+				Ads.set_live_battle(false)
+				battle.revive_pending = false
+				battle.flush_session()
+				UI.go("res://scenes/main.tscn")
+			else:
+				battle.decline_revive()],
+		["광고 보고 이어하기", UI.SUCCESS, func():
+			_try_revive_ad()],
+	], self, false)
+
+
+func _try_revive_ad() -> void:
+	if not await Ads.show_rewarded("revive"):
+		if battle.revive_pending and not battle.finished:
+			_show_revive_modal()
+		return
+	_revive_from_give_up = false
+	battle.accept_revive()
+	Ads.set_live_battle(true)
+	_refresh_hud()
+	UI.toast("부활했습니다!", UI.SUCCESS)
 
 
 # ------------------------------------------------------------------ 종료
 
 func _on_game_over(won: bool, summary: Dictionary) -> void:
+	Ads.set_live_battle(false)
 	if won:
 		Audio.win()
 	else:
@@ -980,9 +1113,11 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 40)
 	grid.add_theme_constant_override("v_separation", 8)
+	var gold_value := UI.label(str(summary.gold), 28, UI.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	gold_value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var rows := [
 		["처치", str(summary.kills)],
-		["획득 골드", str(summary.gold)],
+		["획득 골드", gold_value],
 		["점수", str(summary.score)],
 		["승진", str(summary.get("merges", 0))],
 		["고용", str(summary.get("hires", 0))],
@@ -993,11 +1128,31 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 		rows.insert(6, ["신화", str(summary.mythics)])
 	for pair in rows:
 		grid.add_child(UI.label(pair[0], 26, UI.MUTED))
-		var value := UI.label(pair[1], 28, UI.GOLD if pair[0] == "획득 골드" else UI.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
-		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		grid.add_child(value)
+		if pair[1] is Control:
+			grid.add_child(pair[1])
+		else:
+			var value := UI.label(str(pair[1]), 28, UI.GOLD if pair[0] == "획득 골드" else UI.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+			value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			grid.add_child(value)
 	stats.add_child(grid)
 	v.add_child(stats)
+	var double_state := {"used": false}
+	if int(summary.gold) > 0:
+		var double_btn := UI.button("광고 보고 골드 2배", UI.GOLD, Callable(), 26)
+		double_btn.custom_minimum_size.y = 72
+		double_btn.pressed.connect(func():
+			if double_state.used:
+				return
+			if not await Ads.show_rewarded("gold_double"):
+				return
+			double_state.used = true
+			Save.add_gold(int(summary.gold))
+			summary.gold = int(summary.gold) * 2
+			gold_value.text = str(summary.gold)
+			double_btn.disabled = true
+			double_btn.text = "골드 2배 적용됨"
+			UI.toast("골드가 2배가 되었습니다!", UI.GOLD))
+		v.add_child(double_btn)
 	if summary.first_clear:
 		var bonus := "첫 클리어 보상이 메일함에 도착했습니다!"
 		if stage_id < StageDefs.COUNT:

@@ -3,6 +3,7 @@ extends Node
 
 signal changed
 
+const PassDefs = preload("res://scripts/autoload/season_pass.gd")
 const SAVE_PATH := "user://save.json"
 const SETTINGS_PATH := "user://settings.cfg"
 const MAX_TIME := 5
@@ -10,6 +11,15 @@ const TIME_REFILL_SEC := 30 * 60
 const NICKNAME_MAX := 10
 const DEFAULT_NAME := "신입사원"
 const RICH_GOLD := 99999999  # tools/build.ps1 -Me 로 만든 내 전용 APK (기능 태그 rich_start) 와 슈퍼계정 (Account.SUPER_UIDS) 에만 적용
+const TIME_AD_AMOUNT := 2
+const TIME_AD_DAILY_MAX := 5
+const CORP_AD_AMOUNT := 1
+const CORP_AD_DAILY_MAX := 5
+const START_COIN_AD_BONUS := 120
+const REST_COIN_BONUS := 150
+const REST_CORP_COST := 1
+const REROLL_CORP_COST := 1
+const START_CORP_CARDS := 3
 
 var user: Dictionary = {}
 var settings := ConfigFile.new()
@@ -55,6 +65,7 @@ func create_user(user_name: String) -> void:
 		"name": user_name,
 		"gold": 1000,
 		"time": MAX_TIME,
+		"corp_card": START_CORP_CARDS,
 		"last_refill": _now(),
 		"towers": {},
 		"hobbies": {},
@@ -88,6 +99,7 @@ func apply_rich_start() -> void:
 		return
 	user.gold = maxi(user.gold, RICH_GOLD)
 	user.time = MAX_TIME
+	user.corp_card = maxi(int(user.get("corp_card", 0)), 99)
 	user.max_cleared = maxi(user.max_cleared, StageDefs.COUNT - 1)
 	for id in user.towers:
 		user.towers[id] = GameData.MAX_TOWER_LEVEL
@@ -136,10 +148,16 @@ func _normalize() -> void:
 		for id in user.equipment:
 			user.equipment[id] = mini(user.equipment[id] * 10, GameData.MAX_EQUIPMENT_LEVEL)
 		user["equipment_version"] = 2
-	for key in ["gold", "time", "last_refill", "max_cleared", "round_best", "high_score", "games_played", "games_won"]:
+	for key in ["gold", "time", "corp_card", "last_refill", "max_cleared", "round_best", "high_score", "games_played", "games_won"]:
 		user[key] = int(user.get(key, 0))
+	# 기존 세이브에 법인카드 시드 지급 (한 번만)
+	if int(user.get("corp_card_seeded", 0)) < 1:
+		user.corp_card = maxi(int(user.corp_card), START_CORP_CARDS)
+		user["corp_card_seeded"] = 1
 	if String(user.get("name", "")).strip_edges() == "":
 		user["name"] = DEFAULT_NAME
+	user["ads_removed"] = bool(user.get("ads_removed", false))
+	_normalize_pass()
 
 
 # ------------------------------------------------------------------ 재화
@@ -148,12 +166,45 @@ func gold() -> int:
 	return user.get("gold", 0)
 
 
+func add_gold(amount: int) -> void:
+	if user.is_empty() or amount == 0:
+		return
+	user.gold = maxi(0, int(user.gold) + amount)
+	save()
+
+
 func spend_gold(amount: int) -> bool:
 	if user.is_empty() or user.gold < amount:
 		return false
 	user.gold -= amount
 	save()
 	return true
+
+
+func corp_card() -> int:
+	return int(user.get("corp_card", 0))
+
+
+func add_corp_card(amount: int) -> void:
+	if user.is_empty() or amount == 0:
+		return
+	user.corp_card = maxi(0, corp_card() + amount)
+	save()
+
+
+func spend_corp_card(amount: int) -> bool:
+	if user.is_empty() or corp_card() < amount:
+		return false
+	user.corp_card -= amount
+	save()
+	return true
+
+
+func add_time(amount: int) -> void:
+	if user.is_empty() or amount <= 0:
+		return
+	user.time = int(user.time) + amount
+	save()
 
 
 func spend_time() -> bool:
@@ -197,6 +248,207 @@ func seconds_until_next_time() -> int:
 	return maxi(0, TIME_REFILL_SEC - (_now() - user.last_refill))
 
 
+# ------------------------------------------------------------------ 광고 일일 한도 / 시작 코인
+
+func _ads_daily() -> Dictionary:
+	var a: Dictionary = user.get("ads_daily", {})
+	if str(a.get("date", "")) != Missions.today():
+		a = {"date": Missions.today(), "time": 0, "corp": 0}
+		user["ads_daily"] = a
+	return a
+
+
+func time_ad_left() -> int:
+	if user.is_empty():
+		return 0
+	return maxi(0, TIME_AD_DAILY_MAX - int(_ads_daily().get("time", 0)))
+
+
+func corp_ad_left() -> int:
+	if user.is_empty():
+		return 0
+	return maxi(0, CORP_AD_DAILY_MAX - int(_ads_daily().get("corp", 0)))
+
+
+## 광고 시청 성공 후 호출. 성공하면 충전된 시간 수, 실패(한도)면 0
+func grant_time_from_ad() -> int:
+	if user.is_empty() or time_ad_left() <= 0:
+		return 0
+	_ads_daily()["time"] = int(_ads_daily().get("time", 0)) + 1
+	add_time(TIME_AD_AMOUNT)
+	return TIME_AD_AMOUNT
+
+
+## 광고 시청 성공 후 호출. 성공하면 지급된 법인카드 수
+func grant_corp_from_ad() -> int:
+	if user.is_empty() or corp_ad_left() <= 0:
+		return 0
+	_ads_daily()["corp"] = int(_ads_daily().get("corp", 0)) + 1
+	add_corp_card(CORP_AD_AMOUNT)
+	return CORP_AD_AMOUNT
+
+
+func set_pending_start_coin_bonus(amount: int) -> void:
+	settings.set_value("game", "pending_start_coin", amount)
+	settings.save(SETTINGS_PATH)
+
+
+func take_pending_start_coin_bonus() -> int:
+	var n := int(settings.get_value("game", "pending_start_coin", 0))
+	settings.set_value("game", "pending_start_coin", 0)
+	settings.save(SETTINGS_PATH)
+	return n
+
+
+func ads_removed() -> bool:
+	return bool(user.get("ads_removed", false))
+
+
+# ------------------------------------------------------------------ 상점 / 시즌 패스
+
+## 상점 상품. cost_corp > 0 이면 법인카드, ad 면 광고, flag 는 일회성 해금
+const SHOP_ITEMS := [
+	{"id": "gold_s", "name": "월급 보너스 (소)", "desc": "골드 1,000", "cost_corp": 3, "gold": 1000},
+	{"id": "gold_m", "name": "월급 보너스 (중)", "desc": "골드 3,500", "cost_corp": 8, "gold": 3500},
+	{"id": "gold_l", "name": "성과급 뭉치", "desc": "골드 8,000", "cost_corp": 15, "gold": 8000},
+	{"id": "time_pack", "name": "반차 신청", "desc": "시간 +3", "cost_corp": 2, "time": 3},
+	{"id": "corp_ad", "name": "법인카드 충전", "desc": "광고로 법인카드 +1 (일일 한도)", "ad": true},
+	{"id": "pass_prem", "name": "프리미엄 출근 패스", "desc": "시즌 유료 트랙 해금", "cost_corp": 15, "unlock_pass": true},
+	{"id": "no_banner", "name": "배너 광고 제거", "desc": "로비 배너 제거 (보상형 광고는 유지)", "cost_corp": 25, "no_ads": true},
+]
+
+
+func _normalize_pass() -> void:
+	if user.is_empty():
+		return
+	var p: Dictionary = user.get("pass", {})
+	if int(p.get("season", 0)) != PassDefs.SEASON_ID:
+		p = {
+			"season": PassDefs.SEASON_ID,
+			"xp": 0,
+			"premium": false,
+			"claimed_free": [],
+			"claimed_prem": [],
+		}
+	p["season"] = PassDefs.SEASON_ID
+	p["xp"] = int(p.get("xp", 0))
+	p["premium"] = bool(p.get("premium", false))
+	for key in ["claimed_free", "claimed_prem"]:
+		var raw: Array = p.get(key, [])
+		var cleaned: Array = []
+		for v in raw:
+			var n := int(v)
+			if n >= 1 and n <= PassDefs.MAX_LEVEL and not cleaned.has(n):
+				cleaned.append(n)
+		p[key] = cleaned
+	user["pass"] = p
+
+
+func pass_data() -> Dictionary:
+	_normalize_pass()
+	return user["pass"]
+
+
+func add_pass_xp(amount: int, do_save := true) -> void:
+	if user.is_empty() or amount <= 0:
+		return
+	var p := pass_data()
+	var cap := PassDefs.MAX_LEVEL * PassDefs.XP_PER_LEVEL
+	p.xp = mini(cap, int(p.xp) + amount)
+	user["pass"] = p
+	if do_save:
+		save()
+
+
+func unlock_pass_premium() -> bool:
+	var p := pass_data()
+	if p.premium:
+		return false
+	if not spend_corp_card(PassDefs.PREMIUM_CORP_COST):
+		return false
+	p.premium = true
+	user["pass"] = p
+	save()
+	return true
+
+
+func _claim_has(list: Array, level: int) -> bool:
+	return list.has(level) or list.has(float(level))
+
+
+func is_pass_claimed(level: int, premium: bool) -> bool:
+	var p := pass_data()
+	return _claim_has(p["claimed_prem" if premium else "claimed_free"], level)
+
+
+func can_claim_pass(level: int, premium: bool) -> bool:
+	var p := pass_data()
+	if level < 1 or level > PassDefs.level_from_xp(int(p.xp)):
+		return false
+	if premium and not p.premium:
+		return false
+	var key := "claimed_prem" if premium else "claimed_free"
+	return not _claim_has(p[key], level)
+
+
+func claim_pass_reward(level: int, premium: bool) -> bool:
+	if not can_claim_pass(level, premium):
+		return false
+	var p := pass_data()
+	var key := "claimed_prem" if premium else "claimed_free"
+	var claimed: Array = p[key]
+	claimed.append(level)
+	p[key] = claimed
+	user["pass"] = p
+	var r := PassDefs.reward(level, premium)
+	if int(r.get("gold", 0)) > 0:
+		user.gold += int(r.gold)
+	if int(r.get("time", 0)) > 0:
+		user.time += int(r.time)
+	if int(r.get("corp", 0)) > 0:
+		user.corp_card = corp_card() + int(r.corp)
+	save()
+	return true
+
+
+## 상점 구매. 성공 메시지 또는 실패 사유
+func buy_shop_item(item_id: String) -> String:
+	if user.is_empty():
+		return "저장 데이터가 없습니다."
+	var item := {}
+	for it in SHOP_ITEMS:
+		if it.id == item_id:
+			item = it
+			break
+	if item.is_empty():
+		return "상품을 찾을 수 없습니다."
+	if item.get("unlock_pass", false):
+		if pass_data().premium:
+			return "이미 프리미엄 패스를 보유 중입니다."
+		if not unlock_pass_premium():
+			return "법인카드가 부족합니다."
+		return "프리미엄 출근 패스를 해금했습니다!"
+	if item.get("no_ads", false):
+		if ads_removed():
+			return "이미 배너 광고 제거를 구매했습니다."
+		if not spend_corp_card(int(item.cost_corp)):
+			return "법인카드가 부족합니다."
+		user["ads_removed"] = true
+		save()
+		return "배너 광고 제거가 적용되었습니다."
+	if item.get("ad", false):
+		return "AD"  # UI 가 광고 플로우 처리
+	var cost := int(item.get("cost_corp", 0))
+	if cost > 0 and not spend_corp_card(cost):
+		return "법인카드가 부족합니다."
+	if int(item.get("gold", 0)) > 0:
+		user.gold += int(item.gold)
+	if int(item.get("time", 0)) > 0:
+		user.time += int(item.time)
+	save()
+	return "구매가 완료되었습니다."
+
+
 # ------------------------------------------------------------------ 메일
 
 func send_mail(title: String, content: String, gold_reward: int, time_reward: int) -> void:
@@ -233,6 +485,19 @@ func claim_mail(mail: Dictionary) -> bool:
 	return true
 
 
+## 광고로 메일 보상의 절반을 한 번 더 (이미 받은 메일만)
+func claim_mail_ad_bonus(mail: Dictionary) -> bool:
+	if not mail.claimed or mail.get("ad_bonus", false):
+		return false
+	if not mail_has_reward(mail):
+		return false
+	mail["ad_bonus"] = true
+	user.gold += int(mail.gold) / 2
+	user.time += int(mail.time) / 2
+	save()
+	return true
+
+
 func delete_claimed_mails() -> void:
 	user.mails = user.mails.filter(func(m): return mail_has_reward(m) and not m.claimed)
 	save()
@@ -261,6 +526,7 @@ func record_stage_result(stage_id: int, won: bool, score: int, gold_reward: int)
 			send_mail("스테이지 %d 첫 클리어 보상" % stage_id,
 					"스테이지 %d을(를) 처음으로 클리어했습니다!\n보너스를 받아가세요." % stage_id,
 					300 * stage_id, 2)
+	add_pass_xp(PassDefs.XP_PLAY + (PassDefs.XP_WIN if won else 0), false)
 	save()
 	return first_clear
 
@@ -305,6 +571,16 @@ func claim_daily(m: Dictionary) -> bool:
 	return true
 
 
+## 일일 미션 광고 추가 보상 (골드 절반, 미션당 1회)
+func claim_daily_ad_bonus(m: Dictionary) -> bool:
+	if not m.claimed or m.get("ad_bonus", false):
+		return false
+	m["ad_bonus"] = true
+	user.gold += int(Missions.daily_def(m.id).gold) / 2
+	save()
+	return true
+
+
 func claim_daily_bonus() -> bool:
 	var d := Missions.daily(user)
 	if d.bonus_claimed or not Missions.daily_all_done(user):
@@ -312,6 +588,17 @@ func claim_daily_bonus() -> bool:
 	d.bonus_claimed = true
 	user.gold += Missions.DAILY_BONUS_GOLD
 	user.time += Missions.DAILY_BONUS_TIME
+	save()
+	return true
+
+
+func claim_daily_bonus_ad() -> bool:
+	var d := Missions.daily(user)
+	if not d.bonus_claimed or d.get("bonus_ad", false):
+		return false
+	d["bonus_ad"] = true
+	user.gold += Missions.DAILY_BONUS_GOLD / 2
+	user.time += maxi(1, Missions.DAILY_BONUS_TIME / 2) if Missions.DAILY_BONUS_TIME > 0 else 0
 	save()
 	return true
 
@@ -326,6 +613,22 @@ func claim_achievement(a: Dictionary) -> bool:
 	user.gold += int(tier[1])
 	save()
 	return true
+
+
+## 업적 광고 추가 보상. key = "업적id:단계"
+func claim_achievement_ad_bonus(a: Dictionary, tier_index: int, gold_amount: int) -> bool:
+	var key := "%s:%d" % [a.id, tier_index]
+	var boosted: Dictionary = user.get("achievement_ad", {})
+	if boosted.get(key, false):
+		return false
+	boosted[key] = true
+	user["achievement_ad"] = boosted
+	user.gold += gold_amount / 2
+	save()
+	return true
+
+func achievement_ad_done(a: Dictionary, tier_index: int) -> bool:
+	return bool(user.get("achievement_ad", {}).get("%s:%d" % [a.id, tier_index], false))
 
 
 func is_stage_unlocked(stage_id: int) -> bool:

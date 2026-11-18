@@ -6,6 +6,7 @@ const TABS := [
 	["직원", "res://assets/menu/human.svg", "res://scripts/screens/tabs/employee_tab.gd"],
 	["취미", "res://assets/menu/hobbies.svg", "res://scripts/screens/tabs/hobby_tab.gd"],
 	["사무용품", "res://assets/menu/auto.svg", "res://scripts/screens/tabs/equipment_tab.gd"],
+	["상점", "res://assets/icons/money.png", "res://scripts/screens/tabs/shop_tab.gd"],
 ]
 
 ## 이 화면을 열 때 보여 줄 탭 (UI.go 의 setup 에서 바꿀 수 있다)
@@ -13,6 +14,7 @@ var start_tab := 0
 
 var _gold_pill: PanelContainer
 var _time_pill: PanelContainer
+var _corp_pill: PanelContainer
 var _mail_button: Button
 var _mail_badge: Label
 var _mission_badge: Label
@@ -103,7 +105,15 @@ func _build_top_bar() -> Control:
 	# 골드는 다른 버튼에 가려지지 않게 고정 최소폭 (시간은 남는 칸을 먹는다)
 	_gold_pill = UI.pill("res://assets/icons/coin.svg", "", UI.GOLD, false)
 	row.add_child(_gold_pill)
+	_corp_pill = UI.pill("res://assets/icons/money.png", "", UI.PURPLE, false)
+	_corp_pill.gui_input.connect(_on_corp_pill_input)
+	_corp_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_corp_pill.tooltip_text = "법인카드 (탭하여 광고 충전)"
+	row.add_child(_corp_pill)
 	_time_pill = UI.pill("res://assets/icons/waste.svg", "")
+	_time_pill.gui_input.connect(_on_time_pill_input)
+	_time_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_time_pill.tooltip_text = "시간 (탭하여 광고 충전)"
 	row.add_child(_time_pill)
 
 	var mission_button := UI.button("미션", UI.CARD_HI, open_missions, 22)
@@ -140,6 +150,7 @@ func refresh_top_bar() -> void:
 	if not Save.has_user():
 		return
 	_gold_pill.get_meta("text").text = str(Save.gold())
+	_corp_pill.get_meta("text").text = str(Save.corp_card())
 	var t: int = Save.user.time
 	var text := str(t) if t > Save.MAX_TIME else "%d/%d" % [t, Save.MAX_TIME]
 	var left := Save.seconds_until_next_time()
@@ -154,6 +165,62 @@ func refresh_top_bar() -> void:
 	_mission_badge.text = str(ready)
 
 
+func _on_time_pill_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		_offer_time_ad()
+
+
+func _on_corp_pill_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		_offer_corp_ad()
+
+
+func _offer_time_ad() -> void:
+	if Save.time_ad_left() <= 0:
+		UI.toast("오늘은 시간 광고 한도에 도달했습니다.", UI.MUTED)
+		return
+	var body := UI.vbox(10)
+	body.add_child(UI.label("광고를 보면 시간 +%d\n오늘 남은 횟수 %d회" % [Save.TIME_AD_AMOUNT, Save.time_ad_left()], 28, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	UI.modal("시간 충전", body, [
+		["닫기", UI.CARD_HI],
+		["광고 보기", UI.SUCCESS, func(): _watch_time_ad()],
+	], self)
+
+
+func _watch_time_ad() -> void:
+	if not await Ads.show_rewarded("time"):
+		return
+	var n := Save.grant_time_from_ad()
+	if n <= 0:
+		UI.toast("오늘은 더 이상 충전할 수 없습니다.", UI.WARN)
+		return
+	UI.toast("시간 +%d!" % n, UI.SUCCESS)
+	refresh_top_bar()
+
+
+func _offer_corp_ad() -> void:
+	if Save.corp_ad_left() <= 0:
+		UI.toast("오늘은 법인카드 광고 한도에 도달했습니다.", UI.MUTED)
+		return
+	var body := UI.vbox(10)
+	body.add_child(UI.label("광고를 보면 법인카드 +%d\n오늘 남은 횟수 %d회\n(전투 중 운영비·유물 리롤에 사용)" % [Save.CORP_AD_AMOUNT, Save.corp_ad_left()], 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	UI.modal("법인카드 충전", body, [
+		["닫기", UI.CARD_HI],
+		["광고 보기", UI.PURPLE, func(): _watch_corp_ad()],
+	], self)
+
+
+func _watch_corp_ad() -> void:
+	if not await Ads.show_rewarded("corp_card"):
+		return
+	var n := Save.grant_corp_from_ad()
+	if n <= 0:
+		UI.toast("오늘은 더 이상 충전할 수 없습니다.", UI.WARN)
+		return
+	UI.toast("법인카드 +%d!" % n, UI.PURPLE)
+	refresh_top_bar()
+
+
 # ------------------------------------------------------------------ 탭
 
 func _build_nav() -> Control:
@@ -164,7 +231,7 @@ func _build_nav() -> Control:
 	margin.add_theme_constant_override("margin_top", 10)
 	margin.add_theme_constant_override("margin_bottom", 22)
 	bar.add_child(margin)
-	var row := UI.hbox(8)
+	var row := UI.hbox(4)
 	margin.add_child(row)
 	for i in TABS.size():
 		var b := Button.new()
@@ -176,8 +243,9 @@ func _build_nav() -> Control:
 		b.text = TABS[i][0]
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.add_theme_font_size_override("font_size", 24)
-		b.add_theme_constant_override("icon_max_width", 60)
+		b.add_theme_font_size_override("font_size", 20)
+		b.add_theme_constant_override("icon_max_width", 48)
+		b.clip_text = true
 		var idle := UI.box(Color(0, 0, 0, 0), 18, 10)
 		var active := UI.box(Color(UI.PRIMARY, 0.22), 18, 10)
 		for state in ["normal", "hover", "focus", "disabled"]:
@@ -252,13 +320,27 @@ func _fill_mails(list: VBoxContainer) -> void:
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		head.add_child(title)
 		if Save.mail_has_reward(mail):
+			var actions := UI.vbox(6)
 			var b := UI.button("받기" if claimable else "받음", UI.SUCCESS, func():
 				Save.claim_mail(mail)
 				UI.toast("보상을 받았습니다!", UI.GOLD)
-				_fill_mails(list), 24)
+				_fill_mails(list), 22)
 			b.disabled = not claimable
-			b.custom_minimum_size = Vector2(110, 64)
-			head.add_child(b)
+			b.custom_minimum_size = Vector2(120, 56)
+			actions.add_child(b)
+			if not claimable and not mail.get("ad_bonus", false):
+				var ad_b := UI.button("광고 +50%", UI.GOLD, func():
+					if not await Ads.show_rewarded("mail_bonus"):
+						return
+					if Save.claim_mail_ad_bonus(mail):
+						UI.toast("메일 추가 보상을 받았습니다!", UI.GOLD)
+					_fill_mails(list), 20)
+				ad_b.custom_minimum_size = Vector2(120, 52)
+				actions.add_child(ad_b)
+			elif mail.get("ad_bonus", false):
+				var done := UI.label("추가완료", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+				actions.add_child(done)
+			head.add_child(actions)
 		v.add_child(head)
 		v.add_child(UI.wrap_label(mail.content, 24, UI.TEXT if claimable else UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
 		if Save.mail_has_reward(mail):
@@ -312,17 +394,29 @@ func _fill_daily(list: VBoxContainer) -> void:
 	for m: Dictionary in d.missions:
 		var def := Missions.daily_def(m.id)
 		var state := "claimed" if m.claimed else ("ready" if Missions.daily_done(m) else "progress")
+		var ad_ready := m.claimed and not m.get("ad_bonus", false)
 		list.add_child(_mission_card(def.desc % def.goal, "", int(m.progress), int(def.goal), int(def.gold), 0, state, func():
 			if Save.claim_daily(m):
 				UI.toast("보상을 받았습니다!", UI.GOLD)
-			_fill_daily(list)))
+			_fill_daily(list), ad_ready, func():
+				if not await Ads.show_rewarded("mission_bonus"):
+					return
+				if Save.claim_daily_ad_bonus(m):
+					UI.toast("미션 추가 보상을 받았습니다!", UI.GOLD)
+				_fill_daily(list)))
 	var done: int = d.missions.filter(func(m): return Missions.daily_done(m)).size()
 	var bonus_state := "claimed" if d.bonus_claimed else ("ready" if Missions.daily_all_done(Save.user) else "progress")
+	var bonus_ad := d.bonus_claimed and not d.get("bonus_ad", false)
 	list.add_child(_mission_card("오늘의 미션 모두 완료", "보너스", done, d.missions.size(), Missions.DAILY_BONUS_GOLD,
 			Missions.DAILY_BONUS_TIME, bonus_state, func():
 				if Save.claim_daily_bonus():
 					UI.toast("보너스를 받았습니다!", UI.GOLD)
-				_fill_daily(list)))
+				_fill_daily(list), bonus_ad, func():
+					if not await Ads.show_rewarded("mission_bonus"):
+						return
+					if Save.claim_daily_bonus_ad():
+						UI.toast("보너스 추가 보상을 받았습니다!", UI.GOLD)
+					_fill_daily(list)))
 
 
 func _fill_achievements(list: VBoxContainer) -> void:
@@ -338,17 +432,33 @@ func _fill_achievements(list: VBoxContainer) -> void:
 		var value := Missions.stat_value(Save.user, a.stat)
 		if tier.is_empty():
 			var last: Array = a.tiers[a.tiers.size() - 1]
-			list.add_child(_mission_card(a.desc % last[0], stage, int(last[0]), int(last[0]), 0, 0, "claimed", Callable()))
+			var last_i := a.tiers.size() - 1
+			var ad_done := Save.achievement_ad_done(a, last_i)
+			list.add_child(_mission_card(a.desc % last[0], stage, int(last[0]), int(last[0]), int(last[1]) / 2, 0, "claimed", Callable(), not ad_done, func():
+				if not await Ads.show_rewarded("mission_bonus"):
+					return
+				if Save.claim_achievement_ad_bonus(a, last_i, int(last[1])):
+					UI.toast("업적 추가 보상을 받았습니다!", UI.GOLD)
+				_fill_achievements(list)))
 			continue
 		var state := "ready" if Missions.achievement_ready(Save.user, a) else "progress"
+		var claimed_n := Missions.claimed_tiers(Save.user, a)
+		var ad_ready := claimed_n > 0 and not Save.achievement_ad_done(a, claimed_n - 1)
+		var last_gold := int(a.tiers[claimed_n - 1][1]) if claimed_n > 0 else 0
 		list.add_child(_mission_card(a.desc % tier[0], stage, value, int(tier[0]), int(tier[1]), 0, state, func():
 			if Save.claim_achievement(a):
 				UI.toast("업적 달성! %s" % a.name, UI.GOLD)
-			_fill_achievements(list)))
+			_fill_achievements(list), ad_ready, func():
+				if not await Ads.show_rewarded("mission_bonus"):
+					return
+				if Save.claim_achievement_ad_bonus(a, claimed_n - 1, last_gold):
+					UI.toast("업적 추가 보상을 받았습니다!", UI.GOLD)
+				_fill_achievements(list)))
 
 
 ## 미션 한 줄: 제목, 진행 막대, 보상, 받기 버튼. state = progress / ready / claimed
-func _mission_card(title: String, sub: String, value: int, goal: int, gold: int, time: int, state: String, on_claim: Callable) -> Control:
+## ad_ready 이면 완료 상태에서도 광고 추가 보상 버튼 표시
+func _mission_card(title: String, sub: String, value: int, goal: int, gold: int, time: int, state: String, on_claim: Callable, ad_ready := false, on_ad: Callable = Callable()) -> Control:
 	var ready := state == "ready"
 	var card := UI.panel(UI.CARD if state != "claimed" else Color(UI.CARD, 0.5), 16, 16)
 	var row := UI.hbox(14)
@@ -379,11 +489,17 @@ func _mission_card(title: String, sub: String, value: int, goal: int, gold: int,
 		t.add_child(UI.label("시간 %d" % time, 22, Color("7fd3ff")))
 		info.add_child(t)
 	v.add_child(info)
+	var col := UI.vbox(6)
+	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var b := UI.button({"ready": "받기", "claimed": "완료"}.get(state, "진행 중"), UI.SUCCESS if ready else UI.CARD_HI, on_claim, 24)
 	b.disabled = not ready
-	b.custom_minimum_size = Vector2(120, 72)
-	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(b)
+	b.custom_minimum_size = Vector2(120, 64)
+	col.add_child(b)
+	if ad_ready and on_ad.is_valid():
+		var ad_b := UI.button("광고 +50%", UI.GOLD, on_ad, 20)
+		ad_b.custom_minimum_size = Vector2(120, 52)
+		col.add_child(ad_b)
+	row.add_child(col)
 	return card
 
 

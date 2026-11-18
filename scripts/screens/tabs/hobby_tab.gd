@@ -22,7 +22,17 @@ func _ready() -> void:
 	go.expand_icon = true
 	go.custom_minimum_size.y = 110
 	add_child(go)
-	_result = UI.label("시간은 30분마다 1씩 충전됩니다", 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	var ad_row := UI.hbox(10)
+	var time_ad := UI.button("광고로 시간 +%d" % Save.TIME_AD_AMOUNT, UI.PRIMARY, _watch_time_ad, 26)
+	time_ad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	time_ad.custom_minimum_size.y = 72
+	ad_row.add_child(time_ad)
+	var corp_ad := UI.button("광고로 법인카드", UI.PURPLE, _watch_corp_ad, 26)
+	corp_ad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	corp_ad.custom_minimum_size.y = 72
+	ad_row.add_child(corp_ad)
+	add_child(ad_row)
+	_result = UI.label("시간은 30분마다 1씩 충전됩니다. 상단 시간/법인카드를 탭해도 됩니다.", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	add_child(_result)
 	_refresh()
 
@@ -57,9 +67,45 @@ func _refresh() -> void:
 		_cards[id].effect.text = GameData.hobby_effect_text(id, lv)
 
 
+func _watch_time_ad() -> void:
+	if Save.time_ad_left() <= 0:
+		_result.text = "오늘은 시간 광고 한도에 도달했습니다"
+		_result.add_theme_color_override("font_color", UI.MUTED)
+		return
+	if not await Ads.show_rewarded("time"):
+		return
+	var n := Save.grant_time_from_ad()
+	if n <= 0:
+		_result.text = "오늘은 더 이상 충전할 수 없습니다"
+		_result.add_theme_color_override("font_color", UI.WARN)
+		return
+	_result.text = "시간 +%d! (오늘 남은 광고 %d회)" % [n, Save.time_ad_left()]
+	_result.add_theme_color_override("font_color", UI.SUCCESS)
+	if main:
+		main.refresh_top_bar()
+
+
+func _watch_corp_ad() -> void:
+	if Save.corp_ad_left() <= 0:
+		_result.text = "오늘은 법인카드 광고 한도에 도달했습니다"
+		_result.add_theme_color_override("font_color", UI.MUTED)
+		return
+	if not await Ads.show_rewarded("corp_card"):
+		return
+	var n := Save.grant_corp_from_ad()
+	if n <= 0:
+		_result.text = "오늘은 더 이상 충전할 수 없습니다"
+		_result.add_theme_color_override("font_color", UI.WARN)
+		return
+	_result.text = "법인카드 +%d! (오늘 남은 광고 %d회)" % [n, Save.corp_ad_left()]
+	_result.add_theme_color_override("font_color", UI.PURPLE)
+	if main:
+		main.refresh_top_bar()
+
+
 func _do_hobby() -> void:
 	if not Save.spend_time():
-		_result.text = "시간이 부족합니다"
+		_result.text = "시간이 부족합니다. 광고로 충전할 수 있습니다."
 		_result.add_theme_color_override("font_color", UI.DANGER)
 		return
 	# 최대 레벨에 닿은 취미는 더 오르지 않게 뽑기에서 뺀다

@@ -20,6 +20,7 @@ Audio="*res://scripts/autoload/audio.gd"
 UI="*res://scripts/autoload/ui.gd"
 Dev="*res://scripts/autoload/dev.gd"
 Account="*res://scripts/autoload/account.gd"
+Ads="*res://scripts/autoload/ads.gd"
 
 [display]
 

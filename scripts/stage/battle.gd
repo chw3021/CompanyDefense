@@ -22,6 +22,7 @@ signal projectile_hit(p: Dictionary)
 signal mythic_born(t: Tower)
 signal rest_started(reason: String)  # 정비 시작 (UI가 배너/버튼 갱신)
 signal rest_ended
+signal revive_offered  # 패배 직전 부활 제안 (광고는 라이브 전투 해제 후)
 
 const SPAWN_COST := 100
 const HIRE_TEAM_COST := 130  # 팀 지정 고용 할증
@@ -71,6 +72,9 @@ var target_mode := "auto"  # Save.target_mode 캐시
 var run_seed := 0
 var rng := RandomNumberGenerator.new()
 var _crowd_warned := false
+var revive_used := false
+var revive_pending := false
+var rest_coin_used := false  # 이번 정비에서 법인카드 코인 보너스 사용 여부
 var boss_room := Vector2.ZERO  # 보스방 가운데 (고리 맵에 보스방이 있으면)
 var has_boss_room := false
 var boss_blocking := false  # 보스방 보스가 살아 있음 > 직원은 보스만 공격
@@ -112,7 +116,7 @@ func setup(p_stage_id: int, cell_size: float) -> void:
 		for c in boss_cells:
 			boss_room += cell_center(c) / boss_cells.size()
 	var user: Dictionary = Save.user
-	coins = int(def.start_coins) + GameData.start_coin_bonus(user)
+	coins = int(def.start_coins) + GameData.start_coin_bonus(user) + Save.take_pending_start_coin_bonus()
 	speed = Save.game_speed()
 	for tower_id in GameData.tower_ids:
 		var level: int = user.get("towers", {}).get(tower_id, 1)
@@ -302,6 +306,7 @@ func _should_auto_rest() -> bool:
 func _begin_rest(reason: String) -> void:
 	resting = true
 	rest_reason = reason
+	rest_coin_used = false
 	rest_started.emit(reason)
 	message.emit(reason + "\n배치를 정리한 뒤 정비를 마쳐 주세요", UI.GOLD)
 	hud_changed.emit()
@@ -377,7 +382,7 @@ func alive_count() -> int:
 func _check_crowd() -> void:
 	var n := alive_count()
 	if n >= max_enemies:
-		_end(false)
+		_offer_or_end_defeat()
 	elif n >= max_enemies * 0.8 and not _crowd_warned:
 		_crowd_warned = true
 		message.emit("적이 너무 많아요! %d/%d" % [n, max_enemies], UI.DANGER)
@@ -452,7 +457,7 @@ func on_enemy_leaked(e: Enemy) -> void:
 	hud_changed.emit()
 	if life <= 0:
 		life = 0
-		_end(false)
+		_offer_or_end_defeat()
 
 
 # ------------------------------------------------------------------ 직원
@@ -507,20 +512,103 @@ func hire() -> void:
 	hud_changed.emit()
 
 
-## 유물 하나를 써서 특수 직원을 빈 자리에 뽑는다
-func summon_special() -> void:
+## 유물로 뽑을 특수 직원 id (배치 전 미리보기/리롤용)
+func roll_special_id() -> String:
+	return pick_id(GameData.SPECIALS.keys())
+
+
+## 유물 하나를 써서 지정한 특수 직원을 빈 자리에 배치. 성공 시 true
+func place_special(special_id: String) -> bool:
 	if finished or relics <= 0:
-		return
+		return false
+	if not GameData.SPECIALS.has(special_id):
+		return false
 	var free := _free_desks_preferred()
 	if free.is_empty():
 		message.emit("빈 자리가 없습니다", UI.DANGER)
-		return
+		return false
 	relics -= 1
-	var t := _place(pick_id(GameData.SPECIALS.keys()), free[0])
+	var t := _place(special_id, free[0])
 	tower_placed.emit(t, true)
 	floating.emit("특수 직원!", t.center() + Vector2(0, -cell * 0.5), GameData.SPECIAL_COLOR)
 	select(t)
 	hud_changed.emit()
+	return true
+
+
+## 유물 하나를 써서 특수 직원을 빈 자리에 뽑는다 (즉시 배치)
+func summon_special() -> void:
+	place_special(roll_special_id())
+
+
+## 정비 중 법인카드로 코인 보너스. 정비당 1회
+func buy_rest_coin_bonus() -> bool:
+	if finished or not resting or rest_coin_used:
+		return false
+	if not Save.spend_corp_card(Save.REST_CORP_COST):
+		message.emit("법인카드가 부족합니다", UI.WARN)
+		return false
+	rest_coin_used = true
+	coins += Save.REST_COIN_BONUS
+	floating.emit("+%d" % Save.REST_COIN_BONUS, path[mini(path.size() / 2, path.size() - 1)], UI.GOLD)
+	hud_changed.emit()
+	message.emit("법인카드로 비상 운영비를 확보했습니다! +%d" % Save.REST_COIN_BONUS, UI.SUCCESS)
+	return true
+
+
+func can_offer_revive() -> bool:
+	return not finished and not revive_used and not revive_pending
+
+
+func _offer_or_end_defeat() -> void:
+	if finished or revive_pending:
+		return
+	if revive_used:
+		_end(false)
+		return
+	revive_pending = true
+	paused = true
+	hud_changed.emit()
+	revive_offered.emit()
+
+
+## 광고/보상 확인 후 부활. 목숨 회복 또는 고리맵 적 정리 (포기 후 이어하기면 상태 유지)
+func accept_revive() -> void:
+	if not revive_pending or finished:
+		return
+	revive_pending = false
+	revive_used = true
+	if loop and alive_count() >= max_enemies:
+		_cull_enemies_to(maxi(1, int(max_enemies * 0.45)))
+		_crowd_warned = false
+	elif life <= 0:
+		life = maxi(3, int(MAX_LIFE / 2))
+	paused = false
+	message.emit("비상 예산을 투입했습니다! 다시 버텨 보세요.", UI.SUCCESS)
+	hud_changed.emit()
+
+
+func decline_revive() -> void:
+	if not revive_pending:
+		return
+	revive_pending = false
+	_end(false)
+
+
+## 고리 맵 부활: 살아있는 적을 목표 수까지 줄인다 (보스 우선 유지, 처치 보상 없음)
+func _cull_enemies_to(keep: int) -> void:
+	var list: Array = enemies.duplicate()
+	list.sort_custom(func(a, b): return (0 if a.is_boss() else 1) < (0 if b.is_boss() else 1))
+	while list.size() > keep:
+		var e: Enemy = list.pop_back()
+		if e == null or e.dead:
+			continue
+		e.dead = true
+		e.hp = 0
+		enemies.erase(e)
+		if e.anchored:
+			_update_blocking()
+		enemy_died.emit(e)
 
 
 ## 선호 자리가 비어 있으면 그쪽을 먼저, 나머지는 랜덤 섞기

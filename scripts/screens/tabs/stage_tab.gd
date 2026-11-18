@@ -19,7 +19,7 @@ func _stage_card(id: int) -> Control:
 	var s: Dictionary = StageDefs.STAGES[id]
 	var unlocked := Save.is_stage_unlocked(id)
 	var cleared: bool = id <= Save.user.max_cleared
-	var parts := UI.card_button(UI.CARD, func(): UI.go("res://scenes/stage.tscn", func(scene): scene.stage_id = id))
+	var parts := UI.card_button(UI.CARD, func(): _open_stage(id))
 	var b: Button = parts[0]
 	var v: VBoxContainer = parts[1]
 	b.disabled = not unlocked
@@ -64,6 +64,30 @@ func _stage_card(id: int) -> Control:
 	if unlocked:
 		row.add_child(UI.icon_texture(UI.play_icon(), 40))
 	return b
+
+
+func _open_stage(id: int) -> void:
+	if not Save.is_stage_unlocked(id):
+		return
+	var body := UI.vbox(12)
+	body.add_child(UI.label("입장 전에 시작 코인을 받을 수 있습니다.\n(전투가 시작된 뒤에는 광고가 나오지 않습니다)", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	body.add_child(UI.label("광고 보상: 시작 코인 +%d" % Save.START_COIN_AD_BONUS, 28, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+	UI.modal(StageDefs.STAGES[id].name, body, [
+		["취소", UI.CARD_HI],
+		["바로 시작", UI.PRIMARY, func():
+			Save.set_pending_start_coin_bonus(0)
+			UI.go("res://scenes/stage.tscn", func(scene): scene.stage_id = id)],
+		["광고 후 시작", UI.SUCCESS, func():
+			_start_with_coin_ad(id)],
+	], main)
+
+
+func _start_with_coin_ad(id: int) -> void:
+	if not await Ads.show_rewarded("start_coin"):
+		return
+	Save.set_pending_start_coin_bonus(Save.START_COIN_AD_BONUS)
+	UI.toast("시작 코인 +%d 적용!" % Save.START_COIN_AD_BONUS, UI.GOLD)
+	UI.go("res://scenes/stage.tscn", func(scene): scene.stage_id = id)
 
 
 func _chip(text: String, color: Color) -> Label:
