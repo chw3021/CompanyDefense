@@ -240,14 +240,17 @@ func _pass_track_cards(p: Dictionary) -> Control:
 	prem_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var pv := UI.vbox(8)
 	prem_card.add_child(pv)
-	pv.add_child(UI.icon("res://assets/icons/pass_premium.svg", 56))
+	if p.premium:
+		pv.add_child(UI.icon("res://assets/icons/pass_premium.svg", 56))
+	else:
+		pv.add_child(UI.icon("res://assets/icons/lock.svg", 56))
 	pv.get_child(0).size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	pv.add_child(UI.label("프리미엄 패스", 26, UI.PURPLE, HORIZONTAL_ALIGNMENT_CENTER))
 	if p.premium:
 		pv.add_child(UI.label("구매 완료", 20, UI.SUCCESS, HORIZONTAL_ALIGNMENT_CENTER))
 		pv.add_child(UI.label("유료 트랙 보상 해금됨", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	else:
-		pv.add_child(UI.label("결제 후 해금", 20, UI.WARN, HORIZONTAL_ALIGNMENT_CENTER))
+		pv.add_child(UI.label("잠김 - 결제 후 해금", 20, UI.WARN, HORIZONTAL_ALIGNMENT_CENTER))
 		var buy := UI.button("패스 구매", UI.PURPLE, _offer_premium_purchase, 22)
 		buy.custom_minimum_size.y = 56
 		pv.add_child(buy)
@@ -329,7 +332,10 @@ func _pass_reward_cell(reward: Dictionary, level: int, premium: bool, unlocked: 
 	var v := UI.vbox(6)
 	panel.add_child(v)
 	if premium:
-		v.add_child(UI.icon("res://assets/icons/pass_premium.svg" if not locked_prem else "res://assets/icons/cancel.png", 28))
+		if locked_prem:
+			v.add_child(UI.icon("res://assets/icons/lock.svg", 36))
+		else:
+			v.add_child(UI.icon("res://assets/icons/pass_premium.svg", 28))
 		v.get_child(0).size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	else:
 		v.add_child(UI.icon("res://assets/icons/pass_free.svg", 28))
@@ -338,7 +344,7 @@ func _pass_reward_cell(reward: Dictionary, level: int, premium: bool, unlocked: 
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(desc)
-	var b_text := "완료" if claimed else ("구매 필요" if locked_prem else ("잠김" if not unlocked else "받기"))
+	var b_text := "완료" if claimed else ("잠금" if locked_prem else ("잠김" if not unlocked else "받기"))
 	var b := UI.button(b_text, UI.SUCCESS if can else UI.CARD_HI, func():
 		if locked_prem:
 			_offer_premium_purchase()
