@@ -51,7 +51,7 @@ static func reward_text(r: Dictionary) -> String:
 		parts.append("시간 %d" % int(r.time))
 	if int(r.get("corp", 0)) > 0:
 		parts.append("법인카드 %d" % int(r.corp))
-	return " · ".join(PackedStringArray(parts)) if not parts.is_empty() else "없음"
+	return " / ".join(PackedStringArray(parts)) if not parts.is_empty() else "없음"
 
 
 static func claimable_count(user: Dictionary) -> int:

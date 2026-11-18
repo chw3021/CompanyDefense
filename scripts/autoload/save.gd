@@ -307,14 +307,22 @@ func ads_removed() -> bool:
 # ------------------------------------------------------------------ 상점 / 시즌 패스
 
 ## 상점 상품. cost_corp > 0 이면 법인카드, ad 면 광고, flag 는 일회성 해금
+## accent: gold / purple / blue / danger / success (카드 장식색)
 const SHOP_ITEMS := [
-	{"id": "gold_s", "name": "월급 보너스 (소)", "desc": "골드 1,000", "cost_corp": 3, "gold": 1000},
-	{"id": "gold_m", "name": "월급 보너스 (중)", "desc": "골드 3,500", "cost_corp": 8, "gold": 3500},
-	{"id": "gold_l", "name": "성과급 뭉치", "desc": "골드 8,000", "cost_corp": 15, "gold": 8000},
-	{"id": "time_pack", "name": "반차 신청", "desc": "시간 +3", "cost_corp": 2, "time": 3},
-	{"id": "corp_ad", "name": "법인카드 충전", "desc": "광고로 법인카드 +1 (일일 한도)", "ad": true},
-	{"id": "pass_prem", "name": "프리미엄 출근 패스", "desc": "시즌 유료 트랙 해금", "cost_corp": 15, "unlock_pass": true},
-	{"id": "no_banner", "name": "배너 광고 제거", "desc": "로비 배너 제거 (보상형 광고는 유지)", "cost_corp": 25, "no_ads": true},
+	{"id": "gold_s", "name": "월급 보너스 (소)", "desc": "골드 1,000", "cost_corp": 3, "gold": 1000,
+			"icon": "res://assets/icons/gold_pack.svg", "accent": "gold"},
+	{"id": "gold_m", "name": "월급 보너스 (중)", "desc": "골드 3,500", "cost_corp": 8, "gold": 3500,
+			"icon": "res://assets/icons/gold_pack.svg", "accent": "gold"},
+	{"id": "gold_l", "name": "성과급 뭉치", "desc": "골드 8,000", "cost_corp": 15, "gold": 8000,
+			"icon": "res://assets/icons/coin.svg", "accent": "gold"},
+	{"id": "time_pack", "name": "반차 신청", "desc": "시간 +3", "cost_corp": 2, "time": 3,
+			"icon": "res://assets/icons/waste.svg", "accent": "blue"},
+	{"id": "corp_ad", "name": "법인카드 충전", "desc": "광고로 법인카드 +1 (일일 한도)", "ad": true,
+			"icon": "res://assets/icons/corp_card.svg", "accent": "purple"},
+	{"id": "pass_prem", "name": "프리미엄 출근 패스", "desc": "유료 패스 트랙 해금 + 즉시 보너스", "cost_corp": 15, "unlock_pass": true,
+			"icon": "res://assets/icons/pass_premium.svg", "accent": "purple"},
+	{"id": "no_banner", "name": "배너 광고 제거", "desc": "로비 배너 제거 (보상형은 유지)", "cost_corp": 25, "no_ads": true,
+			"icon": "res://assets/icons/cancel.png", "accent": "danger"},
 ]
 
 
@@ -368,6 +376,9 @@ func unlock_pass_premium() -> bool:
 		return false
 	p.premium = true
 	user["pass"] = p
+	# 구매 즉시 보너스 (스토어 연동 전: 법인카드 결제 대용)
+	user.gold += 1000
+	user.time += 2
 	save()
 	return true
 

@@ -90,49 +90,59 @@ func _build_top_bar() -> Control:
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_top", 8 + int(_safe_top()))
+	margin.add_theme_constant_override("margin_bottom", 8)
 	bar.add_child(margin)
-	var row := UI.hbox(6)
-	margin.add_child(row)
-	# 구글 계정을 연동했으면 맨 왼쪽에 프로필 사진 (누르면 내 정보)
+	# 재화 줄 + 버튼 줄로 나눠 찌그러짐을 막는다
+	var col := UI.vbox(8)
+	margin.add_child(col)
+
+	var res_row := UI.hbox(6)
+	col.add_child(res_row)
 	_avatar = Avatar.new()
-	_avatar.custom_minimum_size = Vector2(56, 56)
+	_avatar.custom_minimum_size = Vector2(48, 48)
 	_avatar.pressed.connect(_open_profile)
-	row.add_child(_avatar)
+	res_row.add_child(_avatar)
 	Account.profile_changed.connect(_refresh_avatar)
 	_refresh_avatar()
-	# 골드는 다른 버튼에 가려지지 않게 고정 최소폭 (시간은 남는 칸을 먹는다)
-	_gold_pill = UI.pill("res://assets/icons/coin.svg", "", UI.GOLD, false)
-	row.add_child(_gold_pill)
-	_corp_pill = UI.pill("res://assets/icons/money.png", "", UI.PURPLE, false)
+
+	_gold_pill = UI.pill("res://assets/icons/coin.svg", "", UI.GOLD, true)
+	_gold_pill.custom_minimum_size.x = 0
+	res_row.add_child(_gold_pill)
+	_corp_pill = UI.pill("res://assets/icons/corp_card.svg", "", UI.PURPLE, false)
+	_corp_pill.custom_minimum_size.x = 88
 	_corp_pill.gui_input.connect(_on_corp_pill_input)
 	_corp_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_corp_pill.tooltip_text = "법인카드 (탭하여 광고 충전)"
-	row.add_child(_corp_pill)
-	_time_pill = UI.pill("res://assets/icons/waste.svg", "")
+	res_row.add_child(_corp_pill)
+	_time_pill = UI.pill("res://assets/icons/waste.svg", "", UI.TEXT, false)
+	_time_pill.custom_minimum_size.x = 100
 	_time_pill.gui_input.connect(_on_time_pill_input)
 	_time_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_time_pill.tooltip_text = "시간 (탭하여 광고 충전)"
-	row.add_child(_time_pill)
+	res_row.add_child(_time_pill)
 
+	var btn_row := UI.hbox(8)
+	col.add_child(btn_row)
 	var mission_button := UI.button("미션", UI.CARD_HI, open_missions, 22)
-	mission_button.custom_minimum_size = Vector2(72, 56)
+	mission_button.custom_minimum_size = Vector2(0, 52)
+	mission_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mission_button.clip_text = true
 	_mission_badge = _badge(mission_button)
-	row.add_child(mission_button)
+	btn_row.add_child(mission_button)
 
 	_mail_button = UI.button("메일", UI.CARD_HI, open_mailbox, 22)
-	_mail_button.custom_minimum_size = Vector2(72, 56)
+	_mail_button.custom_minimum_size = Vector2(0, 52)
+	_mail_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mail_button.clip_text = true
 	_mail_badge = _badge(_mail_button)
-	row.add_child(_mail_button)
+	btn_row.add_child(_mail_button)
 
 	var menu := UI.button("", UI.CARD_HI, open_menu)
 	menu.icon = load("res://assets/menu/menu.svg")
 	menu.expand_icon = true
-	menu.custom_minimum_size = Vector2(56, 56)
-	row.add_child(menu)
+	menu.custom_minimum_size = Vector2(52, 52)
+	btn_row.add_child(menu)
 	return bar
 
 
@@ -203,7 +213,7 @@ func _offer_corp_ad() -> void:
 		UI.toast("오늘은 법인카드 광고 한도에 도달했습니다.", UI.MUTED)
 		return
 	var body := UI.vbox(10)
-	body.add_child(UI.label("광고를 보면 법인카드 +%d\n오늘 남은 횟수 %d회\n(전투 중 운영비·유물 리롤에 사용)" % [Save.CORP_AD_AMOUNT, Save.corp_ad_left()], 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	body.add_child(UI.label("광고를 보면 법인카드 +%d\n오늘 남은 횟수 %d회\n(전투 중 운영비 / 유물 리롤에 사용)" % [Save.CORP_AD_AMOUNT, Save.corp_ad_left()], 26, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	UI.modal("법인카드 충전", body, [
 		["닫기", UI.CARD_HI],
 		["광고 보기", UI.PURPLE, func(): _watch_corp_ad()],
