@@ -1248,11 +1248,4 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 		["다시 하기", UI.CARD_HI, func(): UI.go("res://scenes/stage.tscn", func(s): s.stage_id = stage_id)],
 		["메인 화면", UI.PRIMARY, func(): UI.go("res://scenes/main.tscn")],
 	]
-	if battle.endless and int(summary.get("seed", 0)) != 0:
-		buttons.insert(0, ["같은 시드", UI.SUCCESS, func():
-			Save.set_pending_run_seed(int(summary.seed))
-			UI.go("res://scenes/stage.tscn", func(s): s.stage_id = stage_id)])
-		buttons.insert(1, ["시드 복사", UI.CARD_HI, func():
-			DisplayServer.clipboard_set(str(summary.seed))
-			UI.toast("시드를 복사했습니다.", UI.GOLD)])
 	UI.modal(title, v, buttons, self, false)
