@@ -7,8 +7,11 @@ const BUS_BGM := "BGM"
 const BUS_SFX := "SFX"
 const POOL := 10
 const SFX_DIR := "res://assets/sfx/"
-const BGM_PATH := "res://assets/bgm/office.wav"
+const BGM_DIR := "res://assets/bgm/"
 const SFX_IDS := ["click", "hit", "projectile", "impact", "promote", "wave", "boss", "win", "lose"]
+## 루프 BGM. clear/defeated 는 종료 징글(원샷)
+const BGM_LOOP_IDS := ["lobby", "shop", "stage_easy", "stage_hard"]
+const BGM_STING_IDS := ["clear", "defeated"]
 
 var _streams := {}  # id -> AudioStream
 var _players: Array[AudioStreamPlayer] = []
@@ -42,7 +45,7 @@ func _ready() -> void:
 		if get_viewport():
 			get_viewport().gui_focus_changed.connect(func(_c): pass)
 	else:
-		play_bgm("office")
+		play_bgm("lobby")
 
 
 func _force_stream_playback(p: AudioStreamPlayer) -> void:
@@ -98,7 +101,7 @@ func _finish_web_unlock() -> void:
 	# 제스처 안에서 반드시 한 번 play 해야 이후 오디오가 열린다
 	if _streams.has("click") and not Save.sfx_muted():
 		_play_now("click", 1.0)
-	play_bgm("office")
+	play_bgm("lobby")
 
 
 ## HTML 쪽 별도 AudioContext 가 아니라, 페이지에 열린 컨텍스트를 전부 resume 한다
@@ -158,13 +161,25 @@ func _load_streams() -> void:
 		var path: String = SFX_DIR + id + ".wav"
 		if ResourceLoader.exists(path):
 			_streams[id] = load(path)
-	if ResourceLoader.exists(BGM_PATH):
-		var stream: AudioStream = load(BGM_PATH)
-		# import 원본을 직접 건드리면 웹 Sample/Stream 등록이 깨질 수 있어 복제본에 루프를 건다
-		if stream is AudioStreamWAV:
-			stream = stream.duplicate()
-			(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
-		_streams["office"] = stream
+	for id in BGM_LOOP_IDS:
+		_load_bgm(id, true)
+	for id in BGM_STING_IDS:
+		_load_bgm(id, false)
+	# 예전 호출(play_bgm("office")) 호환
+	if _streams.has("lobby"):
+		_streams["office"] = _streams["lobby"]
+
+
+func _load_bgm(id: String, loop: bool) -> void:
+	var path := BGM_DIR + id + ".wav"
+	if not ResourceLoader.exists(path):
+		return
+	var stream: AudioStream = load(path)
+	# import 원본을 직접 건드리면 웹 Sample/Stream 등록이 깨질 수 있어 복제본에 루프를 건다
+	if stream is AudioStreamWAV:
+		stream = stream.duplicate()
+		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD if loop else AudioStreamWAV.LOOP_DISABLED
+	_streams[id] = stream
 
 
 ## gap_ms 안이면 같은 효과음을 다시 안 낸다 (전투 스팸 방지)
@@ -196,12 +211,35 @@ func _play_now(id: String, pitch: float) -> void:
 	p.play()
 
 
-func play_bgm(id: String = "office") -> void:
+func play_bgm(id: String = "lobby") -> void:
+	if id == "office":
+		id = "lobby"
 	if not _streams.has(id) or _bgm == null:
 		return
 	if OS.has_feature("web") and not _web_unlocked:
 		return
 	if _bgm_id == id and _bgm.playing:
+		return
+	_bgm_id = id
+	_bgm.stream = _streams[id]
+	if AudioServer.get_bus_index(_bgm.bus) < 0:
+		_bgm.bus = BUS_MASTER
+	_bgm.play()
+
+
+## 스테이지 난이도에 맞는 전투 BGM (쉬움=stage_easy, 그 외=stage_hard)
+func play_stage_bgm(stage_id: int) -> void:
+	var diff := "보통"
+	if StageDefs.STAGES.has(stage_id):
+		diff = str(StageDefs.STAGES[stage_id].get("difficulty", "보통"))
+	play_bgm("stage_easy" if diff == "쉬움" else "stage_hard")
+
+
+## 종료 징글: 루프 BGM 을 끊고 한 번만 재생
+func play_sting(id: String) -> void:
+	if not _streams.has(id) or _bgm == null:
+		return
+	if OS.has_feature("web") and not _web_unlocked:
 		return
 	_bgm_id = id
 	_bgm.stream = _streams[id]
@@ -245,8 +283,15 @@ func boss() -> void:
 
 
 func win() -> void:
-	play("win", 1.0, 300)
+	# Suno Clear 트랙이 있으면 징글로, 없으면 짧은 SFX
+	if _streams.has("clear"):
+		play_sting("clear")
+	else:
+		play("win", 1.0, 300)
 
 
 func lose() -> void:
-	play("lose", 1.0, 300)
+	if _streams.has("defeated"):
+		play_sting("defeated")
+	else:
+		play("lose", 1.0, 300)

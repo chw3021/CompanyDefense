@@ -412,6 +412,7 @@ func _auto_upload() -> void:
 #       ".validate": "newData.hasChildren(['name','rounds','score','updated'])" } } }
 
 ## 현재 세이브의 최고 라운드를 랭킹에 올린다. 성공하면 true
+## 실패 시 콘솔 스팸을 막기 위해 401/403 은 한 줄만 남긴다
 func submit_endless_rank() -> bool:
 	if Save.user.is_empty() or Dev._scenario != null:
 		return false
@@ -428,10 +429,13 @@ func submit_endless_rank() -> bool:
 		"updated": _now(),
 	}
 	var r := await _request(HTTPClient.METHOD_PUT,
-			"%s/leaderboards/endless/%s.json?auth=%s" % [DB_URL, s.uid, s.token], JSON.stringify(body))
-	if r.code != 200:
+			"%s/leaderboards/endless/%s.json?auth=%s" % [DB_URL, s.uid, s.token.uri_encode()], JSON.stringify(body))
+	if r.code == 200:
+		return true
+	# 규칙 미설정(401/403)은 매 판마다 찍지 않는다
+	if r.code != 401 and r.code != 403:
 		push_warning("무한 야근 랭킹 등록 실패: %d" % r.code)
-	return r.code == 200
+	return false
 
 
 ## await 없이 호출해도 Account 쪽에서 끝까지 돌아가게 한다
@@ -445,7 +449,8 @@ func fetch_endless_ranks() -> Variant:
 	var s := await _name_session()
 	if s.is_empty():
 		return null
-	var r := await _request(HTTPClient.METHOD_GET, "%s/leaderboards/endless.json?auth=%s" % [DB_URL, s.token])
+	var r := await _request(HTTPClient.METHOD_GET,
+			"%s/leaderboards/endless.json?auth=%s" % [DB_URL, s.token.uri_encode()])
 	if r.code != 200:
 		return null
 	var rows: Array = []

@@ -90,8 +90,6 @@ func _open_stage(id: int) -> void:
 		["광고 후 시작", UI.SUCCESS, func():
 			_start_with_coin_ad(id)],
 	]
-	if StageDefs.is_endless(id):
-		buttons.insert(1, ["랭킹 보기", UI.GOLD, func(): open_endless_ranking(main if main else self)])
 	UI.modal(StageDefs.STAGES[id].name, body, buttons, main)
 
 
@@ -114,7 +112,7 @@ static func open_endless_ranking(parent: Node) -> void:
 		status.queue_free()
 	if ranks == null:
 		list.add_child(UI.wrap_label(
-				"클라우드 랭킹을 불러오지 못했습니다.\n인터넷 연결을 확인해 주세요.",
+				"클라우드 랭킹을 불러오지 못했습니다.\n인터넷 연결을 확인하거나, 잠시 후 다시 시도해 주세요.",
 				24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 		return
 	if ranks.is_empty():

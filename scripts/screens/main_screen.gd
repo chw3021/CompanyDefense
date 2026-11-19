@@ -52,6 +52,7 @@ func _ready() -> void:
 		refresh_top_bar())
 	add_child(timer)
 	show_tab(start_tab)
+	Audio.play_bgm("lobby")
 	# 웹에서 구글 로그인 페이지를 다녀온 결과 (화면보다 먼저 끝났거나, 나중에 끝나거나)
 	Account.login_done.connect(_on_redirect_login)
 	var pending = Account.take_pending()
@@ -283,6 +284,8 @@ func show_tab(index: int) -> void:
 	if index == _current_tab:
 		return
 	_current_tab = index
+	# 상점 탭만 Shop BGM, 나머지는 로비
+	Audio.play_bgm("shop" if TABS[index][0] == "상점" else "lobby")
 	for child in _content.get_children():
 		child.queue_free()
 	var tab: Control = load(TABS[index][2]).new()

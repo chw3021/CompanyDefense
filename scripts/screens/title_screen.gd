@@ -6,6 +6,7 @@ var _starting := false
 
 func _ready() -> void:
 	clip_contents = true
+	Audio.play_bgm("lobby")
 	UI.backdrop(self, "res://assets/menu/menu_background.jpg", 0.25)
 	# 아래쪽을 어둡게 해서 버튼과 글자가 잘 보이게
 	var grad := TextureRect.new()

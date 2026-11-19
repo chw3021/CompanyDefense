@@ -58,6 +58,7 @@ func _ready() -> void:
 	battle.rest_ended.connect(_refresh_setup_bar)
 	battle.revive_offered.connect(_on_revive_offered)
 	Ads.set_live_battle(true)
+	Audio.play_stage_bgm(stage_id)
 	_last_life = battle.life
 	_refresh_hud()
 	_show_banner()
