@@ -1,10 +1,24 @@
 {
-  "leaderboards": {
-    "endless": {
-      ".read": "auth != null",
+  "rules": {
+    "saves": {
       "$uid": {
-        ".write": "auth != null && auth.uid == $uid",
-        ".validate": "newData.hasChildren(['name', 'rounds', 'score', 'updated']) && newData.child('rounds').isNumber() && newData.child('score').isNumber() && newData.child('updated').isNumber() && newData.child('name').isString()"
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "names": {
+      ".read": "auth != null",
+      "$key": {
+        ".write": "auth != null && (!data.exists() || data.val() == auth.uid)"
+      }
+    },
+    "leaderboards": {
+      "endless": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid == $uid",
+          ".validate": "newData.hasChildren(['name', 'rounds', 'score', 'updated']) && newData.child('rounds').isNumber() && newData.child('score').isNumber() && newData.child('updated').isNumber() && newData.child('name').isString()"
+        }
       }
     }
   }

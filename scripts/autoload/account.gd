@@ -428,8 +428,9 @@ func submit_endless_rank() -> bool:
 		"score": int(Save.user.best_scores.get("4", 0)),
 		"updated": _now(),
 	}
+	# ID 토큰은 ?auth= 만 인정 (Bearer 는 서비스계정용 → 401). saves 와 동일하게 원문 토큰.
 	var r := await _request(HTTPClient.METHOD_PUT,
-			"%s/leaderboards/endless/%s.json?auth=%s" % [DB_URL, s.uid, s.token.uri_encode()], JSON.stringify(body))
+			"%s/leaderboards/endless/%s.json?auth=%s" % [DB_URL, s.uid, s.token], JSON.stringify(body))
 	if r.code == 200:
 		return true
 	# 규칙 미설정(401/403)은 매 판마다 찍지 않는다
@@ -450,7 +451,7 @@ func fetch_endless_ranks() -> Variant:
 	if s.is_empty():
 		return null
 	var r := await _request(HTTPClient.METHOD_GET,
-			"%s/leaderboards/endless.json?auth=%s" % [DB_URL, s.token.uri_encode()])
+			"%s/leaderboards/endless.json?auth=%s" % [DB_URL, s.token])
 	if r.code != 200:
 		return null
 	var rows: Array = []

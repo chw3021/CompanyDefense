@@ -1,18 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="128" height="128">
-  <g stroke="#2b2233" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
-    <rect x="40" y="28" width="176" height="120" rx="18" fill="#364052"/>
-    <rect x="56" y="44" width="144" height="88" rx="10" fill="#7ad7ff"/>
-    <path d="M84 88A18 18 0 1 1 84 87L96 88Z" fill="#ffc940"/>
-    <circle cx="118" cy="88" r="5" fill="#2b2233" stroke="none"/>
-    <circle cx="134" cy="88" r="5" fill="#2b2233" stroke="none"/>
-    <circle cx="150" cy="88" r="5" fill="#2b2233" stroke="none"/>
-    <path d="M168 70H188C196 70 200 78 196 86L184 108H164C156 108 152 100 156 92Z" fill="#e5534b"/>
-    <rect x="120" y="148" width="16" height="18" rx="4" fill="#9aa4b2"/>
-    <path d="M64 176H192C208 176 216 188 208 204C200 220 56 220 48 204C40 188 48 176 64 176Z" fill="#f2f4f8"/>
-    <path d="M88 192H104M96 184V200" fill="none" stroke="#2b2233" stroke-width="8"/>
-    <circle cx="156" cy="188" r="6" fill="#e5534b" stroke="none"/>
-    <circle cx="172" cy="200" r="6" fill="#2fbf71" stroke="none"/>
-    <circle cx="140" cy="200" r="6" fill="#4c8dff" stroke="none"/>
-    <circle cx="156" cy="212" r="6" fill="#ffc940" stroke="none"/>
+  <!-- 게임: PNG(game.png) — 화면+팩맨+버섯+패드 -->
+  <g stroke="#1a1220" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <!-- 모니터 -->
+    <rect x="28" y="24" width="200" height="140" rx="18" fill="#3a3f4a"/>
+    <rect x="44" y="40" width="168" height="108" rx="10" fill="#7ad7ff"/>
+    <!-- 팩맨 -->
+    <path d="M84 94A28 28 0 1 1 84 93L112 94Z" fill="#ffc940"/>
+    <circle cx="92" cy="82" r="5" fill="#1a1220" stroke="none"/>
+    <!-- 점 -->
+    <circle cx="122" cy="94" r="5" fill="#1a1220" stroke="none"/>
+    <circle cx="140" cy="94" r="5" fill="#1a1220" stroke="none"/>
+    <circle cx="158" cy="94" r="5" fill="#1a1220" stroke="none"/>
+    <!-- 버섯 -->
+    <path d="M176 70H208C218 70 222 82 216 92L200 118H168C158 118 154 106 160 96Z" fill="#e5534b"/>
+    <ellipse cx="192" cy="70" rx="22" ry="10" fill="#e5534b"/>
+    <rect x="180" y="100" width="24" height="20" rx="6" fill="#f2f4f8"/>
+    <!-- 스탠드 -->
+    <rect x="118" y="160" width="20" height="16" rx="4" fill="#9aa4b2"/>
+    <!-- 패드 -->
+    <path d="M48 188H208C228 188 236 204 228 220C220 236 36 236 28 220C20 204 28 188 48 188Z" fill="#eef2f7"/>
+    <!-- 십자키 -->
+    <path d="M72 204H96M84 192V216" fill="none" stroke="#1a1220" stroke-width="10"/>
+    <!-- 스틱 -->
+    <circle cx="128" cy="210" r="8" fill="#1a1220" stroke="none"/>
+    <circle cx="152" cy="210" r="8" fill="#1a1220" stroke="none"/>
+    <!-- 버튼 -->
+    <circle cx="188" cy="198" r="7" fill="#e5534b" stroke="none"/>
+    <circle cx="204" cy="210" r="7" fill="#2fbf71" stroke="none"/>
+    <circle cx="172" cy="210" r="7" fill="#4c8dff" stroke="none"/>
+    <circle cx="188" cy="222" r="7" fill="#ffc940" stroke="none"/>
   </g>
 </svg>

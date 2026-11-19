@@ -172,9 +172,14 @@ func _load_streams() -> void:
 
 func _load_bgm(id: String, loop: bool) -> void:
 	var path := BGM_DIR + id + ".wav"
+	# 새 트랙이 없거나 import 실패하면 예전 office 로 폴백
 	if not ResourceLoader.exists(path):
-		return
+		path = BGM_DIR + "office.wav"
+		if not ResourceLoader.exists(path):
+			return
 	var stream: AudioStream = load(path)
+	if stream == null:
+		return
 	# import 원본을 직접 건드리면 웹 Sample/Stream 등록이 깨질 수 있어 복제본에 루프를 건다
 	if stream is AudioStreamWAV:
 		stream = stream.duplicate()
@@ -214,9 +219,19 @@ func _play_now(id: String, pitch: float) -> void:
 func play_bgm(id: String = "lobby") -> void:
 	if id == "office":
 		id = "lobby"
-	if not _streams.has(id) or _bgm == null:
+	if _bgm == null:
 		return
+	# 요청 트랙이 없으면 lobby → office 순으로 폴백
+	if not _streams.has(id):
+		if _streams.has("lobby"):
+			id = "lobby"
+		elif _streams.has("office"):
+			id = "office"
+		else:
+			return
 	if OS.has_feature("web") and not _web_unlocked:
+		return
+	if Save.volume_master() <= 0.001 or Save.volume_bgm() <= 0.001:
 		return
 	if _bgm_id == id and _bgm.playing:
 		return
