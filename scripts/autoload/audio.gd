@@ -1,6 +1,6 @@
 # 효과음 + BGM. 버스 볼륨은 Save 설정을 따른다.
-# 웹: Sample 재생. AudioContext 가 suspended 면 제스처마다 resume+재생 재시도.
-# 콘솔 [Audio] 로그로 묵음 원인을 추적한다.
+# 웹: SFX=Sample, BGM=Stream(워크렛→destination). 제스처로 AudioContext resume.
+# 클릭마다 BGM 을 다시 켜지 않는다. 콘솔 [Audio] 로그로 추적.
 extends Node
 
 const BUS_MASTER := "Master"
@@ -13,6 +13,7 @@ const SFX_IDS := ["click", "hit", "projectile", "impact", "promote", "wave", "bo
 const BGM_LOOP_IDS := ["lobby", "shop", "stage_easy", "stage_hard"]
 const BGM_STING_IDS := ["clear", "defeated"]
 ## 0 Default / 1 Stream / 2 Sample
+const PLAYBACK_STREAM := 1
 const PLAYBACK_SAMPLE := 2
 
 var _streams := {}
@@ -24,6 +25,7 @@ var _bgm: AudioStreamPlayer
 var _bgm_id := ""
 var _pending_bgm := "lobby"
 var _unlock_tries := 0
+var _probed_dest := false
 
 
 func _ready() -> void:
@@ -34,17 +36,21 @@ func _ready() -> void:
 	for i in POOL:
 		var p := AudioStreamPlayer.new()
 		p.bus = BUS_SFX
-		_configure_player(p)
+		if OS.has_feature("web"):
+			p.playback_type = PLAYBACK_SAMPLE
 		add_child(p)
 		_players.append(p)
 	_bgm = AudioStreamPlayer.new()
-	# 웹 Sample 버스 꼬임 대비: BGM 은 Master 직행
-	_bgm.bus = BUS_MASTER if OS.has_feature("web") else BUS_BGM
-	_configure_player(_bgm)
+	_bgm.bus = BUS_BGM
+	if OS.has_feature("web"):
+		# Sample 버스가 destination 에서 끊겨도 Stream 워크렛은 스피커에 남는다
+		_bgm.playback_type = PLAYBACK_STREAM
+		_bgm.bus = BUS_MASTER
 	add_child(_bgm)
-	_alog("ready web=%s count=%d master=%.2f bgm=%.2f muted_sfx=%s bgm_bus=%s" % [
+	_alog("ready web=%s count=%d master=%.2f bgm=%.2f muted_sfx=%s bgm_bus=%s bgm_type=%s" % [
 		OS.has_feature("web"), _streams.size(),
 		Save.volume_master(), Save.volume_bgm(), Save.sfx_muted(), _bgm.bus,
+		_bgm.playback_type if OS.has_feature("web") else -1,
 	])
 	if OS.has_feature("web"):
 		_publish_ctx_to_window()
@@ -60,7 +66,7 @@ func _process(_dt: float) -> void:
 		set_process(false)
 		return
 	_publish_ctx_to_window()
-	if _web_unlocked and _bgm_is_audible():
+	if _web_unlocked:
 		set_process(false)
 
 
@@ -69,11 +75,6 @@ func _alog(msg: String) -> void:
 	print(line)
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("console.log(%s)" % JSON.stringify(line))
-
-
-func _configure_player(p: AudioStreamPlayer) -> void:
-	if OS.has_feature("web"):
-		p.playback_type = PLAYBACK_SAMPLE
 
 
 func _input(event: InputEvent) -> void:
@@ -85,9 +86,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _try_web_unlock(event: InputEvent) -> void:
-	if not OS.has_feature("web"):
-		return
-	if _web_unlocked and _bgm_is_audible():
+	if not OS.has_feature("web") or _web_unlocked:
 		return
 	if not (event is InputEventMouseButton or event is InputEventScreenTouch \
 			or event is InputEventKey or event is InputEventJoypadButton):
@@ -105,14 +104,20 @@ func _try_web_unlock(event: InputEvent) -> void:
 	_finish_web_unlock()
 
 
+## 버튼 콜백용. 이미 unlock 됐으면 BGM 을 건드리지 않는다.
 func ensure_web_unlocked() -> void:
 	if not OS.has_feature("web"):
 		return
-	_alog("ensure_web_unlocked unlocked=%s audible=%s" % [_web_unlocked, _bgm_is_audible()])
+	if _web_unlocked:
+		_resume_web_audio_context()
+		return
+	_alog("ensure_web_unlocked try unlock")
 	_finish_web_unlock()
 
 
 func _finish_web_unlock() -> void:
+	if _web_unlocked:
+		return
 	_publish_ctx_to_window()
 	var ctx := _resume_web_audio_context()
 	_alog("unlock ctx=%s" % ctx)
@@ -122,26 +127,30 @@ func _finish_web_unlock() -> void:
 	apply_volumes()
 	if _streams.has("click") and not Save.sfx_muted():
 		_play_now("click", 1.0)
-	# 제스처 안에서는 force 로 BGM 재생
-	_bgm_id = ""
 	play_bgm(_pending_bgm if _pending_bgm != "" else "lobby", true)
+	_probe_destination_once()
 	call_deferred("_after_unlock_tick")
 
 
 func _after_unlock_tick() -> void:
-	await get_tree().create_timer(0.25).timeout
+	await get_tree().create_timer(0.35).timeout
 	var ctx := _ctx_state()
-	var audible := _bgm_is_audible()
-	_alog("post-unlock ctx=%s id=%s playing=%s pos=%.3f audible=%s" % [
-		ctx, _bgm_id,
-		_bgm != null and _bgm.playing,
-		_bgm.get_playback_position() if _bgm else -1.0,
-		audible,
+	var pos := _bgm.get_playback_position() if _bgm else -1.0
+	var playing := _bgm != null and _bgm.playing
+	_alog("post-unlock ctx=%s id=%s playing=%s pos=%.3f vol_db=%.1f" % [
+		ctx, _bgm_id, playing, pos, _bgm.volume_db if _bgm else 0.0,
 	])
-	if audible:
+	# ctx running 이면 unlock 성공으로 본다. pos 는 Stream 에서 늦게 오를 수 있음
+	if ctx.find("running") >= 0:
 		_mark_unlocked()
+		# 아직 안 나가면 한 번 더 재생 (재시작은 unlock 직후 1회만)
+		if _bgm and (not _bgm.playing or pos < 0.01):
+			_alog("post-unlock restart bgm once")
+			var id := _pending_bgm if _pending_bgm != "" else "lobby"
+			_bgm_id = ""
+			play_bgm(id, true)
 	else:
-		_alog("still silent — next gesture will retry")
+		_alog("ctx not running — wait next gesture")
 
 
 func _mark_unlocked() -> void:
@@ -153,8 +162,24 @@ func _mark_unlocked() -> void:
 	_alog("fully unlocked")
 
 
-func _bgm_is_audible() -> bool:
-	return _bgm != null and _bgm.playing and _bgm.get_playback_position() > 0.05
+## destination 에 GainNode 가 붙어 있는지 한 번만 찍는다 (Sample 버스 단선 진단)
+func _probe_destination_once() -> void:
+	if _probed_dest or not OS.has_feature("web"):
+		return
+	_probed_dest = true
+	var r: Variant = JavaScriptBridge.eval("""
+		(function () {
+			try {
+				var ctx = window.__godotAudioContext
+					|| (window.GodotAudio && window.GodotAudio.ctx) || null;
+				if (!ctx) return 'no-ctx';
+				var dest = ctx.destination;
+				var n = dest.numberOfInputs;
+				return 'state=' + ctx.state + ' destInputs=' + n + ' sampleRate=' + ctx.sampleRate;
+			} catch (e) { return 'err:' + String(e); }
+		})();
+	""")
+	_alog("dest probe: %s" % str(r))
 
 
 func _publish_ctx_to_window() -> void:
@@ -200,9 +225,9 @@ func _resume_web_audio_context() -> String:
 				if (typeof GodotAudio !== 'undefined') window.GodotAudio = GodotAudio;
 				if (ctx.state === 'suspended' && ctx.resume) {
 					ctx.resume().then(function () {
-						console.log('[Audio/html] resume resolved', ctx.state);
+						console.log('[Audio/html] resume ok', ctx.state);
 					}).catch(function (e) {
-						console.warn('[Audio/html] resume rejected', e);
+						console.warn('[Audio/html] resume fail', e);
 					});
 				}
 				try {
@@ -242,7 +267,8 @@ func apply_volumes() -> void:
 	_set_bus_linear(BUS_BGM, Save.volume_bgm())
 	_set_bus_linear(BUS_SFX, 0.0 if Save.sfx_muted() else Save.volume_sfx())
 	if _bgm and OS.has_feature("web"):
-		_bgm.volume_db = linear_to_db(maxf(Save.volume_bgm(), 0.0001))
+		# Stream+Master 직행: BGM 슬라이더를 플레이어 gain 에 반영
+		_bgm.volume_db = linear_to_db(maxf(Save.volume_bgm() * Save.volume_master(), 0.0001))
 
 
 func _set_bus_linear(bus: String, linear: float) -> void:
@@ -270,11 +296,14 @@ func _load_streams() -> void:
 		_load_bgm(id, false)
 	if _streams.has("lobby"):
 		_streams["office"] = _streams["lobby"]
-	_alog("loaded count=%d keys=%s" % [_streams.size(), str(_streams.keys())])
+	_alog("loaded count=%d" % _streams.size())
 
 
 func _register_sample(stream: AudioStream, id: String) -> void:
 	if not OS.has_feature("web") or stream == null:
+		return
+	# BGM 은 Stream 재생이라 샘플 등록 불필요. SFX 만.
+	if id in BGM_LOOP_IDS or id in BGM_STING_IDS or id == "office":
 		return
 	if AudioServer.has_method("register_stream_as_sample"):
 		AudioServer.register_stream_as_sample(stream)
@@ -299,7 +328,6 @@ func _load_bgm(id: String, loop: bool) -> void:
 			id, (stream as AudioStreamWAV).format, (stream as AudioStreamWAV).mix_rate,
 			(stream as AudioStreamWAV).data.size(), loop, used_fallback,
 		])
-	_register_sample(stream, id)
 	_streams[id] = stream
 
 
@@ -329,7 +357,7 @@ func _play_now(id: String, pitch: float) -> void:
 	p.play()
 
 
-## force=true 이면 웹 unlock 전이라도 재생 (제스처 핸들러 전용)
+## force=true: 웹 unlock 직후 첫 재생. 같은 곡이 이미 재생 중이면 건드리지 않는다.
 func play_bgm(id: String = "lobby", force := false) -> void:
 	if id == "office":
 		id = "lobby"
@@ -345,23 +373,28 @@ func play_bgm(id: String = "lobby", force := false) -> void:
 			_alog("play_bgm(%s) no stream" % id)
 			return
 	if OS.has_feature("web") and not force and not _web_unlocked:
-		_alog("play_bgm(%s) deferred until unlock" % id)
+		_alog("play_bgm(%s) deferred" % id)
 		return
 	if Save.volume_master() <= 0.001 or Save.volume_bgm() <= 0.001:
 		_alog("play_bgm(%s) volume blocked" % id)
 		return
-	if _bgm_id == id and _bgm.playing and _bgm.get_playback_position() > 0.05:
+	# 같은 곡이 이미 재생 중이면 재시작하지 않음 (버튼 연타로 끊기는 거 방지)
+	if _bgm_id == id and _bgm.playing:
 		return
 	_bgm_id = id
 	_bgm.stream = _streams[id]
 	if OS.has_feature("web"):
+		_bgm.playback_type = PLAYBACK_STREAM
 		_bgm.bus = BUS_MASTER
-		_bgm.volume_db = linear_to_db(maxf(Save.volume_bgm(), 0.0001))
+		_bgm.volume_db = linear_to_db(maxf(Save.volume_bgm() * Save.volume_master(), 0.0001))
 	elif AudioServer.get_bus_index(_bgm.bus) < 0:
 		_bgm.bus = BUS_MASTER
 	_bgm.play()
-	_alog("play_bgm(%s) force=%s bus=%s playing=%s pos=%.3f" % [
-		id, force, _bgm.bus, _bgm.playing, _bgm.get_playback_position()])
+	_alog("play_bgm(%s) force=%s bus=%s type=%s vol=%.1f playing=%s" % [
+		id, force, _bgm.bus,
+		_bgm.playback_type if OS.has_feature("web") else -1,
+		_bgm.volume_db, _bgm.playing,
+	])
 
 
 func play_stage_bgm(stage_id: int) -> void:
@@ -380,6 +413,7 @@ func play_sting(id: String) -> void:
 	_bgm_id = id
 	_bgm.stream = _streams[id]
 	if OS.has_feature("web"):
+		_bgm.playback_type = PLAYBACK_STREAM
 		_bgm.bus = BUS_MASTER
 	_bgm.play()
 	_alog("play_sting(%s)" % id)
