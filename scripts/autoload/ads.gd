@@ -29,15 +29,17 @@ func show_rewarded(placement: String) -> bool:
 	if not can_show_rewarded():
 		UI.toast("전투가 끝난 뒤에 광고를 볼 수 있습니다.", UI.WARN)
 		return false
-	# 모든 광고 제거: 시청 없이 보상만 지급
-	if Save.ads_removed():
-		return true
 	var skip_cool := placement in COOLDOWN_EXEMPT
 	if not skip_cool:
 		var cool := Save.ad_cooldown_left()
 		if cool > 0:
-			UI.toast("광고 보상은 %d분 %d초 후에 다시 받을 수 있습니다." % [cool / 60, cool % 60], UI.WARN)
+			UI.toast("광고 보상은 %s 후에 다시 받을 수 있습니다." % Save.format_cooldown(cool), UI.WARN)
 			return false
+	# 모든 광고 제거: 시청 없이 보상만 지급 (공유 쿨은 그대로 적용)
+	if Save.ads_removed():
+		if not skip_cool:
+			Save.mark_reward_ad()
+		return true
 	UI.toast("광고 시청 중… (%s)" % _label(placement), UI.MUTED)
 	await get_tree().create_timer(0.4).timeout
 	if not can_show_rewarded():
@@ -46,7 +48,7 @@ func show_rewarded(placement: String) -> bool:
 	if not skip_cool:
 		var cool2 := Save.ad_cooldown_left()
 		if cool2 > 0:
-			UI.toast("광고 보상은 %d분 %d초 후에 다시 받을 수 있습니다." % [cool2 / 60, cool2 % 60], UI.WARN)
+			UI.toast("광고 보상은 %s 후에 다시 받을 수 있습니다." % Save.format_cooldown(cool2), UI.WARN)
 			return false
 		Save.mark_reward_ad()
 	return true

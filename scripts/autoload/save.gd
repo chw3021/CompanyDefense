@@ -109,8 +109,13 @@ func apply_rich_start() -> void:
 
 ## 클라우드에서 받은 데이터로 바꾼다
 func replace_user(data: Dictionary) -> void:
+	# 로컬 광고 쿨이 더 길면 유지 (구버전 클라우드에 키가 없을 때 쿨 리셋 방지)
+	var local_cool_at := int(user.get("last_reward_ad_at", 0)) if not user.is_empty() else 0
 	user = data
 	_normalize()
+	var cloud_cool_at := int(user.get("last_reward_ad_at", 0))
+	if local_cool_at > cloud_cool_at:
+		user["last_reward_ad_at"] = local_cool_at
 	apply_rich_start()
 	refresh_time()
 	save()
@@ -150,7 +155,7 @@ func _normalize() -> void:
 		for id in user.equipment:
 			user.equipment[id] = mini(user.equipment[id] * 10, GameData.MAX_EQUIPMENT_LEVEL)
 		user["equipment_version"] = 2
-	for key in ["gold", "time", "corp_card", "last_refill", "max_cleared", "round_best", "high_score", "games_played", "games_won"]:
+	for key in ["gold", "time", "corp_card", "last_refill", "max_cleared", "round_best", "high_score", "games_played", "games_won", "last_reward_ad_at"]:
 		user[key] = int(user.get(key, 0))
 	# 기존 세이브에 법인카드 시드 지급 (한 번만)
 	if int(user.get("corp_card_seeded", 0)) < 1:

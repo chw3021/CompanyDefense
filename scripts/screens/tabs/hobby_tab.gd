@@ -45,8 +45,15 @@ func _ready() -> void:
 	tick.autostart = true
 	tick.timeout.connect(_refresh_ad_buttons)
 	add_child(tick)
+	if not Save.changed.is_connected(_refresh_ad_buttons):
+		Save.changed.connect(_refresh_ad_buttons)
 	_refresh()
 	_refresh_ad_buttons()
+
+
+func _exit_tree() -> void:
+	if Save.changed.is_connected(_refresh_ad_buttons):
+		Save.changed.disconnect(_refresh_ad_buttons)
 
 
 func _card(id: String) -> Control:
@@ -89,15 +96,15 @@ func _apply_ad_button(b: Button, base: String, daily_left: int) -> void:
 	if b == null:
 		return
 	var cool := Save.ad_cooldown_left()
+	var locked := daily_left <= 0 or cool > 0
 	if daily_left <= 0:
 		b.text = "%s (오늘 한도)" % base
-		b.disabled = true
 	elif cool > 0:
 		b.text = "%s (%s)" % [base, Save.format_cooldown(cool)]
-		b.disabled = true
 	else:
 		b.text = "%s (남은 %d)" % [base, daily_left]
-		b.disabled = false
+	b.disabled = locked
+	UI.recolor(b, UI.CARD_HI if locked else (UI.PURPLE if b == _corp_ad_btn else UI.PRIMARY))
 
 
 func _watch_time_ad() -> void:

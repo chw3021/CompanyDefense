@@ -155,8 +155,8 @@ func recolor(b: Button, color: Color) -> void:
 	for state in ["normal", "hover"]:
 		b.add_theme_stylebox_override(state, button_box(color))
 	b.add_theme_stylebox_override("pressed", button_box(color.darkened(0.15), true))
-	b.add_theme_stylebox_override("disabled", button_box(Color(CARD_HI.r, CARD_HI.g, CARD_HI.b, 0.55)))
-	b.add_theme_color_override("font_disabled_color", MUTED)
+	b.add_theme_stylebox_override("disabled", button_box(Color("4a505c")))
+	b.add_theme_color_override("font_disabled_color", Color(TEXT, 0.55))
 
 
 var _play_icon: ImageTexture

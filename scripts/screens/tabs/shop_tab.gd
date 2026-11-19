@@ -41,7 +41,18 @@ func _ready() -> void:
 	tick.autostart = true
 	tick.timeout.connect(_tick_shop_buttons)
 	add_child(tick)
+	if not Save.changed.is_connected(_on_save_changed):
+		Save.changed.connect(_on_save_changed)
 	_switch("shop")
+
+
+func _exit_tree() -> void:
+	if Save.changed.is_connected(_on_save_changed):
+		Save.changed.disconnect(_on_save_changed)
+
+
+func _on_save_changed() -> void:
+	_tick_shop_buttons()
 
 
 func _switch(mode: String) -> void:
@@ -171,11 +182,20 @@ func _tick_shop_buttons() -> void:
 		if row.btn == null or not is_instance_valid(row.btn):
 			continue
 		var avail: Dictionary = _shop_avail(row.item)
+		var locked: bool = bool(avail.owned)
+		var can: bool = bool(avail.ok)
 		row.btn.text = str(avail.label)
-		row.btn.disabled = (not bool(avail.ok)) or bool(avail.owned)
+		row.btn.disabled = locked or not can
+		var btn_color := UI.CARD_HI if locked or not can else (UI.PURPLE if row.item.get("unlock_pass", false) else UI.SUCCESS)
+		UI.recolor(row.btn, btn_color)
 
 
 func _buy(item: Dictionary) -> void:
+	var avail: Dictionary = _shop_avail(item)
+	if bool(avail.owned) or not bool(avail.ok):
+		UI.toast("지금은 구매할 수 없습니다. (%s)" % str(avail.label), UI.WARN)
+		_tick_shop_buttons()
+		return
 	if item.get("ad", false):
 		_buy_corp_ad()
 		return
@@ -185,6 +205,7 @@ func _buy(item: Dictionary) -> void:
 	var msg := Save.buy_shop_item(str(item.id))
 	if msg.begins_with("법인카드가") or msg.begins_with("이미") or msg.begins_with("상품") or msg.begins_with("저장"):
 		UI.toast(msg, UI.WARN)
+		_tick_shop_buttons()
 		return
 	UI.toast(msg, UI.SUCCESS)
 	_rebuild()
