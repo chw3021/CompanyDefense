@@ -173,18 +173,66 @@ func _resume_web_audio_context() -> String:
 func _html_bgm_preload() -> void:
 	if not OS.has_feature("web"):
 		return
+	# 루프곡은 끝 2.5초 페이드아웃 → 처음으로 돌아가 1초 페이드인 (뚝 끊기는 루프 완화)
 	JavaScriptBridge.eval("""
 		(function () {
 			window.__cdBgm = window.__cdBgm || {};
 			window.__cdBgmId = window.__cdBgmId || '';
+			window.__cdBgmVol = window.__cdBgmVol || 0.8;
+			window.__cdBgmFadeOut = 2.5;
+			window.__cdBgmFadeIn = 1.0;
+			window.__cdBindBgm = window.__cdBindBgm || function (a, id, doLoop) {
+				if (a.__cdBound) return;
+				a.__cdBound = true;
+				a.__cdId = id;
+				a.__cdLoop = !!doLoop;
+				a.__cdFading = false;
+				a.__cdFadeIn = null;
+				a.addEventListener('timeupdate', function () {
+					if (!a.__cdLoop || !a.duration || a.paused || a.__cdFading) return;
+					var left = a.duration - a.currentTime;
+					if (left <= window.__cdBgmFadeOut && left > 0.05) {
+						a.__cdFading = true;
+					}
+					if (a.__cdFading) {
+						var t = Math.max(0, a.duration - a.currentTime);
+						a.volume = Math.max(0, window.__cdBgmVol * (t / window.__cdBgmFadeOut));
+					}
+				});
+				a.addEventListener('ended', function () {
+					if (!a.__cdLoop) return;
+					a.__cdFading = false;
+					if (a.__cdFadeIn) { clearInterval(a.__cdFadeIn); a.__cdFadeIn = null; }
+					try { a.currentTime = 0; } catch (e) {}
+					a.volume = 0;
+					var p = a.play();
+					var startFade = function () {
+						var t0 = performance.now();
+						a.__cdFadeIn = setInterval(function () {
+							var u = Math.min(1, (performance.now() - t0) / (window.__cdBgmFadeIn * 1000));
+							a.volume = window.__cdBgmVol * u;
+							if (u >= 1) {
+								clearInterval(a.__cdFadeIn);
+								a.__cdFadeIn = null;
+								a.volume = window.__cdBgmVol;
+							}
+						}, 40);
+					};
+					if (p && p.then) p.then(startFade).catch(function (e) {
+						console.warn('[Audio/html] loop restart fail', id, String(e));
+					});
+					else startFade();
+				});
+			};
 			['lobby','shop','stage_easy','stage_hard','clear','defeated'].forEach(function (id) {
 				if (window.__cdBgm[id]) return;
 				var a = new Audio('bgm/' + id + '.wav');
 				a.preload = 'auto';
-				a.loop = (id !== 'clear' && id !== 'defeated');
+				a.loop = false;
+				window.__cdBindBgm(a, id, id !== 'clear' && id !== 'defeated');
 				window.__cdBgm[id] = a;
 			});
-			console.log('[Audio/html] preload bgm elements');
+			console.log('[Audio/html] preload bgm + loop fade');
 		})();
 	""")
 
@@ -197,40 +245,43 @@ func _html_bgm_play(id: String, loop: bool) -> void:
 		(function () {
 			try {
 				window.__cdBgm = window.__cdBgm || {};
+				window.__cdBgmVol = %s;
 				var id = %s;
-				var vol = %s;
 				var loop = %s;
 				Object.keys(window.__cdBgm).forEach(function (k) {
 					var el = window.__cdBgm[k];
-					if (!el) return;
-					if (k === id) return;
+					if (!el || k === id) return;
 					el.pause();
+					if (el.__cdFadeIn) { clearInterval(el.__cdFadeIn); el.__cdFadeIn = null; }
+					el.__cdFading = false;
 					try { el.currentTime = 0; } catch (e) {}
 				});
 				var a = window.__cdBgm[id];
 				if (!a) {
 					a = new Audio('bgm/' + id + '.wav');
 					a.preload = 'auto';
+					a.loop = false;
 					window.__cdBgm[id] = a;
 				}
-				a.loop = !!loop;
-				a.volume = Math.max(0, Math.min(1, vol));
+				if (window.__cdBindBgm) window.__cdBindBgm(a, id, !!loop);
+				a.__cdLoop = !!loop;
+				a.__cdFading = false;
+				if (a.__cdFadeIn) { clearInterval(a.__cdFadeIn); a.__cdFadeIn = null; }
+				a.volume = window.__cdBgmVol;
 				var p = a.play();
 				if (p && p.then) {
 					p.then(function () {
-						console.log('[Audio/html] playing', id, 'vol=' + a.volume, 't=' + a.currentTime);
+						console.log('[Audio/html] playing', id, 'vol=' + a.volume);
 					}).catch(function (e) {
 						console.warn('[Audio/html] play fail', id, String(e));
 					});
-				} else {
-					console.log('[Audio/html] play sync', id, 'paused=' + a.paused);
 				}
 				window.__cdBgmId = id;
 			} catch (e) {
 				console.warn('[Audio/html] play error', e);
 			}
 		})();
-	""" % [JSON.stringify(id), JSON.stringify(vol), "true" if loop else "false"]
+	""" % [JSON.stringify(vol), JSON.stringify(id), "true" if loop else "false"]
 	JavaScriptBridge.eval(js)
 	_alog("html5 play_bgm(%s) vol=%.2f loop=%s" % [id, vol, loop])
 
@@ -244,6 +295,8 @@ func _html_bgm_stop() -> void:
 			Object.keys(m).forEach(function (k) {
 				if (!m[k]) return;
 				m[k].pause();
+				if (m[k].__cdFadeIn) { clearInterval(m[k].__cdFadeIn); m[k].__cdFadeIn = null; }
+				m[k].__cdFading = false;
 				try { m[k].currentTime = 0; } catch (e) {}
 			});
 			window.__cdBgmId = '';
@@ -258,13 +311,15 @@ func _html_bgm_set_volume() -> void:
 	JavaScriptBridge.eval("""
 		(function () {
 			var vol = %s;
+			window.__cdBgmVol = vol;
 			var m = window.__cdBgm || {};
 			Object.keys(m).forEach(function (k) {
-				if (m[k]) m[k].volume = Math.max(0, Math.min(1, vol));
+				var a = m[k];
+				if (!a || a.__cdFading || a.__cdFadeIn) return;
+				a.volume = Math.max(0, Math.min(1, vol));
 			});
 		})();
 	""" % JSON.stringify(vol))
-
 
 func _ensure_buses() -> void:
 	_ensure_bus(BUS_BGM)

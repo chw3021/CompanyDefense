@@ -543,6 +543,10 @@ const WEAK_GAP := 20.0  # 물리/마법 방어 차이가 이 이상이면 약점
 const SPRITE_ENEMIES := ["printer", "fax", "copier", "server", "boss"]
 
 
+func _uses_enemy_sprite(type_id: String) -> bool:
+	return type_id in SPRITE_ENEMIES or type_id.begins_with("boss_")
+
+
 ## 다음 보스 실루엣 (보스방이 비어 있을 때만)
 func _draw_boss_preview() -> void:
 	var type_id := battle.preview_boss_type()
@@ -563,7 +567,7 @@ func _draw_boss_preview() -> void:
 
 ## r 은 몸통이 들어갈 칸 (아래쪽이 바닥). e 가 null 이면 잔상처럼 몸통만 그린다
 func _draw_enemy_body(type_id: String, r: Rect2, mod: Color, e: Enemy = null) -> void:
-	if type_id in SPRITE_ENEMIES:
+	if _uses_enemy_sprite(type_id):
 		ci.draw_texture_rect(_enemy_tex, r, false, StageDefs.ENEMIES[type_id].tint * mod)
 		return
 	var w := r.size.x

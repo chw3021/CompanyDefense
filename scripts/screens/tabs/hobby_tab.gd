@@ -4,6 +4,8 @@ extends VBoxContainer
 var main
 var _cards := {}   # hobbyId -> {button, level, effect}
 var _result: Label
+var _time_ad_btn: Button
+var _corp_ad_btn: Button
 
 
 func _ready() -> void:
@@ -23,20 +25,28 @@ func _ready() -> void:
 	go.custom_minimum_size.y = 110
 	add_child(go)
 	var ad_row := UI.hbox(10)
-	var time_ad := UI.button("광고로 시간 +%d" % Save.TIME_AD_AMOUNT, UI.PRIMARY, _watch_time_ad, 26)
-	time_ad.icon = load("res://assets/icons/time.svg")
-	time_ad.expand_icon = true
-	time_ad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	time_ad.custom_minimum_size.y = 72
-	ad_row.add_child(time_ad)
-	var corp_ad := UI.button("광고로 법인카드", UI.PURPLE, _watch_corp_ad, 26)
-	corp_ad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	corp_ad.custom_minimum_size.y = 72
-	ad_row.add_child(corp_ad)
+	_time_ad_btn = UI.button("광고로 시간 +%d" % Save.TIME_AD_AMOUNT, UI.PRIMARY, _watch_time_ad, 26)
+	_time_ad_btn.icon = load("res://assets/icons/time.svg")
+	_time_ad_btn.expand_icon = true
+	_time_ad_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_time_ad_btn.custom_minimum_size.y = 72
+	ad_row.add_child(_time_ad_btn)
+	_corp_ad_btn = UI.button("광고로 법인카드", UI.PURPLE, _watch_corp_ad, 26)
+	_corp_ad_btn.icon = load("res://assets/icons/corp_card.svg")
+	_corp_ad_btn.expand_icon = true
+	_corp_ad_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_corp_ad_btn.custom_minimum_size.y = 72
+	ad_row.add_child(_corp_ad_btn)
 	add_child(ad_row)
 	_result = UI.label("시간은 30분마다 1씩 충전됩니다. 상단 시간/법인카드를 탭해도 됩니다.", 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	add_child(_result)
+	var tick := Timer.new()
+	tick.wait_time = 1.0
+	tick.autostart = true
+	tick.timeout.connect(_refresh_ad_buttons)
+	add_child(tick)
 	_refresh()
+	_refresh_ad_buttons()
 
 
 func _card(id: String) -> Control:
@@ -69,20 +79,50 @@ func _refresh() -> void:
 		_cards[id].effect.text = GameData.hobby_effect_text(id, lv)
 
 
+## 광고 버튼: 일일 한도/공통 쿨타임이면 잠그고 남은 시간을 적는다
+func _refresh_ad_buttons() -> void:
+	_apply_ad_button(_time_ad_btn, "광고로 시간 +%d" % Save.TIME_AD_AMOUNT, Save.time_ad_left())
+	_apply_ad_button(_corp_ad_btn, "광고로 법인카드", Save.corp_ad_left())
+
+
+func _apply_ad_button(b: Button, base: String, daily_left: int) -> void:
+	if b == null:
+		return
+	var cool := Save.ad_cooldown_left()
+	if daily_left <= 0:
+		b.text = "%s (오늘 한도)" % base
+		b.disabled = true
+	elif cool > 0:
+		b.text = "%s (%s)" % [base, Save.format_cooldown(cool)]
+		b.disabled = true
+	else:
+		b.text = "%s (남은 %d)" % [base, daily_left]
+		b.disabled = false
+
+
 func _watch_time_ad() -> void:
 	if Save.time_ad_left() <= 0:
 		_result.text = "오늘은 시간 광고 한도에 도달했습니다"
 		_result.add_theme_color_override("font_color", UI.MUTED)
+		_refresh_ad_buttons()
+		return
+	if Save.ad_cooldown_left() > 0:
+		_result.text = "광고 보상 쿨타임이 남아 있습니다"
+		_result.add_theme_color_override("font_color", UI.WARN)
+		_refresh_ad_buttons()
 		return
 	if not await Ads.show_rewarded("time"):
+		_refresh_ad_buttons()
 		return
 	var n := Save.grant_time_from_ad()
 	if n <= 0:
 		_result.text = "오늘은 더 이상 충전할 수 없습니다"
 		_result.add_theme_color_override("font_color", UI.WARN)
+		_refresh_ad_buttons()
 		return
 	_result.text = "시간 +%d! (오늘 남은 광고 %d회)" % [n, Save.time_ad_left()]
 	_result.add_theme_color_override("font_color", UI.SUCCESS)
+	_refresh_ad_buttons()
 	if main:
 		main.refresh_top_bar()
 
@@ -91,16 +131,25 @@ func _watch_corp_ad() -> void:
 	if Save.corp_ad_left() <= 0:
 		_result.text = "오늘은 법인카드 광고 한도에 도달했습니다"
 		_result.add_theme_color_override("font_color", UI.MUTED)
+		_refresh_ad_buttons()
+		return
+	if Save.ad_cooldown_left() > 0:
+		_result.text = "광고 보상 쿨타임이 남아 있습니다"
+		_result.add_theme_color_override("font_color", UI.WARN)
+		_refresh_ad_buttons()
 		return
 	if not await Ads.show_rewarded("corp_card"):
+		_refresh_ad_buttons()
 		return
 	var n := Save.grant_corp_from_ad()
 	if n <= 0:
 		_result.text = "오늘은 더 이상 충전할 수 없습니다"
 		_result.add_theme_color_override("font_color", UI.WARN)
+		_refresh_ad_buttons()
 		return
 	_result.text = "법인카드 +%d! (오늘 남은 광고 %d회)" % [n, Save.corp_ad_left()]
 	_result.add_theme_color_override("font_color", UI.PURPLE)
+	_refresh_ad_buttons()
 	if main:
 		main.refresh_top_bar()
 

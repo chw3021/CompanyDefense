@@ -17,6 +17,7 @@ var _body: VBoxContainer
 var _shop_tab: Button
 var _pass_tab: Button
 var _hint: Label
+var _shop_buy_btns: Array = []  # {btn, item} — 쿨/잔액 갱신용
 
 
 func _ready() -> void:
@@ -35,6 +36,11 @@ func _ready() -> void:
 	add_child(tabs)
 	_body = UI.vbox(12)
 	add_child(UI.scroll(_body))
+	var tick := Timer.new()
+	tick.wait_time = 1.0
+	tick.autostart = true
+	tick.timeout.connect(_tick_shop_buttons)
+	add_child(tick)
 	_switch("shop")
 
 
@@ -66,6 +72,7 @@ func _accent(item: Dictionary) -> Color:
 
 
 func _fill_shop() -> void:
+	_shop_buy_btns.clear()
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 12)
@@ -76,18 +83,34 @@ func _fill_shop() -> void:
 	_body.add_child(grid)
 
 
-func _shop_card(item: Dictionary) -> Control:
-	var locked := false
-	var status := ""
+## 보유/잔액/광고 쿨에 따라 구매 가능 여부
+func _shop_avail(item: Dictionary) -> Dictionary:
 	if item.get("unlock_pass", false) and Save.pass_data().premium:
-		locked = true
-		status = "보유 중"
+		return {"ok": false, "owned": true, "label": "보유 중"}
 	if item.get("no_ads", false) and Save.ads_removed():
-		locked = true
-		status = "보유 중"
+		return {"ok": false, "owned": true, "label": "보유 중"}
+	if item.get("ad", false):
+		if Save.corp_ad_left() <= 0:
+			return {"ok": false, "owned": false, "label": "오늘 한도"}
+		var cool := Save.ad_cooldown_left()
+		if cool > 0:
+			return {"ok": false, "owned": false, "label": "쿨 %s" % Save.format_cooldown(cool)}
+		return {"ok": true, "owned": false, "label": "광고 보기"}
+	var cost := int(item.get("cost_corp", 0))
+	if cost > 0 and Save.corp_card() < cost:
+		return {"ok": false, "owned": false, "label": "카드 부족"}
+	if item.get("unlock_pass", false):
+		return {"ok": true, "owned": false, "label": "패스 구매"}
+	return {"ok": true, "owned": false, "label": "구매"}
+
+
+func _shop_card(item: Dictionary) -> Control:
+	var avail: Dictionary = _shop_avail(item)
+	var locked: bool = bool(avail.owned)
+	var can: bool = bool(avail.ok)
 	var accent := _accent(item)
 	var bg := Color(UI.CARD.r, UI.CARD.g, UI.CARD.b, 1.0).lerp(accent, 0.12)
-	if locked:
+	if locked or not can:
 		bg = Color(UI.CARD, 0.55)
 	var card := UI.panel(bg, 16, 0)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -98,7 +121,7 @@ func _shop_card(item: Dictionary) -> Control:
 
 	var stripe := ColorRect.new()
 	stripe.custom_minimum_size = Vector2(0, 8)
-	stripe.color = accent if not locked else UI.LINE
+	stripe.color = accent if can and not locked else UI.LINE
 	root.add_child(stripe)
 
 	var pad := MarginContainer.new()
@@ -115,7 +138,7 @@ func _shop_card(item: Dictionary) -> Control:
 	frame.add_child(UI.icon(icon_path, 72))
 	v.add_child(frame)
 
-	var title := UI.label(item.name, 24, UI.TEXT if not locked else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	var title := UI.label(item.name, 24, UI.TEXT if can else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(title)
 	var desc := UI.label(item.desc, 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
@@ -127,18 +150,29 @@ func _shop_card(item: Dictionary) -> Control:
 		var cost := UI.hbox(6)
 		cost.alignment = BoxContainer.ALIGNMENT_CENTER
 		cost.add_child(UI.icon("res://assets/icons/corp_card.svg", 26))
-		cost.add_child(UI.label(str(int(item.cost_corp)), 24, UI.PURPLE))
+		cost.add_child(UI.label(str(int(item.cost_corp)), 24, UI.PURPLE if can else UI.MUTED))
 		v.add_child(cost)
 	elif item.get("ad", false):
 		v.add_child(UI.label("오늘 %d회 남음" % Save.corp_ad_left(), 20, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 
-	var label: String = status if locked else ("광고 보기" if bool(item.get("ad", false)) else ("패스 구매" if item.get("unlock_pass", false) else "구매"))
-	var btn_color := UI.PURPLE if item.get("unlock_pass", false) else (UI.SUCCESS if not locked else UI.CARD_HI)
-	var b := UI.button(label, btn_color, func(): _buy(item), 22)
-	b.disabled = locked
+	var btn_color := UI.CARD_HI if locked or not can else (UI.PURPLE if item.get("unlock_pass", false) else UI.SUCCESS)
+	var b := UI.button(str(avail.label), btn_color, func(): _buy(item), 22)
+	b.disabled = locked or not can
 	b.custom_minimum_size.y = 56
 	v.add_child(b)
+	_shop_buy_btns.append({"btn": b, "item": item})
 	return card
+
+
+func _tick_shop_buttons() -> void:
+	if _mode != "shop":
+		return
+	for row in _shop_buy_btns:
+		if row.btn == null or not is_instance_valid(row.btn):
+			continue
+		var avail: Dictionary = _shop_avail(row.item)
+		row.btn.text = str(avail.label)
+		row.btn.disabled = (not bool(avail.ok)) or bool(avail.owned)
 
 
 func _buy(item: Dictionary) -> void:
@@ -159,12 +193,20 @@ func _buy(item: Dictionary) -> void:
 func _buy_corp_ad() -> void:
 	if Save.corp_ad_left() <= 0:
 		UI.toast("오늘은 법인카드 광고 한도에 도달했습니다.", UI.MUTED)
+		_tick_shop_buttons()
+		return
+	var cool := Save.ad_cooldown_left()
+	if cool > 0:
+		UI.toast("광고 보상은 %s 후에 다시 받을 수 있습니다." % Save.format_cooldown(cool), UI.WARN)
+		_tick_shop_buttons()
 		return
 	if not await Ads.show_rewarded("corp_card"):
+		_tick_shop_buttons()
 		return
 	var n := Save.grant_corp_from_ad()
 	if n <= 0:
 		UI.toast("오늘은 더 이상 충전할 수 없습니다.", UI.WARN)
+		_tick_shop_buttons()
 		return
 	UI.toast("법인카드 +%d!" % n, UI.PURPLE)
 	_rebuild()

@@ -1,6 +1,6 @@
 # 적 한 마리. 경로(칸 중심 좌표 목록)를 따라 이동하고, 끝에 닿으면 battle 에 알린다.
 # 특수 능력 (StageDefs.ENEMIES 의 키): split 분열, heal 주변 회복, cc_immune 기절/감속 면역,
-# shield 보호막, ring 주변 직원 기절.
+# shield 보호막, ring 주변 직원 기절, jam/jam_team/jam_amount 공속 방해.
 class_name Enemy
 extends RefCounted
 
@@ -158,9 +158,13 @@ func _update_ability(delta: float) -> void:
 				t.stun(type.ring)
 		battle.on_enemy_ability(self)
 	elif type.has("jam"):
+		var team_filter := str(type.get("jam_team", ""))
+		var amount := float(type.get("jam_amount", 0.45))
 		for t: Tower in battle.towers:
+			if team_filter != "" and t.team != team_filter:
+				continue
 			if t.center().distance_to(pos) <= radius:
-				t.buff_speed(-0.45, type.jam)
+				t.buff_speed(-amount, type.jam)
 		battle.on_enemy_ability(self)
 
 

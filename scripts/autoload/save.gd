@@ -282,6 +282,12 @@ func ad_cooldown_left() -> int:
 	return maxi(0, AD_COOLDOWN_SEC - (_now() - last))
 
 
+## 쿨타임 표시용 "분:초"
+func format_cooldown(sec: int) -> String:
+	var s := maxi(0, sec)
+	return "%d:%02d" % [s / 60, s % 60]
+
+
 func mark_reward_ad() -> void:
 	if user.is_empty():
 		return

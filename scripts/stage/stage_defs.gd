@@ -14,8 +14,25 @@ const ENEMIES := {
 	"fax": {"name": "팩스", "hp_mult": 0.6, "speed": 3.5, "pdef": 0, "mdef": 10, "scale": 0.8, "tint": Color(0.55, 0.85, 1), "reward": 6, "boss": false},
 	"copier": {"name": "복합기", "hp_mult": 2.5, "speed": 1.3, "pdef": 40, "mdef": 5, "scale": 1.25, "tint": Color(0.75, 0.6, 0.95), "reward": 15, "boss": false},
 	"server": {"name": "서버", "hp_mult": 1.6, "speed": 1.8, "pdef": 5, "mdef": 45, "scale": 1.1, "tint": Color(0.55, 1, 0.55), "reward": 12, "boss": false},
+	# 보스: 보스방 고정 + 살아 있는 동안 직원은 보스만 공격. jam_team 있으면 해당 팀만 공속 감소
 	"boss": {"name": "부장님 프린터", "hp_mult": 12.0, "speed": 1.0, "pdef": 20, "mdef": 20, "scale": 1.6, "tint": Color(1, 0.45, 0.45), "reward": 100, "boss": true,
 			"desc": "보스방에 자리를 잡고 버팁니다. 보스가 살아 있는 동안 직원은 보스만 공격할 수 있습니다."},
+	"boss_armor": {"name": "철벽 상무님", "hp_mult": 13.0, "speed": 0.9, "pdef": 90, "mdef": 8, "scale": 1.7, "tint": Color(0.75, 0.78, 0.9), "reward": 110, "boss": true,
+			"desc": "물리 피해를 크게 줄입니다. 마법 공격이 유리합니다."},
+	"boss_ward": {"name": "방화벽 이사님", "hp_mult": 13.0, "speed": 0.9, "pdef": 8, "mdef": 90, "scale": 1.7, "tint": Color(0.45, 0.85, 1.0), "reward": 110, "boss": true,
+			"desc": "마법 피해를 크게 줄입니다. 물리 공격이 유리합니다."},
+	"boss_hr": {"name": "인사팀장 프린터", "hp_mult": 11.0, "speed": 1.0, "pdef": 25, "mdef": 25, "scale": 1.55, "tint": Color(1.0, 0.7, 0.35), "reward": 105, "boss": true,
+			"interval": 3.5, "radius": 99.0, "jam": 2.8, "jam_team": "hr", "jam_amount": 0.55,
+			"desc": "인사(HR) 팀 전원의 공격 속도를 주기적으로 크게 떨어뜨립니다."},
+	"boss_dv": {"name": "개발팀장 서버", "hp_mult": 11.0, "speed": 1.0, "pdef": 15, "mdef": 40, "scale": 1.55, "tint": Color(0.45, 1.0, 0.55), "reward": 105, "boss": true,
+			"interval": 3.5, "radius": 99.0, "jam": 2.8, "jam_team": "dv", "jam_amount": 0.55,
+			"desc": "개발(DV) 팀 전원의 공격 속도를 주기적으로 크게 떨어뜨립니다."},
+	"boss_sl": {"name": "영업팀장 복합기", "hp_mult": 11.0, "speed": 1.0, "pdef": 40, "mdef": 15, "scale": 1.55, "tint": Color(1.0, 0.55, 0.75), "reward": 105, "boss": true,
+			"interval": 3.5, "radius": 99.0, "jam": 2.8, "jam_team": "sl", "jam_amount": 0.55,
+			"desc": "영업(SL) 팀 전원의 공격 속도를 주기적으로 크게 떨어뜨립니다."},
+	"boss_chaos": {"name": "야근 총괄 임원", "hp_mult": 14.0, "speed": 0.85, "pdef": 35, "mdef": 35, "scale": 1.75, "tint": Color(0.85, 0.4, 1.0), "reward": 130, "boss": true,
+			"interval": 4.5, "radius": 99.0, "jam": 2.2, "jam_amount": 0.35, "cc_immune": true,
+			"desc": "기절·감속에 면역이고, 전 직원의 공격 속도를 주기적으로 떨어뜨립니다."},
 	# 특수 능력이 있는 적. desc 는 처음 만났을 때 한 번 보여 준다
 	# split: 죽으면 [적, 부모 최대 체력 대비 비율, 마리 수]로 나뉜다
 	"parcel": {"name": "택배 상자", "hp_mult": 1.0, "speed": 1.8, "pdef": 10, "mdef": 0, "scale": 1.1, "tint": Color(0.85, 0.62, 0.38), "reward": 8, "boss": false,
@@ -92,7 +109,7 @@ const STAGES := {
 			[0.7, [["fax", 85, 10], ["copier", 85, 5]]],
 			[0.8, [["server", 95, 6], ["water", 95, 2], ["copier", 95, 6]]],
 			[0.6, [["printer", 110, 9], ["parcel", 110, 3], ["fax", 110, 8]]],
-			[1.0, [["copier", 125, 6], ["server", 125, 6], ["boss", 125, 1]]],
+			[1.0, [["copier", 125, 6], ["server", 125, 6], ["boss_armor", 125, 1]]],
 		],
 	},
 	3: {
@@ -118,12 +135,12 @@ const STAGES := {
 			[0.7, [["fax", 65, 10], ["vacuum", 65, 4]]],
 			[0.8, [["printer", 80, 10], ["copier", 80, 2], ["server", 80, 2]]],
 			[0.8, [["printer", 90, 8], ["copier", 90, 3], ["server", 90, 3]]],
-			[0.8, [["fax", 105, 10], ["boss", 105, 1]]],
+			[0.8, [["fax", 105, 10], ["boss_ward", 105, 1]]],
 			[0.8, [["server", 120, 6], ["phone", 120, 2], ["copier", 120, 4]]],
 			[0.45, [["fax", 135, 14], ["vacuum", 135, 6]]],
 			[0.9, [["copier", 150, 10]]],
 			[0.6, [["printer", 170, 6], ["laptop", 170, 4], ["server", 170, 6], ["water", 170, 2], ["fax", 170, 8]]],
-			[1.2, [["copier", 190, 6], ["server", 190, 6], ["boss", 200, 2]]],
+			[1.2, [["copier", 190, 6], ["server", 190, 6], ["boss_hr", 200, 1]]],
 		],
 	},
 	# 무한 모드 (서바이벌): 적이 출구 없이 고리를 계속 돌고, 라운드는 시간이 지나면 저절로 넘어간다.
@@ -190,10 +207,25 @@ static func enemy_special_text(def: Dictionary) -> String:
 	if def.get("ring", 0.0) > 0.0:
 		parts.append("주기적으로 근처 직원을 잠시 기절시킵니다")
 	if def.get("jam", 0.0) > 0.0:
-		parts.append("근처 직원의 공격 속도를 잠시 낮춥니다")
+		var jt := str(def.get("jam_team", ""))
+		match jt:
+			"hr": parts.append("인사(HR) 팀의 공격 속도를 잠시 낮춥니다")
+			"dv": parts.append("개발(DV) 팀의 공격 속도를 잠시 낮춥니다")
+			"sl": parts.append("영업(SL) 팀의 공격 속도를 잠시 낮춥니다")
+			_: parts.append("근처 직원의 공격 속도를 잠시 낮춥니다")
 	if def.get("boss", false):
 		parts.append("보스방에 자리를 잡고 버팁니다")
 	return "특수 효과가 없습니다." if parts.is_empty() else " / ".join(parts)
+
+
+## 무한 모드 보스 로테이션 (10라운드마다 다른 보스)
+const ENDLESS_BOSSES := ["boss", "boss_armor", "boss_ward", "boss_hr", "boss_dv", "boss_sl", "boss_chaos"]
+
+
+static func endless_boss_id(wave_number: int) -> String:
+	# wave_number 는 1부터 (w). 10의 배수마다 다음 보스
+	var i := maxi(0, (wave_number / 10) - 1)
+	return ENDLESS_BOSSES[i % ENDLESS_BOSSES.size()]
 
 
 
@@ -208,11 +240,14 @@ static func endless_wave(index: int) -> Array:
 	var interval := maxf(0.35, 1.0 - index * 0.02)
 	var special := w > 5
 	if w % 10 == 0:
-		# 보스는 한 마리 (보스방에 한 자리뿐이라), 대신 10라운드마다 체력이 배로
-		return [maxf(interval, 0.8), [["printer", hp, count / 2], ["phone", hp, w / 10], ["boss", hp * (w / 10), 1]]]
+		# 보스는 한 마리 (보스방에 한 자리뿐이라), 대신 10라운드마다 체력이 배로 + 종류 로테이션
+		var bid := endless_boss_id(w)
+		return [maxf(interval, 0.8), [["printer", hp, count / 2], ["phone", hp, w / 10], [bid, hp * (w / 10), 1]]]
 	if w % 5 == 0:
 		var guard := "water" if special else "server"
-		return [interval, [["copier", hp, count / 4], [guard, hp, maxi(1, count / 4)], ["boss", hp * 0.5, 1]]]
+		# 중간 보스는 로테이션의 다음 후보를 미리 맛보기로
+		var mid := ENDLESS_BOSSES[(w / 5) % ENDLESS_BOSSES.size()]
+		return [interval, [["copier", hp, count / 4], [guard, hp, maxi(1, count / 4)], [mid, hp * 0.5, 1]]]
 	match w % 4:
 		1:  # 프린터 물량 (+ 택배 상자)
 			if special:
