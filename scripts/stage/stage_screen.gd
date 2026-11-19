@@ -33,7 +33,7 @@ var _upgrade_labels := {}
 var _upgrade_costs := {}
 var _card_widgets := {}
 var _pause_modal: Control
-var _setup_bar: PanelContainer  # 일시정지/정비 중 맵을 가리지 않는 하단 바
+var _setup_bar: PanelContainer  # 일시정지/정비 중 맵 위 중앙 모달 바
 var _setup_label: Label
 var _last_life := 0
 var _revive_from_give_up := false
@@ -139,7 +139,7 @@ func _build_hud() -> Control:
 	coin_pill.clip_contents = false
 	var coin_row := UI.hbox(4)
 	coin_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	coin_row.add_child(UI.icon("res://assets/icons/money.png", 26))
+	coin_row.add_child(UI.icon("res://assets/icons/money.svg", 26))
 	_coin_label = UI.label("0", 26, UI.GOLD)
 	_coin_label.clip_text = false
 	_coin_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -293,28 +293,25 @@ func _build_panel() -> Control:
 	return panel
 
 
-## 하단 오버레이: 레이아웃을 밀지 않고 위에 얹는다
+## 정비/일시정지 오버레이: 레이아웃을 밀지 않고 화면 중앙에 얹는다
 func _build_setup_overlay() -> void:
 	var overlay := Control.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(overlay)
-	var lay := UI.vbox(0)
-	lay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	lay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.add_child(lay)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lay.add_child(spacer)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
 	var pad := MarginContainer.new()
-	pad.add_theme_constant_override("margin_left", 8)
-	pad.add_theme_constant_override("margin_right", 8)
-	pad.add_theme_constant_override("margin_bottom", 10)
+	pad.add_theme_constant_override("margin_left", 16)
+	pad.add_theme_constant_override("margin_right", 16)
 	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lay.add_child(pad)
+	pad.custom_minimum_size = Vector2(320, 0)
+	center.add_child(pad)
 	_setup_bar = UI.panel(UI.CARD, 12, 10)
 	_setup_bar.visible = false
+	_setup_bar.custom_minimum_size = Vector2(300, 0)
 	pad.add_child(_setup_bar)
 	var setup_col := UI.vbox(6)
 	_setup_bar.add_child(setup_col)
@@ -400,7 +397,7 @@ func _build_upgrade_card(team: String) -> Button:
 	v.add_child(name_label)
 	var cost := UI.coin_row("", 16)
 	var coin_icon: TextureRect = cost.get_child(0)
-	coin_icon.texture = load("res://assets/icons/money.png")
+	coin_icon.texture = load("res://assets/icons/money.svg")
 	v.add_child(cost)
 	b.add_child(v)
 	_upgrade_labels[team] = name_label
@@ -439,6 +436,14 @@ func _build_tower_card() -> PanelContainer:
 	for l in [name_label, grade_label, stats, skill]:
 		text.add_child(l)
 	top.add_child(text)
+	var move_box := UI.vbox(2)
+	move_box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	var move_title := UI.label("이동", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_RIGHT)
+	var move_cd := UI.label("", 22, UI.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	move_cd.custom_minimum_size = Vector2(88, 0)
+	move_box.add_child(move_title)
+	move_box.add_child(move_cd)
+	top.add_child(move_box)
 
 	var row := UI.hbox(12)
 	var sell := UI.button("", Color("a0604a"), _on_sell_pressed, 28)
@@ -472,7 +477,8 @@ func _build_tower_card() -> PanelContainer:
 	mythic.add_child(awaken)
 	v.add_child(mythic)
 	_card_widgets = {"portrait": portrait, "name": name_label, "grade": grade_label, "stats": stats,
-			"skill": skill, "sell": sell, "trade": trade, "mythic": mythic, "recipe": recipe, "awaken": awaken}
+			"skill": skill, "sell": sell, "trade": trade, "mythic": mythic, "recipe": recipe, "awaken": awaken,
+			"move_cd": move_cd}
 	return card
 
 
@@ -564,22 +570,55 @@ func _on_recipe_pressed() -> void:
 	_open_recipes()
 
 
-## 신화 조합표: 신화마다 재료와 지금 필드에 있는지
+## 신화 조합표: 합성 가능 행을 맨 위 + 하이라이트, 초상화 표시
 func _open_recipes() -> void:
 	var list := UI.vbox(12)
 	list.add_child(UI.wrap_label("세 팀의 전설 3명(또는 특수 직원 + 전설 2명)을 모으면 신화로 각성! 첫 번째 직원을 누르고 '신화 각성'.\n재료로 쓴 직원은 사라집니다. 초록색은 지금 필드에 있는 직원.\n신화는 직원 관리에서 그 팀 직원을 모두 레벨 %d 이상으로 올려야 해금됩니다." % GameData.MYTHIC_UNLOCK_LEVEL, 22, UI.MUTED))
 	var on_field := func(id: String) -> bool:
 		return battle.towers.any(func(t: Tower): return t.id == id)
+	var rows: Array = []
 	for id in GameData.MYTHICS:
 		var m: Dictionary = GameData.MYTHICS[id]
-		var card := UI.panel(UI.CARD, 16, 16)
+		var unlocked := GameData.mythic_unlocked(Save.user, id)
+		var needs: Array = [m.base] + m.recipe
+		var ready := unlocked and needs.all(func(need: String): return on_field.call(need))
+		rows.append({"id": id, "m": m, "unlocked": unlocked, "needs": needs, "ready": ready})
+	rows.sort_custom(func(a, b):
+		if a.ready != b.ready:
+			return a.ready
+		if a.unlocked != b.unlocked:
+			return a.unlocked
+		return str(a.id) < str(b.id))
+	for row in rows:
+		var id: String = row.id
+		var m: Dictionary = row.m
+		var unlocked: bool = row.unlocked
+		var ready: bool = row.ready
+		var card := UI.panel(Color(UI.GOLD, 0.2) if ready else UI.CARD, 16, 16)
+		if ready:
+			var sb := UI.box(Color(UI.GOLD, 0.22), 16, 16)
+			sb.border_color = UI.GOLD
+			sb.set_border_width_all(2)
+			card.add_theme_stylebox_override("panel", sb)
 		var body := UI.vbox(6)
 		card.add_child(body)
-		var unlocked := GameData.mythic_unlocked(Save.user, id)
 		var head := UI.hbox(10)
-		head.add_child(UI.label(m.name, 30, GameData.grade_color(GameData.MYTHIC_GRADE)))
-		head.add_child(UI.label("%s팀 신화" % GameData.team_name(GameData.towers[id].team), 22, UI.MUTED))
-		if not unlocked:
+		head.alignment = BoxContainer.ALIGNMENT_CENTER
+		var portrait := TextureRect.new()
+		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		portrait.custom_minimum_size = Vector2(64, 80)
+		portrait.texture = load(GameData.asset(GameData.towers[id].towerImagePath))
+		head.add_child(portrait)
+		var titles := UI.vbox(2)
+		titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		titles.add_child(UI.label(m.name, 30, GameData.grade_color(GameData.MYTHIC_GRADE)))
+		titles.add_child(UI.label("%s팀 신화" % GameData.team_name(GameData.towers[id].team), 22, UI.MUTED))
+		head.add_child(titles)
+		if ready:
+			head.add_child(UI.label("합성 가능", 22, UI.GOLD))
+		elif not unlocked:
 			head.add_child(UI.label("잠김", 22, UI.DANGER))
 		body.add_child(head)
 		if not unlocked:
@@ -587,7 +626,7 @@ func _open_recipes() -> void:
 		var parts := HFlowContainer.new()
 		parts.add_theme_constant_override("h_separation", 8)
 		parts.add_theme_constant_override("v_separation", 6)
-		for need in [m.base] + m.recipe:
+		for need in row.needs:
 			var t: Dictionary = GameData.towers[need]
 			var have: bool = on_field.call(need)
 			var chip := UI.label("%s (%s)" % [t.towerName, GameData.grade_label(t)], 20,
@@ -625,7 +664,7 @@ func _open_help() -> void:
 	line.call("성공 확률: " + " / ".join(chances), UI.TEXT)
 
 	section.call("자리 이동 / 정비")
-	line.call("영웅(4성) 이상 직원은 빈 책상이나 다른 직원이 앉은 책상으로 끌어 자리를 옮기거나 바꿀 수 있습니다. 이동한 쪽만 %d웨이브 쿨이 돌고, 바뀐 상대는 쿨이 없습니다." % Battle.MOVE_COOLDOWN, UI.MUTED)
+	line.call("모든 직원은 빈 책상이나 다른 직원이 앉은 책상으로 끌어 자리를 옮기거나 바꿀 수 있습니다. 이동한 쪽만 쿨이 돌고, 바뀐 상대는 쿨이 없습니다.\n쿨타임: 4성 이하 %d웨이브 / 전설(5성) 이상 %d웨이브." % [Battle.MOVE_COOLDOWN_LOW, Battle.MOVE_COOLDOWN], UI.MUTED)
 	line.call("일시정지(II)와 정비 시간에는 전투만 멈추고 고용/승진/이동이 가능합니다. 정비/일시정지는 상단 II 또는 '계속하기'로 이어갑니다.\n무한 야근은 %d라운드마다, 그리고 보스 라운드 직전에 정비가 열립니다." % Battle.REST_EVERY, UI.MUTED)
 	line.call("선호 배치: 1) 배치1~3 슬롯 고르기 2) 원하는 책상에 직원 앉히기 3) '배치저장'. 이후 고용 시 저장한 빈자리부터 채웁니다. '배치삭제'로 지울 수 있습니다.", UI.TEXT)
 	line.call("야근은 %d라운드마다 랜덤 이벤트(수당 2배, 전력 질주, 고용 불가, 업무 폭주)가 납니다." % Battle.EVENT_EVERY, UI.MUTED)
@@ -807,6 +846,21 @@ func _fill_stats(t: Tower) -> void:
 	_card_widgets.stats.text = "물리 %d  /  마법 %d  /  공속 %.1f" % [roundi(t.physical), roundi(t.magic), t.attack_speed]
 	var ready := t.skill.ready_ratio()
 	_card_widgets.skill.text = "스킬: %s%s" % [t.skill.name, "" if ready >= 1.0 else "  (%d%%)" % roundi(ready * 100)]
+	_fill_move_cd(t)
+
+
+func _fill_move_cd(t: Tower) -> void:
+	var lab: Label = _card_widgets.move_cd
+	if not t.can_ever_reposition():
+		lab.text = "-"
+		lab.add_theme_color_override("font_color", UI.MUTED)
+		return
+	if t.reposition_cd > 0:
+		lab.text = "%d웨이브" % t.reposition_cd
+		lab.add_theme_color_override("font_color", UI.WARN)
+	else:
+		lab.text = "가능"
+		lab.add_theme_color_override("font_color", UI.SUCCESS)
 
 
 func _show_floating(text: String, at: Vector2, color: Color) -> void:
@@ -1142,15 +1196,18 @@ func _on_game_over(won: bool, summary: Dictionary) -> void:
 		var double_btn := UI.button("광고 보고 골드 2배", UI.GOLD, Callable(), 26)
 		double_btn.custom_minimum_size.y = 72
 		double_btn.pressed.connect(func():
-			if double_state.used:
+			if double_state.used or double_btn.disabled:
 				return
+			# 연타/대기 중 중복 방지: 누르면 바로 잠그고, 실패 시에만 다시 연다
+			double_btn.disabled = true
 			if not await Ads.show_rewarded("gold_double"):
+				if not double_state.used:
+					double_btn.disabled = false
 				return
 			double_state.used = true
 			Save.add_gold(int(summary.gold))
 			summary.gold = int(summary.gold) * 2
 			gold_value.text = str(summary.gold)
-			double_btn.disabled = true
 			double_btn.text = "골드 2배 적용됨"
 			UI.toast("골드가 2배가 되었습니다!", UI.GOLD))
 		v.add_child(double_btn)

@@ -6,7 +6,7 @@ const TABS := [
 	["직원", "res://assets/menu/human.svg", "res://scripts/screens/tabs/employee_tab.gd"],
 	["취미", "res://assets/menu/hobbies.svg", "res://scripts/screens/tabs/hobby_tab.gd"],
 	["사무용품", "res://assets/menu/equipment.svg", "res://scripts/screens/tabs/equipment_tab.gd"],
-	["상점", "res://assets/icons/money.png", "res://scripts/screens/tabs/shop_tab.gd"],
+	["상점", "res://assets/icons/money.svg", "res://scripts/screens/tabs/shop_tab.gd"],
 ]
 
 ## 이 화면을 열 때 보여 줄 탭 (UI.go 의 setup 에서 바꿀 수 있다)
@@ -112,7 +112,7 @@ func _build_top_bar() -> Control:
 	_corp_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_corp_pill.tooltip_text = "법인카드 (탭하여 광고 충전)"
 	row.add_child(_corp_pill)
-	_time_pill = UI.pill("res://assets/icons/waste.svg", "", UI.TEXT, false)
+	_time_pill = UI.pill("res://assets/icons/time.svg", "", UI.TEXT, false)
 	_time_pill.custom_minimum_size.x = 84
 	_time_pill.gui_input.connect(_on_time_pill_input)
 	_time_pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -305,6 +305,7 @@ func open_mailbox() -> void:
 		for mail in Save.user.mails.duplicate():
 			if Save.mail_has_reward(mail) and not mail.claimed:
 				Save.claim_mail(mail)
+		refresh_top_bar()
 		_fill_mails(list), 26)
 	var delete := UI.button("받은 메일 삭제", UI.CARD_HI, func():
 		Save.delete_claimed_mails()
@@ -319,54 +320,70 @@ func open_mailbox() -> void:
 	UI.modal("메일함", v, [["닫기", UI.CARD_HI]], self)
 
 
+func _mail_claim(mail: Dictionary, list: VBoxContainer) -> void:
+	Save.claim_mail(mail)
+	UI.toast("보상을 받았습니다!", UI.GOLD)
+	refresh_top_bar()
+	_fill_mails(list)
+
+
+func _mail_ad(mail: Dictionary, list: VBoxContainer) -> void:
+	if not mail.get("claimed", false) or mail.get("ad_bonus", false):
+		_fill_mails(list)
+		return
+	if not await Ads.show_rewarded("mail_bonus"):
+		return
+	if Save.claim_mail_ad_bonus(mail):
+		UI.toast("메일 추가 보상을 받았습니다!", UI.GOLD)
+	refresh_top_bar()
+	_fill_mails(list)
+
+
 func _fill_mails(list: VBoxContainer) -> void:
-	for child in list.get_children():
-		child.queue_free()
+	_clear_box(list)
 	if Save.user.mails.is_empty():
 		list.add_child(UI.label("받은 메일이 없습니다.", 28, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 		return
 	for mail: Dictionary in Save.user.mails:
-		var claimable: bool = Save.mail_has_reward(mail) and not mail.claimed
+		var item: Dictionary = mail
+		var claimable: bool = Save.mail_has_reward(item) and not item.claimed
 		var card := UI.panel(UI.CARD if claimable else Color(UI.CARD, 0.5), 16, 18)
 		var v := UI.vbox(8)
 		card.add_child(v)
 		var head := UI.hbox(10)
-		var title := UI.label(mail.title, 28, UI.GOLD if claimable else UI.MUTED)
+		var title := UI.label(item.title, 28, UI.GOLD if claimable else UI.MUTED)
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		head.add_child(title)
-		if Save.mail_has_reward(mail):
+		if Save.mail_has_reward(item):
 			var actions := UI.vbox(6)
-			var b := UI.button("받기" if claimable else "받음", UI.SUCCESS, func():
-				Save.claim_mail(mail)
-				UI.toast("보상을 받았습니다!", UI.GOLD)
-				_fill_mails(list), 22)
-			b.disabled = not claimable
-			b.custom_minimum_size = Vector2(120, 56)
-			actions.add_child(b)
-			if not claimable and not mail.get("ad_bonus", false):
-				var ad_b := UI.button("광고 +50%", UI.GOLD, func():
-					if not await Ads.show_rewarded("mail_bonus"):
-						return
-					if Save.claim_mail_ad_bonus(mail):
-						UI.toast("메일 추가 보상을 받았습니다!", UI.GOLD)
-					_fill_mails(list), 20)
-				ad_b.custom_minimum_size = Vector2(120, 52)
-				actions.add_child(ad_b)
-			elif mail.get("ad_bonus", false):
-				var done := UI.label("추가완료", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+			if claimable:
+				var b := UI.button("받기", UI.SUCCESS, _mail_claim.bind(item, list), 22)
+				b.custom_minimum_size = Vector2(120, 56)
+				actions.add_child(b)
+			else:
+				var done := UI.button("받음", UI.CARD_HI, Callable(), 22)
+				done.disabled = true
+				done.custom_minimum_size = Vector2(120, 56)
 				actions.add_child(done)
+				if not item.get("ad_bonus", false):
+					var ad_b := UI.button("광고 +50%", UI.GOLD, _mail_ad.bind(item, list), 20)
+					ad_b.custom_minimum_size = Vector2(120, 52)
+					actions.add_child(ad_b)
+				else:
+					var ad_done := UI.label("추가완료", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+					actions.add_child(ad_done)
 			head.add_child(actions)
 		v.add_child(head)
-		v.add_child(UI.wrap_label(mail.content, 24, UI.TEXT if claimable else UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
-		if Save.mail_has_reward(mail):
+		v.add_child(UI.wrap_label(item.content, 24, UI.TEXT if claimable else UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+		if Save.mail_has_reward(item):
 			var rewards := UI.hbox(18)
-			if int(mail.gold) > 0:
-				rewards.add_child(UI.coin_row(str(int(mail.gold)), 24))
-			if int(mail.time) > 0:
+			if int(item.gold) > 0:
+				rewards.add_child(UI.coin_row(str(int(item.gold)), 24))
+			if int(item.time) > 0:
 				var t := UI.hbox(6)
-				t.add_child(UI.icon("res://assets/icons/waste.svg", 24))
-				t.add_child(UI.label("시간 %d" % int(mail.time), 24, Color("7fd3ff")))
+				t.add_child(UI.icon("res://assets/icons/time.svg", 24))
+				t.add_child(UI.label("시간 %d" % int(item.time), 24, Color("7fd3ff")))
 				rewards.add_child(t)
 			v.add_child(rewards)
 		list.add_child(card)
@@ -401,89 +418,124 @@ func open_missions() -> void:
 	UI.modal("미션", v, [["닫기", UI.CARD_HI]], self)
 
 
+func _clear_box(list: VBoxContainer) -> void:
+	# queue_free 는 프레임 끝까지 남아서 옛 받기 버튼이 새 카드와 겹친다
+	while list.get_child_count() > 0:
+		var child := list.get_child(list.get_child_count() - 1)
+		list.remove_child(child)
+		child.free()
+
+
 func _fill_daily(list: VBoxContainer) -> void:
-	for child in list.get_children():
-		child.queue_free()
+	_clear_box(list)
 	var left := Missions.seconds_until_reset()
 	list.add_child(UI.label("매일 자정에 새 미션 (%d시간 %d분 남음)" % [left / 3600, left % 3600 / 60], 24, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var d := Missions.daily(Save.user)
 	for m: Dictionary in d.missions:
-		var def := Missions.daily_def(m.id)
-		var state := "claimed" if m.claimed else ("ready" if Missions.daily_done(m) else "progress")
-		# 웹 내보내기는 Dictionary.get Variant 때문에 := / and 추론이 깨질 수 있어 단계를 나눈다
-		var claimed_daily: bool = bool(m.get("claimed", false))
-		var had_daily_ad: bool = bool(m.get("ad_bonus", false))
+		var mission: Dictionary = m
+		var def := Missions.daily_def(mission.id)
+		var state := "claimed" if mission.claimed else ("ready" if Missions.daily_done(mission) else "progress")
+		var claimed_daily: bool = bool(mission.get("claimed", false))
+		var had_daily_ad: bool = bool(mission.get("ad_bonus", false))
+		# 광고 +50% 는 받기 완료 후에만 노출
 		var show_daily_ad: bool = claimed_daily and not had_daily_ad
-		list.add_child(_mission_card(def.desc % def.goal, "", int(m.progress), int(def.goal), int(def.gold), 0, state, func():
-			if Save.claim_daily(m):
-				UI.toast("보상을 받았습니다!", UI.GOLD)
-			_fill_daily(list), show_daily_ad, func():
-				if not await Ads.show_rewarded("mission_bonus"):
-					return
-				if Save.claim_daily_ad_bonus(m):
-					UI.toast("미션 추가 보상을 받았습니다!", UI.GOLD)
-				_fill_daily(list)))
-	var done: int = d.missions.filter(func(m): return Missions.daily_done(m)).size()
+		list.add_child(_mission_card(def.desc % def.goal, "", int(mission.progress), int(def.goal), int(def.gold), 0, state,
+				_daily_claim.bind(mission, list), show_daily_ad, _daily_ad.bind(mission, list)))
+	var done: int = d.missions.filter(func(x): return Missions.daily_done(x)).size()
 	var bonus_state := "claimed" if d.bonus_claimed else ("ready" if Missions.daily_all_done(Save.user) else "progress")
 	var bonus_claimed_flag: bool = bool(d.get("bonus_claimed", false))
 	var bonus_ad_flag: bool = bool(d.get("bonus_ad", false))
 	var show_bonus_ad: bool = bonus_claimed_flag and not bonus_ad_flag
 	list.add_child(_mission_card("오늘의 미션 모두 완료", "보너스", done, d.missions.size(), Missions.DAILY_BONUS_GOLD,
-			Missions.DAILY_BONUS_TIME, bonus_state, func():
-				if Save.claim_daily_bonus():
-					UI.toast("보너스를 받았습니다!", UI.GOLD)
-				_fill_daily(list), show_bonus_ad, func():
-					if not await Ads.show_rewarded("mission_bonus"):
-						return
-					if Save.claim_daily_bonus_ad():
-						UI.toast("보너스 추가 보상을 받았습니다!", UI.GOLD)
-					_fill_daily(list)))
+			Missions.DAILY_BONUS_TIME, bonus_state, _daily_bonus_claim.bind(list), show_bonus_ad, _daily_bonus_ad.bind(list)))
+
+
+func _daily_claim(mission: Dictionary, list: VBoxContainer) -> void:
+	if Save.claim_daily(mission):
+		UI.toast("보상을 받았습니다!", UI.GOLD)
+	refresh_top_bar()
+	_fill_daily(list)
+
+
+func _daily_ad(mission: Dictionary, list: VBoxContainer) -> void:
+	if not bool(mission.get("claimed", false)) or bool(mission.get("ad_bonus", false)):
+		_fill_daily(list)
+		return
+	if not await Ads.show_rewarded("mission_bonus"):
+		return
+	if Save.claim_daily_ad_bonus(mission):
+		UI.toast("미션 추가 보상을 받았습니다!", UI.GOLD)
+	refresh_top_bar()
+	_fill_daily(list)
+
+
+func _daily_bonus_claim(list: VBoxContainer) -> void:
+	if Save.claim_daily_bonus():
+		UI.toast("보너스를 받았습니다!", UI.GOLD)
+	refresh_top_bar()
+	_fill_daily(list)
+
+
+func _daily_bonus_ad(list: VBoxContainer) -> void:
+	if not await Ads.show_rewarded("mission_bonus"):
+		return
+	if Save.claim_daily_bonus_ad():
+		UI.toast("보너스 추가 보상을 받았습니다!", UI.GOLD)
+	refresh_top_bar()
+	_fill_daily(list)
 
 
 func _fill_achievements(list: VBoxContainer) -> void:
-	for child in list.get_children():
-		child.queue_free()
+	_clear_box(list)
 	# 받을 수 있는 것을 위로
 	var order := Missions.ACHIEVEMENTS.duplicate()
 	order.sort_custom(func(a, b): return Missions.achievement_ready(Save.user, a) and not Missions.achievement_ready(Save.user, b))
 	for a: Dictionary in order:
-		var tier := Missions.next_tier(Save.user, a)
-		var claimed := Missions.claimed_tiers(Save.user, a)
-		var stage := "%s  (%d/%d단계)" % [a.name, claimed, a.tiers.size()]
-		var value := Missions.stat_value(Save.user, a.stat)
+		var ach: Dictionary = a
+		var tier := Missions.next_tier(Save.user, ach)
+		var claimed := Missions.claimed_tiers(Save.user, ach)
+		var stage := "%s  (%d/%d단계)" % [ach.name, claimed, ach.tiers.size()]
+		var value := Missions.stat_value(Save.user, ach.stat)
 		if tier.is_empty():
-			var last: Array = a.tiers[a.tiers.size() - 1]
-			var last_i: int = int(a.tiers.size()) - 1
-			var ad_done: bool = Save.achievement_ad_done(a, last_i)
-			var show_last_ad: bool = not ad_done
-			list.add_child(_mission_card(a.desc % last[0], stage, int(last[0]), int(last[0]), int(last[1]) / 2, 0, "claimed", Callable(), show_last_ad, func():
-				if not await Ads.show_rewarded("mission_bonus"):
-					return
-				if Save.claim_achievement_ad_bonus(a, last_i, int(last[1])):
-					UI.toast("업적 추가 보상을 받았습니다!", UI.GOLD)
-				_fill_achievements(list)))
+			var last: Array = ach.tiers[ach.tiers.size() - 1]
+			var last_i: int = int(ach.tiers.size()) - 1
+			var show_last_ad: bool = not Save.achievement_ad_done(ach, last_i)
+			list.add_child(_mission_card(ach.desc % last[0], stage, int(last[0]), int(last[0]), int(last[1]) / 2, 0, "claimed",
+					Callable(), show_last_ad, _ach_ad.bind(ach, last_i, int(last[1]), list)))
 			continue
-		var state := "ready" if Missions.achievement_ready(Save.user, a) else "progress"
-		var claimed_n: int = Missions.claimed_tiers(Save.user, a)
+		var state := "ready" if Missions.achievement_ready(Save.user, ach) else "progress"
+		var claimed_n: int = Missions.claimed_tiers(Save.user, ach)
 		var prev_tier: int = claimed_n - 1
 		var show_ach_ad: bool = false
 		var last_gold: int = 0
 		if claimed_n > 0:
-			show_ach_ad = not Save.achievement_ad_done(a, prev_tier)
-			last_gold = int(a.tiers[prev_tier][1])
-		list.add_child(_mission_card(a.desc % tier[0], stage, value, int(tier[0]), int(tier[1]), 0, state, func():
-			if Save.claim_achievement(a):
-				UI.toast("업적 달성! %s" % a.name, UI.GOLD)
-			_fill_achievements(list), show_ach_ad, func():
-				if not await Ads.show_rewarded("mission_bonus"):
-					return
-				if Save.claim_achievement_ad_bonus(a, prev_tier, last_gold):
-					UI.toast("업적 추가 보상을 받았습니다!", UI.GOLD)
-				_fill_achievements(list)))
+			show_ach_ad = not Save.achievement_ad_done(ach, prev_tier)
+			last_gold = int(ach.tiers[prev_tier][1])
+		list.add_child(_mission_card(ach.desc % tier[0], stage, value, int(tier[0]), int(tier[1]), 0, state,
+				_ach_claim.bind(ach, list), show_ach_ad, _ach_ad.bind(ach, prev_tier, last_gold, list)))
+
+
+func _ach_claim(ach: Dictionary, list: VBoxContainer) -> void:
+	if Save.claim_achievement(ach):
+		UI.toast("업적 달성! %s" % ach.name, UI.GOLD)
+	refresh_top_bar()
+	_fill_achievements(list)
+
+
+func _ach_ad(ach: Dictionary, tier_index: int, gold_amount: int, list: VBoxContainer) -> void:
+	if tier_index < 0 or Save.achievement_ad_done(ach, tier_index):
+		_fill_achievements(list)
+		return
+	if not await Ads.show_rewarded("mission_bonus"):
+		return
+	if Save.claim_achievement_ad_bonus(ach, tier_index, gold_amount):
+		UI.toast("업적 추가 보상을 받았습니다!", UI.GOLD)
+	refresh_top_bar()
+	_fill_achievements(list)
 
 
 ## 미션 한 줄: 제목, 진행 막대, 보상, 받기 버튼. state = progress / ready / claimed
-## ad_ready 이면 완료 상태에서도 광고 추가 보상 버튼 표시
+## ad_ready 이면 받기 완료 뒤에만 광고 추가 보상 버튼 표시
 func _mission_card(title: String, sub: String, value: int, goal: int, gold: int, time: int, state: String, on_claim: Callable, ad_ready := false, on_ad: Callable = Callable()) -> Control:
 	var ready := state == "ready"
 	var card := UI.panel(UI.CARD if state != "claimed" else Color(UI.CARD, 0.5), 16, 16)
@@ -511,20 +563,34 @@ func _mission_card(title: String, sub: String, value: int, goal: int, gold: int,
 		info.add_child(UI.coin_row(str(gold), 22))
 	if time > 0:
 		var t := UI.hbox(6)
-		t.add_child(UI.icon("res://assets/icons/waste.svg", 22))
+		t.add_child(UI.icon("res://assets/icons/time.svg", 22))
 		t.add_child(UI.label("시간 %d" % time, 22, Color("7fd3ff")))
 		info.add_child(t)
 	v.add_child(info)
 	var col := UI.vbox(6)
 	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var b := UI.button({"ready": "받기", "claimed": "완료"}.get(state, "진행 중"), UI.SUCCESS if ready else UI.CARD_HI, on_claim, 24)
-	b.disabled = not ready
-	b.custom_minimum_size = Vector2(120, 64)
-	col.add_child(b)
+	# 기본 보상 버튼. 광고 +50% 는 받기 완료(claimed) 또는 직전 단계 수령 후에만 ad_ready 로 온다
+	if ready and on_claim.is_valid():
+		var b := UI.button("받기", UI.SUCCESS, on_claim, 24)
+		b.custom_minimum_size = Vector2(120, 64)
+		col.add_child(b)
+	elif state == "claimed":
+		var done := UI.button("완료", UI.CARD_HI, Callable(), 24)
+		done.disabled = true
+		done.custom_minimum_size = Vector2(120, 64)
+		col.add_child(done)
+	else:
+		var wait := UI.button("진행 중", UI.CARD_HI, Callable(), 24)
+		wait.disabled = true
+		wait.custom_minimum_size = Vector2(120, 64)
+		col.add_child(wait)
 	if ad_ready and on_ad.is_valid():
 		var ad_b := UI.button("광고 +50%", UI.GOLD, on_ad, 20)
 		ad_b.custom_minimum_size = Vector2(120, 52)
 		col.add_child(ad_b)
+	elif state == "claimed":
+		var ad_done := UI.label("추가완료", 18, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+		col.add_child(ad_done)
 	row.add_child(col)
 	return card
 

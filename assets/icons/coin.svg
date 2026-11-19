@@ -1,7 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="128" height="128">
-<circle cx="128" cy="138" r="100" fill="#d9861a" stroke="#2b2233" stroke-width="9"/>
-<circle cx="128" cy="124" r="100" fill="#ffc940" stroke="#2b2233" stroke-width="9"/>
-<circle cx="128" cy="124" r="68" fill="#ffdb6e" stroke="#e39a1f" stroke-width="9"/>
-<path d="M128 84L139 109L166 112L146 130L151 157L128 144L105 157L110 130L90 112L117 109Z" fill="#f2a41f" stroke-linejoin="round"/>
-<path d="M60 98Q74 62 112 52" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
+  <g stroke="#2b2233" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="128" cy="142" r="96" fill="#d9861a"/>
+    <circle cx="128" cy="124" r="96" fill="#ffc940"/>
+    <circle cx="128" cy="124" r="70" fill="#ffe07a"/>
+    <circle cx="128" cy="124" r="52" fill="none" stroke="#e39a1f" stroke-width="8"/>
+    <path d="M128 86V162M112 100H144C152 100 158 106 158 114C158 122 152 128 144 128H112H144C154 128 162 136 162 146C162 156 154 162 144 162H112" fill="none" stroke="#e39a1f" stroke-width="12"/>
+    <path d="M68 96Q86 64 120 56" fill="none" stroke="#ffffff" stroke-width="12" opacity="0.65"/>
+  </g>
 </svg>

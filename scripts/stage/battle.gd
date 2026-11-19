@@ -29,7 +29,8 @@ const HIRE_TEAM_COST := 130  # 팀 지정 고용 할증
 const TRADE_CHANCES := [0.8, 0.6, 0.4, 0.25, 0.1]  # 협상 성공 확률 (1~5성)
 const MAX_LIFE := 8
 const DT_CLAMP := 0.1
-const MOVE_COOLDOWN := 2   # 영웅(4성)+ 자리 이동 쿨 (웨이브/라운드)
+const MOVE_COOLDOWN := 2      # 전설(5성)+ 자리 이동 쿨 (웨이브/라운드)
+const MOVE_COOLDOWN_LOW := 4  # 4성 이하 자리 이동 쿨 (2웨이브보다 길게)
 const REST_EVERY := 10     # 야근: N라운드마다 자동 정비
 const EVENT_EVERY := 7     # 야근 랜덤 이벤트 주기(라운드)
 
@@ -649,7 +650,7 @@ func clear_desk_prefs() -> void:
 	message.emit("배치 슬롯 %d 저장을 지웠습니다" % slot, UI.MUTED)
 
 
-## 영웅(4성)+ 를 책상으로 옮긴다. 상대가 있으면 자리 교환 (상대는 등급/쿨 무관, 쿨 미소모).
+## 직원을 책상으로 옮긴다. 상대가 있으면 자리 교환 (상대는 등급/쿨 무관, 쿨 미소모).
 func reposition(t: Tower, dest: Vector2i) -> bool:
 	if finished or t == null or not t.can_reposition():
 		return false
@@ -660,21 +661,27 @@ func reposition(t: Tower, dest: Vector2i) -> bool:
 	if other == t:
 		return false
 	var from := t.cell
+	var cd := move_cooldown_for(t)
 	if other != null:
 		other.cell = from
 		t.cell = dest
-		t.reposition_cd = MOVE_COOLDOWN
+		t.reposition_cd = cd
 		floating.emit("교체!", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
 		tower_placed.emit(t, false)
 		tower_placed.emit(other, false)
 	else:
 		t.cell = dest
-		t.reposition_cd = MOVE_COOLDOWN
+		t.reposition_cd = cd
 		floating.emit("이동!", t.center() + Vector2(0, -cell * 0.5), UI.GOLD)
 		tower_placed.emit(t, false)
 	select(t)
 	hud_changed.emit()
 	return true
+
+
+## 4성 이하는 긴 쿨, 전설(5성)+ 는 기본 쿨
+static func move_cooldown_for(t: Tower) -> int:
+	return MOVE_COOLDOWN_LOW if t != null and t.grade <= 4 else MOVE_COOLDOWN
 
 
 ## 필드에 신화 각성 가능한 전설이 있는지

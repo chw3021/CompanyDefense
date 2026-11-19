@@ -494,31 +494,31 @@
       "hobbyId": "exercise",
       "hobbyName": "운동",
       "hobbyDescription": "모든 타워의 물리 공격력이 증가합니다.",
-      "hobbyImagePath": "hobby/exercise.png"
+      "hobbyImagePath": "hobby/exercise.svg"
     },
     "reading": {
       "hobbyId": "reading",
       "hobbyName": "독서",
       "hobbyDescription": "모든 타워의 마법 공격력이 증가합니다.",
-      "hobbyImagePath": "hobby/reading.png"
+      "hobbyImagePath": "hobby/reading.svg"
     },
     "game": {
       "hobbyId": "game",
       "hobbyName": "게임",
       "hobbyDescription": "모든 타워의 공격 속도가 증가합니다.",
-      "hobbyImagePath": "hobby/game.png"
+      "hobbyImagePath": "hobby/game.svg"
     },
     "instrument": {
       "hobbyId": "instrument",
       "hobbyName": "악기 연주",
       "hobbyDescription": "모든 타워의 스킬 쿨타임이 감소합니다.",
-      "hobbyImagePath": "hobby/instrument.png"
+      "hobbyImagePath": "hobby/instrument.svg"
     },
     "stock": {
       "hobbyId": "stock",
       "hobbyName": "주식",
       "hobbyDescription": "스테이지 시작 코인이 증가합니다.",
-      "hobbyImagePath": "hobby/stock.png"
+      "hobbyImagePath": "hobby/stock.svg"
     }
   },
   "equipment": {
@@ -526,7 +526,7 @@
       "eqId": "coffee",
       "eqName": "아이스 커피",
       "eqDescription": "모든 타워의 공격 속도가 레벨당 0.3% 증가합니다.",
-      "eqImagePath": "icons/iced-coffee.png",
+      "eqImagePath": "icons/iced-coffee.svg",
       "team": "all",
       "stat": "speed",
       "perLevel": 0.003,
@@ -536,7 +536,7 @@
       "eqId": "energy",
       "eqName": "에너지 드링크",
       "eqDescription": "모든 타워의 공격력이 레벨당 0.3% 증가합니다.",
-      "eqImagePath": "icons/energy-drink.png",
+      "eqImagePath": "icons/energy-drink.svg",
       "team": "all",
       "stat": "attack",
       "perLevel": 0.003,
@@ -546,7 +546,7 @@
       "eqId": "keyboard",
       "eqName": "기계식 키보드",
       "eqDescription": "개발팀 타워의 공격력이 레벨당 0.6% 증가합니다.",
-      "eqImagePath": "icons/upgrade.png",
+      "eqImagePath": "icons/keyboard.svg",
       "team": "dv",
       "stat": "attack",
       "perLevel": 0.006,
@@ -556,7 +556,7 @@
       "eqId": "badge",
       "eqName": "사원증",
       "eqDescription": "인사팀 타워의 스킬 쿨타임이 레벨당 0.4% 감소합니다.",
-      "eqImagePath": "icons/recruitment.png",
+      "eqImagePath": "icons/badge.svg",
       "team": "hr",
       "stat": "cooldown",
       "perLevel": 0.004,
@@ -566,7 +566,7 @@
       "eqId": "contract",
       "eqName": "계약서",
       "eqDescription": "영업팀 타워의 공격력이 레벨당 0.6% 증가합니다.",
-      "eqImagePath": "icons/negociation.svg",
+      "eqImagePath": "icons/contract.svg",
       "team": "sl",
       "stat": "attack",
       "perLevel": 0.006,

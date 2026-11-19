@@ -33,22 +33,65 @@ func _ready() -> void:
 	# 모바일/웹 브라우저는 첫 터치 전에 AudioContext 가 잠긴다
 	if OS.has_feature("web"):
 		set_process_input(true)
+		set_process_unhandled_input(true)
 	else:
 		play_bgm("office")
 
 
 func _input(event: InputEvent) -> void:
+	_try_web_unlock(event)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	_try_web_unlock(event)
+
+
+func _try_web_unlock(event: InputEvent) -> void:
 	if _web_unlocked or not OS.has_feature("web"):
 		return
-	var tap := event is InputEventMouseButton or event is InputEventScreenTouch or event is InputEventKey
-	if not tap or not event.is_pressed():
+	var tap := event is InputEventMouseButton or event is InputEventScreenTouch \
+			or event is InputEventKey or event is InputEventAction
+	if not tap:
+		return
+	var pressed := true
+	if event is InputEventMouseButton:
+		pressed = event.pressed
+	elif event is InputEventScreenTouch:
+		pressed = event.pressed
+	elif event is InputEventKey:
+		pressed = event.pressed
+	elif event is InputEventAction:
+		pressed = event.pressed
+	if not pressed:
 		return
 	_web_unlocked = true
 	set_process_input(false)
+	set_process_unhandled_input(false)
+	_resume_web_audio_context()
+	apply_volumes()
 	# 제스처 안에서 한 번 재생해야 이후 오디오가 나온다
 	if not Save.sfx_muted() and _streams.has("click"):
 		play("click", 1.0, 0)
 	play_bgm("office")
+
+
+## HTML5 AudioContext 가 suspended 면 Godot 재생이 묵음이 된다
+func _resume_web_audio_context() -> void:
+	if not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval("""
+		(function () {
+			try {
+				var AC = window.AudioContext || window.webkitAudioContext;
+				if (!AC) return;
+				if (!window.__cdAudioCtx) window.__cdAudioCtx = new AC();
+				if (window.__cdAudioCtx.state === 'suspended') window.__cdAudioCtx.resume();
+				if (window.GodotAudio && window.GodotAudio.ctx && window.GodotAudio.ctx.state === 'suspended') {
+					window.GodotAudio.ctx.resume();
+				}
+			} catch (e) {}
+		})();
+	""")
 
 
 func _ensure_buses() -> void:

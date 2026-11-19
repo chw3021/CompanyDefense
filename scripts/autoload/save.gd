@@ -335,13 +335,13 @@ const SHOP_ITEMS := [
 	{"id": "gold_l", "name": "성과급 뭉치", "desc": "골드 8,000", "cost_corp": 15, "gold": 8000,
 			"icon": "res://assets/icons/coin.svg", "accent": "gold"},
 	{"id": "time_pack", "name": "반차 신청", "desc": "시간 +3", "cost_corp": 2, "time": 3,
-			"icon": "res://assets/icons/waste.svg", "accent": "blue"},
+			"icon": "res://assets/icons/time.svg", "accent": "blue"},
 	{"id": "corp_ad", "name": "법인카드 충전", "desc": "광고로 법인카드 +1 (일일 한도)", "ad": true,
 			"icon": "res://assets/icons/corp_card.svg", "accent": "purple"},
 	{"id": "pass_prem", "name": "프리미엄 출근 패스", "desc": "유료 패스 트랙 해금 + 즉시 보너스", "cost_corp": 15, "unlock_pass": true,
 			"icon": "res://assets/icons/pass_premium.svg", "accent": "purple"},
 	{"id": "no_banner", "name": "배너 광고 제거", "desc": "로비 배너 제거 (보상형은 유지)", "cost_corp": 25, "no_ads": true,
-			"icon": "res://assets/icons/cancel.png", "accent": "danger"},
+			"icon": "res://assets/icons/cancel.svg", "accent": "danger"},
 ]
 
 

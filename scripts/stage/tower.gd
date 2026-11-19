@@ -36,7 +36,7 @@ var attack_duration := 0.0
 var spawn_anim := 0.0   # 배치 직후 튀어나오는 연출
 var buff_glow := 0.0
 var stun_left := 0.0    # 전화기 벨소리에 통화 중 (공격도 스킬도 못 한다)
-var reposition_cd := 0  # 전설+ 자리 이동 남은 웨이브/라운드 수
+var reposition_cd := 0  # 자리 이동 남은 웨이브/라운드 수
 
 
 func _init(p_id: String, template: Dictionary, p_battle, p_cell: Vector2i) -> void:
@@ -78,7 +78,7 @@ func can_merge_with(other: Tower) -> bool:
 			and other.id == id and other.grade == grade
 
 
-## 영웅(4성) 이상만 책상 이동/자리 교체가 가능하다
+## 모든 직원 책상 이동/자리 교체 가능 (쿨만 등급별로 다름)
 func can_reposition() -> bool:
 	return grade >= GameData.MOVE_MIN_GRADE and reposition_cd <= 0
 
