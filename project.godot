@@ -12,6 +12,11 @@ run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/icons/work.png"
 
+[audio]
+
+buses/default_bus_layout="res://default_bus_layout.tres"
+general/default_playback_type.web=1
+
 [autoload]
 
 GameData="*res://scripts/autoload/game_data.gd"

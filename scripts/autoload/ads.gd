@@ -10,7 +10,7 @@ func set_live_battle(active: bool) -> void:
 	live_battle = active
 
 
-## 보상형 광고. 배너 제거(ads_removed)와 무관 — 배너만 막을 예정.
+## 전투 중이 아니면 보상 플로우 가능. ads_removed 면 실제 광고 없이 즉시 성공 처리.
 func can_show_rewarded() -> bool:
 	return not live_battle
 
@@ -24,11 +24,14 @@ const COOLDOWN_EXEMPT := ["revive", "gold_double", "mission_bonus", "mail_bonus"
 
 
 ## placement 은 로깅/추후 AdMob 유닛 매핑용. 성공 시 true.
-## ponytail: 실기기 AdMob 플러그인으로 교체. 천장 = 테스트 즉시 성공.
+## ponytail: 실기기 AdMob 플러그인으로 교체. 천장 = 테스트 즉시 성공 / 광고 제거 시 즉시 성공.
 func show_rewarded(placement: String) -> bool:
 	if not can_show_rewarded():
 		UI.toast("전투가 끝난 뒤에 광고를 볼 수 있습니다.", UI.WARN)
 		return false
+	# 모든 광고 제거: 시청 없이 보상만 지급
+	if Save.ads_removed():
+		return true
 	var skip_cool := placement in COOLDOWN_EXEMPT
 	if not skip_cool:
 		var cool := Save.ad_cooldown_left()

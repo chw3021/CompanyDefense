@@ -340,7 +340,7 @@ const SHOP_ITEMS := [
 			"icon": "res://assets/icons/corp_card.svg", "accent": "purple"},
 	{"id": "pass_prem", "name": "프리미엄 출근 패스", "desc": "유료 패스 트랙 해금 + 즉시 보너스", "cost_corp": 15, "unlock_pass": true,
 			"icon": "res://assets/icons/pass_premium.svg", "accent": "purple"},
-	{"id": "no_banner", "name": "배너 광고 제거", "desc": "로비 배너 제거 (보상형은 유지)", "cost_corp": 25, "no_ads": true,
+	{"id": "no_banner", "name": "모든 광고 제거", "desc": "배너·보상형 광고를 모두 제거합니다 (보상은 바로 지급)", "cost_corp": 50, "no_ads": true,
 			"icon": "res://assets/icons/cancel.svg", "accent": "danger"},
 ]
 
@@ -460,12 +460,12 @@ func buy_shop_item(item_id: String) -> String:
 		return "프리미엄 출근 패스를 해금했습니다!"
 	if item.get("no_ads", false):
 		if ads_removed():
-			return "이미 배너 광고 제거를 구매했습니다."
+			return "이미 모든 광고 제거를 구매했습니다."
 		if not spend_corp_card(int(item.cost_corp)):
 			return "법인카드가 부족합니다."
 		user["ads_removed"] = true
 		save()
-		return "배너 광고 제거가 적용되었습니다."
+		return "모든 광고 제거가 적용되었습니다."
 	if item.get("ad", false):
 		return "AD"  # UI 가 광고 플로우 처리
 	var cost := int(item.get("cost_corp", 0))

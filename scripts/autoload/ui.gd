@@ -496,6 +496,8 @@ func backdrop(parent: Control, image_path: String, dim := 0.55) -> void:
 
 
 func _click_feedback(b: Control) -> void:
+	# 웹: 버튼 press 제스처 안에서 오디오 unlock (autoload _input 보다 여기가 더 확실하다)
+	Audio.ensure_web_unlocked()
 	Audio.click()
 	b.pivot_offset = b.size / 2
 	var tw := b.create_tween()

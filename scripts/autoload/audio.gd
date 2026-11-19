@@ -1,4 +1,5 @@
 # 효과음 + BGM. 버스 볼륨은 Save 설정을 따른다.
+# 웹(Godot 4.3+): Sample 기본값은 커스텀 버스/루프와 잘 안 맞아서 Stream 강제 + 제스처 unlock.
 extends Node
 
 const BUS_MASTER := "Master"
@@ -19,23 +20,36 @@ var _bgm_id := ""
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_buses()
 	apply_volumes()
 	_load_streams()
 	for i in POOL:
 		var p := AudioStreamPlayer.new()
 		p.bus = BUS_SFX
+		_force_stream_playback(p)
 		add_child(p)
 		_players.append(p)
 	_bgm = AudioStreamPlayer.new()
 	_bgm.bus = BUS_BGM
+	_force_stream_playback(_bgm)
 	add_child(_bgm)
-	# 모바일/웹 브라우저는 첫 터치 전에 AudioContext 가 잠긴다
+	# 모바일/웹 브라우저는 첫 제스처 전에 AudioContext 가 잠긴다
 	if OS.has_feature("web"):
 		set_process_input(true)
 		set_process_unhandled_input(true)
+		# GUI 가 입력을 먹어도 unlock 되도록 뷰포트에도 건다
+		if get_viewport():
+			get_viewport().gui_focus_changed.connect(func(_c): pass)
 	else:
 		play_bgm("office")
+
+
+func _force_stream_playback(p: AudioStreamPlayer) -> void:
+	if not OS.has_feature("web"):
+		return
+	# 0 Default / 1 Stream / 2 Sample — 웹 Sample 은 버스·루프에서 묵음 나는 경우가 있다
+	p.playback_type = 1
 
 
 func _input(event: InputEvent) -> void:
@@ -49,46 +63,61 @@ func _unhandled_input(event: InputEvent) -> void:
 func _try_web_unlock(event: InputEvent) -> void:
 	if _web_unlocked or not OS.has_feature("web"):
 		return
-	var tap := event is InputEventMouseButton or event is InputEventScreenTouch \
-			or event is InputEventKey or event is InputEventAction
-	if not tap:
+	if not (event is InputEventMouseButton or event is InputEventScreenTouch \
+			or event is InputEventKey or event is InputEventJoypadButton):
 		return
-	var pressed := true
-	if event is InputEventMouseButton:
-		pressed = event.pressed
-	elif event is InputEventScreenTouch:
-		pressed = event.pressed
-	elif event is InputEventKey:
-		pressed = event.pressed
-	elif event is InputEventAction:
-		pressed = event.pressed
-	if not pressed:
+	if event is InputEventMouseButton and not event.pressed:
+		return
+	if event is InputEventScreenTouch and not event.pressed:
+		return
+	if event is InputEventKey and not event.pressed:
+		return
+	if event is InputEventJoypadButton and not event.pressed:
+		return
+	_finish_web_unlock()
+
+
+## 버튼 콜백 등 사용자 제스처 안에서 호출. 웹 오디오를 연다.
+func ensure_web_unlocked() -> void:
+	if OS.has_feature("web"):
+		_finish_web_unlock()
+
+
+func _finish_web_unlock() -> void:
+	if _web_unlocked:
 		return
 	_web_unlocked = true
 	set_process_input(false)
 	set_process_unhandled_input(false)
 	_resume_web_audio_context()
+	# Master 버스가 잠겨 있으면 전부 묵음
+	var master_idx := AudioServer.get_bus_index(BUS_MASTER)
+	if master_idx >= 0:
+		AudioServer.set_bus_mute(master_idx, false)
 	apply_volumes()
-	# 제스처 안에서 한 번 재생해야 이후 오디오가 나온다
-	if not Save.sfx_muted() and _streams.has("click"):
-		play("click", 1.0, 0)
+	# 제스처 안에서 반드시 한 번 play 해야 이후 오디오가 열린다
+	if _streams.has("click") and not Save.sfx_muted():
+		_play_now("click", 1.0)
 	play_bgm("office")
 
 
-## HTML5 AudioContext 가 suspended 면 Godot 재생이 묵음이 된다
+## HTML 쪽 별도 AudioContext 가 아니라, 페이지에 열린 컨텍스트를 전부 resume 한다
 func _resume_web_audio_context() -> void:
 	if not OS.has_feature("web"):
 		return
 	JavaScriptBridge.eval("""
 		(function () {
 			try {
-				var AC = window.AudioContext || window.webkitAudioContext;
-				if (!AC) return;
-				if (!window.__cdAudioCtx) window.__cdAudioCtx = new AC();
-				if (window.__cdAudioCtx.state === 'suspended') window.__cdAudioCtx.resume();
-				if (window.GodotAudio && window.GodotAudio.ctx && window.GodotAudio.ctx.state === 'suspended') {
-					window.GodotAudio.ctx.resume();
+				var resumeOne = function (ctx) {
+					if (ctx && ctx.state === 'suspended' && ctx.resume) ctx.resume();
+				};
+				if (typeof GodotAudio !== 'undefined') {
+					resumeOne(GodotAudio.ctx);
+					if (GodotAudio.audioContext) resumeOne(GodotAudio.audioContext);
 				}
+				if (window.Godot && Godot.ctx) resumeOne(Godot.ctx);
+				// 엔진이 만든 컨텍스트가 전역에 안 보이면, 새로 만들지 않고 기존만 깨운다
+				if (window.__godotAudioContext) resumeOne(window.__godotAudioContext);
 			} catch (e) {}
 		})();
 	""")
@@ -131,7 +160,9 @@ func _load_streams() -> void:
 			_streams[id] = load(path)
 	if ResourceLoader.exists(BGM_PATH):
 		var stream: AudioStream = load(BGM_PATH)
+		# import 원본을 직접 건드리면 웹 Sample/Stream 등록이 깨질 수 있어 복제본에 루프를 건다
 		if stream is AudioStreamWAV:
+			stream = stream.duplicate()
 			(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
 		_streams["office"] = stream
 
@@ -142,24 +173,40 @@ func play(id: String, pitch := 1.0, gap_ms := 40) -> void:
 		return
 	if Save.volume_master() <= 0.001 or Save.volume_sfx() <= 0.001:
 		return
+	# 웹: unlock 전 play 는 브라우저가 막아 묵음. 제스처 핸들러에서만 unlock 한다.
+	if OS.has_feature("web") and not _web_unlocked:
+		return
 	var now := Time.get_ticks_msec()
 	if now - int(_last_ms.get(id, -99999)) < gap_ms:
 		return
 	_last_ms[id] = now
+	_play_now(id, pitch)
+
+
+func _play_now(id: String, pitch: float) -> void:
+	if not _streams.has(id) or _players.is_empty():
+		return
 	var p: AudioStreamPlayer = _players[_cursor]
 	_cursor = (_cursor + 1) % _players.size()
 	p.stream = _streams[id]
 	p.pitch_scale = clampf(pitch, 0.7, 1.4)
+	# 버스가 없으면 Master 로 떨어뜨려 묵음 방지
+	if AudioServer.get_bus_index(p.bus) < 0:
+		p.bus = BUS_MASTER
 	p.play()
 
 
 func play_bgm(id: String = "office") -> void:
 	if not _streams.has(id) or _bgm == null:
 		return
+	if OS.has_feature("web") and not _web_unlocked:
+		return
 	if _bgm_id == id and _bgm.playing:
 		return
 	_bgm_id = id
 	_bgm.stream = _streams[id]
+	if AudioServer.get_bus_index(_bgm.bus) < 0:
+		_bgm.bus = BUS_MASTER
 	_bgm.play()
 
 

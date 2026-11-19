@@ -187,8 +187,36 @@ func next_wave_has_boss() -> bool:
 
 
 func wave_has_boss(index: int) -> bool:
+	return wave_boss_type(index) != ""
+
+
+## 해당 웨이브의 보스 타입 id. 없으면 ""
+func wave_boss_type(index: int) -> String:
+	if not has_wave(index):
+		return ""
 	for group in wave_def(index)[1]:
 		if StageDefs.ENEMIES[group[0]].boss:
+			return str(group[0])
+	return ""
+
+
+## 보스방에 미리 보여줄 다음 보스 타입. 이미 보스가 버티는 중이면 ""
+func preview_boss_type() -> String:
+	if not has_boss_room or finished or has_anchored_boss():
+		return ""
+	# 지금/앞으로의 웨이브에서 가장 가까운 보스
+	var start := wave_index
+	var limit := 40 if endless else maxi(0, wave_count() - start)
+	for i in limit:
+		var id := wave_boss_type(start + i)
+		if id != "":
+			return id
+	return ""
+
+
+func has_anchored_boss() -> bool:
+	for e: Enemy in enemies:
+		if not e.dead and e.anchored:
 			return true
 	return false
 
@@ -1024,6 +1052,8 @@ func _end(p_won: bool) -> void:
 	session.wins = 1 if p_won else 0
 	if endless:
 		session.round = wave_index
+		# 최고 기록이 바뀌었거나 점수가 갱신됐을 수 있으니 랭킹을 올린다
+		Account.queue_submit_endless_rank()
 	var summary := {"kills": kills, "gold": gold, "score": score, "first_clear": first_clear,
 			"wave": wave_index, "new_record": new_record, "seed": run_seed,
 			"merges": int(session.merges), "hires": int(session.hires),

@@ -3,6 +3,8 @@
 class_name BattleView
 extends Node2D
 
+signal boss_preview_pressed(type_id: String)  # 보스방 실루엣 클릭
+
 const FRAME := 128
 const EFFECT_FPS := 20.0
 const EFFECT_MAX_FRAMES := 25
@@ -228,6 +230,7 @@ func _draw() -> void:
 func _draw_dynamic() -> void:
 	ci = _dyn
 	_draw_flow()
+	_draw_boss_preview()
 	if battle.selected:
 		_draw_range(battle.selected)
 	for t: Tower in battle.towers:
@@ -538,6 +541,24 @@ const SHIELD := Color("7fdcff")
 const WEAK_GAP := 20.0  # 물리/마법 방어 차이가 이 이상이면 약점 표시
 ## 그림이 있는 적 (프린터 계열). 나머지는 도형으로 그린다
 const SPRITE_ENEMIES := ["printer", "fax", "copier", "server", "boss"]
+
+
+## 다음 보스 실루엣 (보스방이 비어 있을 때만)
+func _draw_boss_preview() -> void:
+	var type_id := battle.preview_boss_type()
+	if type_id == "":
+		return
+	var def: Dictionary = StageDefs.ENEMIES[type_id]
+	var s := battle.cell * 0.62 * float(def.scale)
+	var h := s * _enemy_tex.get_height() / _enemy_tex.get_width()
+	var p := battle.boss_room
+	var pulse := 0.45 + 0.08 * sin(Time.get_ticks_msec() / 420.0)
+	var r := Rect2(p.x - s / 2, p.y + h / 2 - h, s, h)
+	_ellipse(p + Vector2(0, s * 0.42), s * 0.45, 0.3, Color(0, 0, 0, 0.35))
+	# 검은 실루엣 + 빨간 외곽으로 '다음 보스' 힌트
+	_draw_enemy_body(type_id, r, Color(0, 0, 0, pulse))
+	ci.draw_arc(p, s * 0.58, 0, TAU, 36, Color(UI.DANGER, 0.35 + pulse * 0.4), 2.5, true)
+	_text(p + Vector2(0, h * 0.55), "다음 보스", int(battle.cell * 0.22), Color(1, 0.75, 0.75, 0.85))
 
 
 ## r 은 몸통이 들어갈 칸 (아래쪽이 바닥). e 가 null 이면 잔상처럼 몸통만 그린다
@@ -1241,6 +1262,9 @@ func handle_input(event: InputEvent) -> void:
 			_hover_desk = Vector2i(-1, -1)
 			if _press_tower == null:
 				battle.select(null)
+				var preview := battle.preview_boss_type()
+				if preview != "" and battle.cell_at(local) in battle.boss_cells:
+					boss_preview_pressed.emit(preview)
 			get_viewport().set_input_as_handled()
 		elif _press_tower != null:
 			if _dragging:

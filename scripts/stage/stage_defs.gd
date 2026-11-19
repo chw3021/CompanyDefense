@@ -14,7 +14,8 @@ const ENEMIES := {
 	"fax": {"name": "팩스", "hp_mult": 0.6, "speed": 3.5, "pdef": 0, "mdef": 10, "scale": 0.8, "tint": Color(0.55, 0.85, 1), "reward": 6, "boss": false},
 	"copier": {"name": "복합기", "hp_mult": 2.5, "speed": 1.3, "pdef": 40, "mdef": 5, "scale": 1.25, "tint": Color(0.75, 0.6, 0.95), "reward": 15, "boss": false},
 	"server": {"name": "서버", "hp_mult": 1.6, "speed": 1.8, "pdef": 5, "mdef": 45, "scale": 1.1, "tint": Color(0.55, 1, 0.55), "reward": 12, "boss": false},
-	"boss": {"name": "부장님 프린터", "hp_mult": 12.0, "speed": 1.0, "pdef": 20, "mdef": 20, "scale": 1.6, "tint": Color(1, 0.45, 0.45), "reward": 100, "boss": true},
+	"boss": {"name": "부장님 프린터", "hp_mult": 12.0, "speed": 1.0, "pdef": 20, "mdef": 20, "scale": 1.6, "tint": Color(1, 0.45, 0.45), "reward": 100, "boss": true,
+			"desc": "보스방에 자리를 잡고 버팁니다. 보스가 살아 있는 동안 직원은 보스만 공격할 수 있습니다."},
 	# 특수 능력이 있는 적. desc 는 처음 만났을 때 한 번 보여 준다
 	# split: 죽으면 [적, 부모 최대 체력 대비 비율, 마리 수]로 나뉜다
 	"parcel": {"name": "택배 상자", "hp_mult": 1.0, "speed": 1.8, "pdef": 10, "mdef": 0, "scale": 1.1, "tint": Color(0.85, 0.62, 0.38), "reward": 8, "boss": false,
@@ -170,6 +171,31 @@ const ENDLESS_MAX_COUNT := 36
 
 static func is_endless(stage_id: int) -> bool:
 	return STAGES[stage_id].get("endless", false)
+
+
+## 적 특수 효과 설명 (desc 우선, 없으면 능력 키로 요약)
+static func enemy_special_text(def: Dictionary) -> String:
+	var desc := str(def.get("desc", "")).strip_edges()
+	if desc != "":
+		return desc
+	var parts: Array[String] = []
+	if def.get("split", null) != null:
+		parts.append("처치 시 작은 적으로 분열합니다")
+	if def.get("heal", 0.0) > 0.0:
+		parts.append("주변 적을 주기적으로 회복시킵니다")
+	if def.get("cc_immune", false):
+		parts.append("기절·감속에 면역입니다")
+	if def.get("shield", 0.0) > 0.0:
+		parts.append("보호막이 있고 한동안 안 맞으면 다시 찹니다")
+	if def.get("ring", 0.0) > 0.0:
+		parts.append("주기적으로 근처 직원을 잠시 기절시킵니다")
+	if def.get("jam", 0.0) > 0.0:
+		parts.append("근처 직원의 공격 속도를 잠시 낮춥니다")
+	if def.get("boss", false):
+		parts.append("보스방에 자리를 잡고 버팁니다")
+	return "특수 효과가 없습니다." if parts.is_empty() else " / ".join(parts)
+
+
 
 
 ## 무한 모드의 index 번째 웨이브 (0부터). 형식은 STAGES 의 waves 와 같다

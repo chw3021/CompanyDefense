@@ -93,6 +93,7 @@ func _build() -> void:
 	view = BattleView.new()
 	_map_area.add_child(view)
 	view.setup(battle)
+	view.boss_preview_pressed.connect(_show_boss_preview)
 	_map_area.gui_input.connect(view.handle_input)
 	_float_layer = Control.new()
 	_float_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -704,6 +705,29 @@ func _open_help() -> void:
 		grid.add_child(UI.label(weak, 18, weak_color))
 	v.add_child(grid)
 	UI.modal("도움말", UI.bind_modal_scroll(UI.scroll(v)), [["닫기", UI.CARD_HI]], self)
+
+
+## 보스방 실루엣 클릭: 다음 보스 방어/특수효과 안내
+func _show_boss_preview(type_id: String) -> void:
+	if not StageDefs.ENEMIES.has(type_id):
+		return
+	var e: Dictionary = StageDefs.ENEMIES[type_id]
+	var body := UI.vbox(12)
+	var gap: float = float(e.pdef) - float(e.mdef)
+	var weak := "없음"
+	var weak_color := UI.MUTED
+	if absf(gap) >= BattleView.WEAK_GAP:
+		weak = "마법 공격" if gap > 0 else "물리 공격"
+		weak_color = BattleView.DMG_MAGIC if gap > 0 else BattleView.DMG_PHYSICAL
+	body.add_child(UI.label(e.name, 32, UI.DANGER if e.boss else UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	var stats := UI.vbox(6)
+	stats.add_child(UI.label("물리 방어력  %d  (피해 -%d%%)" % [e.pdef, roundi(100.0 * e.pdef / (e.pdef + 100.0))], 24, BattleView.DMG_PHYSICAL))
+	stats.add_child(UI.label("마법 저항력  %d  (피해 -%d%%)" % [e.mdef, roundi(100.0 * e.mdef / (e.mdef + 100.0))], 24, BattleView.DMG_MAGIC))
+	stats.add_child(UI.label("약점  %s" % weak, 24, weak_color))
+	body.add_child(stats)
+	body.add_child(UI.wrap_label("특수 효과\n%s" % StageDefs.enemy_special_text(e), 24, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+	body.add_child(UI.wrap_label("보스방에 등장할 예정입니다. 배치를 미리 정리해 보세요.", 22, UI.GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+	UI.modal("다음 보스", body, [["닫기", UI.CARD_HI]], self)
 
 
 # ------------------------------------------------------------------ 갱신

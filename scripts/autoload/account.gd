@@ -388,7 +388,10 @@ func upload() -> bool:
 	if r.code != 200:
 		_dirty = true
 		push_warning("클라우드 저장 실패: %d" % r.code)
-	return r.code == 200
+		return false
+	# 세이브와 함께 무한 야근 랭킹도 맞춘다 (실패해도 세이브는 성공으로 둔다)
+	await submit_endless_rank()
+	return true
 
 
 func _auto_upload() -> void:
@@ -398,6 +401,77 @@ func _auto_upload() -> void:
 	_uploading = true
 	await upload()
 	_uploading = false
+
+
+# ------------------------------------------------------------------ 무한 야근 랭킹
+# RTDB 경로: leaderboards/endless/{uid} = {name, rounds, score, updated}
+# Firebase 규칙 예:
+#   "leaderboards": { "endless": {
+#     ".read": "auth != null",
+#     "$uid": { ".write": "auth != null && auth.uid == $uid",
+#       ".validate": "newData.hasChildren(['name','rounds','score','updated'])" } } }
+
+## 현재 세이브의 최고 라운드를 랭킹에 올린다. 성공하면 true
+func submit_endless_rank() -> bool:
+	if Save.user.is_empty() or Dev._scenario != null:
+		return false
+	var rounds := int(Save.user.get("round_best", 0))
+	if rounds <= 0:
+		return false
+	var s := await _name_session()
+	if s.is_empty():
+		return false
+	var body := {
+		"name": str(Save.user.get("name", Save.DEFAULT_NAME)),
+		"rounds": rounds,
+		"score": int(Save.user.best_scores.get("4", 0)),
+		"updated": _now(),
+	}
+	var r := await _request(HTTPClient.METHOD_PUT,
+			"%s/leaderboards/endless/%s.json?auth=%s" % [DB_URL, s.uid, s.token], JSON.stringify(body))
+	if r.code != 200:
+		push_warning("무한 야근 랭킹 등록 실패: %d" % r.code)
+	return r.code == 200
+
+
+## await 없이 호출해도 Account 쪽에서 끝까지 돌아가게 한다
+func queue_submit_endless_rank() -> void:
+	await submit_endless_rank()
+
+
+## 무한 야근 랭킹 목록. 실패하면 null, 비어 있으면 []
+## 항목: {uid, name, rounds, score, updated, me}
+func fetch_endless_ranks() -> Variant:
+	var s := await _name_session()
+	if s.is_empty():
+		return null
+	var r := await _request(HTTPClient.METHOD_GET, "%s/leaderboards/endless.json?auth=%s" % [DB_URL, s.token])
+	if r.code != 200:
+		return null
+	var rows: Array = []
+	if r.data is Dictionary:
+		for id in r.data:
+			var e = r.data[id]
+			if not e is Dictionary:
+				continue
+			var entry_rounds := int(e.get("rounds", 0))
+			if entry_rounds <= 0:
+				continue
+			rows.append({
+				"uid": str(id),
+				"name": str(e.get("name", Save.DEFAULT_NAME)),
+				"rounds": entry_rounds,
+				"score": int(e.get("score", 0)),
+				"updated": int(e.get("updated", 0)),
+				"me": str(id) == str(s.uid),
+			})
+	rows.sort_custom(func(a, b):
+		if a.rounds != b.rounds:
+			return a.rounds > b.rounds
+		if a.score != b.score:
+			return a.score > b.score
+		return a.updated > b.updated)
+	return rows
 
 
 func _notification(what: int) -> void:

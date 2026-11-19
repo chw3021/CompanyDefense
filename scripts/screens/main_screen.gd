@@ -508,7 +508,8 @@ func _fill_achievements(list: VBoxContainer) -> void:
 		var prev_tier: int = claimed_n - 1
 		var show_ach_ad: bool = false
 		var last_gold: int = 0
-		if claimed_n > 0:
+		# 진행 중 카드에는 +50% 숨김. 직전 단계 받기 직후(다음 단계 ready) 또는 전부 완료일 때만
+		if claimed_n > 0 and state != "progress":
 			show_ach_ad = not Save.achievement_ad_done(ach, prev_tier)
 			last_gold = int(ach.tiers[prev_tier][1])
 		list.add_child(_mission_card(ach.desc % tier[0], stage, value, int(tier[0]), int(tier[1]), 0, state,
@@ -569,7 +570,7 @@ func _mission_card(title: String, sub: String, value: int, goal: int, gold: int,
 	v.add_child(info)
 	var col := UI.vbox(6)
 	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	# 기본 보상 버튼. 광고 +50% 는 받기 완료(claimed) 또는 직전 단계 수령 후에만 ad_ready 로 온다
+	# 기본 보상 버튼. 광고 +50% 는 진행 중엔 절대 안 띄운다 (받기 완료/직후만)
 	if ready and on_claim.is_valid():
 		var b := UI.button("받기", UI.SUCCESS, on_claim, 24)
 		b.custom_minimum_size = Vector2(120, 64)
@@ -584,7 +585,8 @@ func _mission_card(title: String, sub: String, value: int, goal: int, gold: int,
 		wait.disabled = true
 		wait.custom_minimum_size = Vector2(120, 64)
 		col.add_child(wait)
-	if ad_ready and on_ad.is_valid():
+	var can_show_ad := ad_ready and state != "progress" and on_ad.is_valid()
+	if can_show_ad:
 		var ad_b := UI.button("광고 +50%", UI.GOLD, on_ad, 20)
 		ad_b.custom_minimum_size = Vector2(120, 52)
 		col.add_child(ad_b)
