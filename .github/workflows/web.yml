@@ -63,6 +63,13 @@ jobs:
           ~/godot/godot --headless --path . --import
           ~/godot/godot --headless --path . --export-release "Web" build/web/index.html
           test -f build/web/index.html
+          # Godot 웹 오디오(Stream/Sample) 묵음 우회: HTML5 Audio 용 BGM 복사
+          mkdir -p build/web/bgm
+          cp assets/bgm/lobby.wav assets/bgm/shop.wav \
+             assets/bgm/stage_easy.wav assets/bgm/stage_hard.wav \
+             assets/bgm/clear.wav assets/bgm/defeated.wav \
+             build/web/bgm/
+          ls -la build/web/bgm
 
       - name: 에셋 캐시 무력화
         run: |
