@@ -18,12 +18,14 @@ func _ready() -> void:
 	add_child(UI.scroll(grid))
 
 	var go := UI.button("취미 활동 하기!  (시간 1)", UI.SUCCESS, _do_hobby, 34)
-	go.icon = load("res://assets/icons/waste.svg")
+	go.icon = load("res://assets/icons/time.svg")
 	go.expand_icon = true
 	go.custom_minimum_size.y = 110
 	add_child(go)
 	var ad_row := UI.hbox(10)
 	var time_ad := UI.button("광고로 시간 +%d" % Save.TIME_AD_AMOUNT, UI.PRIMARY, _watch_time_ad, 26)
+	time_ad.icon = load("res://assets/icons/time.svg")
+	time_ad.expand_icon = true
 	time_ad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	time_ad.custom_minimum_size.y = 72
 	ad_row.add_child(time_ad)
