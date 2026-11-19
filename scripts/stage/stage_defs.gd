@@ -219,7 +219,7 @@ static func enemy_special_text(def: Dictionary) -> String:
 
 
 ## 무한 모드 보스 로테이션 (10라운드마다 다른 보스)
-const ENDLESS_BOSSES := ["boss", "boss_armor", "boss_ward", "boss_hr", "boss_dv", "boss_sl", "boss_chaos"]
+const ENDLESS_BOSSES: Array[String] = ["boss", "boss_armor", "boss_ward", "boss_hr", "boss_dv", "boss_sl", "boss_chaos"]
 
 
 static func endless_boss_id(wave_number: int) -> String:
@@ -246,7 +246,7 @@ static func endless_wave(index: int) -> Array:
 	if w % 5 == 0:
 		var guard := "water" if special else "server"
 		# 중간 보스는 로테이션의 다음 후보를 미리 맛보기로
-		var mid := ENDLESS_BOSSES[(w / 5) % ENDLESS_BOSSES.size()]
+		var mid: String = ENDLESS_BOSSES[(w / 5) % ENDLESS_BOSSES.size()]
 		return [interval, [["copier", hp, count / 4], [guard, hp, maxi(1, count / 4)], [mid, hp * 0.5, 1]]]
 	match w % 4:
 		1:  # 프린터 물량 (+ 택배 상자)
