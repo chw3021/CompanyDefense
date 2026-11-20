@@ -3,11 +3,11 @@ import hashlib
 import os
 
 BASE = os.path.join(os.path.dirname(__file__), "..", "assets", "bgm")
-LOOP = {"lobby", "shop", "stage_easy", "stage_hard", "office"}
+LOOP = {"lobby", "shop", "stage_easy", "office"}  # stage_hard* 는 플레이리스트라 자체 루프 끔
 
 
 def main() -> None:
-	for name in ["lobby", "shop", "stage_easy", "stage_hard", "clear", "defeated", "office"]:
+	for name in ["lobby", "shop", "stage_easy", "stage_hard", "stage_hard_2", "clear", "defeated", "office"]:
 		src = f"res://assets/bgm/{name}.wav"
 		h = hashlib.md5(src.encode()).hexdigest()
 		uid = "uid://c" + h[:15]

@@ -12,6 +12,10 @@ const BGM_DIR := "res://assets/bgm/"
 const SFX_IDS := ["click", "hit", "projectile", "impact", "promote", "wave", "boss", "win", "lose"]
 const BGM_LOOP_IDS := ["lobby", "shop", "stage_easy", "stage_hard"]
 const BGM_STING_IDS := ["clear", "defeated"]
+# 논리 id → 실제 트랙 목록. 끝나면 다음 곡으로 넘어간다.
+const BGM_PLAYLISTS := {
+	"stage_hard": ["stage_hard", "stage_hard_2"],
+}
 const PLAYBACK_SAMPLE := 2
 
 var _streams := {}
@@ -21,6 +25,8 @@ var _last_ms := {}
 var _web_unlocked := false
 var _bgm: AudioStreamPlayer  # 네이티브(데스크톱/안드로이드) 전용
 var _bgm_id := ""
+var _bgm_track := ""  # 네이티브 실제 재생 중 트랙 id
+var _playlist_idx := 0
 var _pending_bgm := "lobby"
 var _unlock_tries := 0
 
@@ -40,6 +46,7 @@ func _ready() -> void:
 	if not OS.has_feature("web"):
 		_bgm = AudioStreamPlayer.new()
 		_bgm.bus = BUS_BGM
+		_bgm.finished.connect(_on_native_bgm_finished)
 		add_child(_bgm)
 	_alog("ready web=%s sfx=%d master=%.2f bgm=%.2f muted_sfx=%s html5_bgm=%s" % [
 		OS.has_feature("web"), _streams.size(),
@@ -173,7 +180,7 @@ func _resume_web_audio_context() -> String:
 func _html_bgm_preload() -> void:
 	if not OS.has_feature("web"):
 		return
-	# 루프곡은 끝 2.5초 페이드아웃 → 처음으로 돌아가 1초 페이드인 (뚝 끊기는 루프 완화)
+	# 루프/플레이리스트: 끝 2.5초 페이드아웃 → 다음(또는 같은) 곡 1초 페이드인
 	JavaScriptBridge.eval("""
 		(function () {
 			window.__cdBgm = window.__cdBgm || {};
@@ -181,6 +188,57 @@ func _html_bgm_preload() -> void:
 			window.__cdBgmVol = window.__cdBgmVol || 0.8;
 			window.__cdBgmFadeOut = 2.5;
 			window.__cdBgmFadeIn = 1.0;
+			window.__cdPlaylists = { stage_hard: ['stage_hard', 'stage_hard_2'] };
+			window.__cdActivePlaylist = null;
+			window.__cdFadeIn = function (a) {
+				if (!a) return;
+				if (a.__cdFadeIn) { clearInterval(a.__cdFadeIn); a.__cdFadeIn = null; }
+				a.volume = 0;
+				var t0 = performance.now();
+				a.__cdFadeIn = setInterval(function () {
+					var u = Math.min(1, (performance.now() - t0) / (window.__cdBgmFadeIn * 1000));
+					a.volume = window.__cdBgmVol * u;
+					if (u >= 1) {
+						clearInterval(a.__cdFadeIn);
+						a.__cdFadeIn = null;
+						a.volume = window.__cdBgmVol;
+					}
+				}, 40);
+			};
+			window.__cdPlayTrack = function (id, fadeIn) {
+				var m = window.__cdBgm || {};
+				Object.keys(m).forEach(function (k) {
+					var el = m[k];
+					if (!el || k === id) return;
+					el.pause();
+					if (el.__cdFadeIn) { clearInterval(el.__cdFadeIn); el.__cdFadeIn = null; }
+					el.__cdFading = false;
+					try { el.currentTime = 0; } catch (e) {}
+				});
+				var a = m[id];
+				if (!a) {
+					a = new Audio('bgm/' + id + '.wav');
+					a.preload = 'auto';
+					a.loop = false;
+					m[id] = a;
+					if (window.__cdBindBgm) window.__cdBindBgm(a, id, true);
+				}
+				a.__cdLoop = true;
+				a.__cdFading = false;
+				if (a.__cdFadeIn) { clearInterval(a.__cdFadeIn); a.__cdFadeIn = null; }
+				try { a.currentTime = 0; } catch (e) {}
+				a.volume = fadeIn ? 0 : window.__cdBgmVol;
+				var p = a.play();
+				var after = function () {
+					console.log('[Audio/html] playing', id, 'vol=' + a.volume);
+					if (fadeIn) window.__cdFadeIn(a);
+				};
+				if (p && p.then) p.then(after).catch(function (e) {
+					console.warn('[Audio/html] play fail', id, String(e));
+				});
+				else after();
+				window.__cdBgmId = id;
+			};
 			window.__cdBindBgm = window.__cdBindBgm || function (a, id, doLoop) {
 				if (a.__cdBound) return;
 				a.__cdBound = true;
@@ -202,37 +260,25 @@ func _html_bgm_preload() -> void:
 				a.addEventListener('ended', function () {
 					if (!a.__cdLoop) return;
 					a.__cdFading = false;
-					if (a.__cdFadeIn) { clearInterval(a.__cdFadeIn); a.__cdFadeIn = null; }
-					try { a.currentTime = 0; } catch (e) {}
-					a.volume = 0;
-					var p = a.play();
-					var startFade = function () {
-						var t0 = performance.now();
-						a.__cdFadeIn = setInterval(function () {
-							var u = Math.min(1, (performance.now() - t0) / (window.__cdBgmFadeIn * 1000));
-							a.volume = window.__cdBgmVol * u;
-							if (u >= 1) {
-								clearInterval(a.__cdFadeIn);
-								a.__cdFadeIn = null;
-								a.volume = window.__cdBgmVol;
-							}
-						}, 40);
-					};
-					if (p && p.then) p.then(startFade).catch(function (e) {
-						console.warn('[Audio/html] loop restart fail', id, String(e));
-					});
-					else startFade();
+					var list = window.__cdActivePlaylist;
+					var nextId = id;
+					if (list && list.length) {
+						var i = list.indexOf(id);
+						nextId = list[((i >= 0 ? i : 0) + 1) % list.length];
+					}
+					window.__cdPlayTrack(nextId, true);
 				});
 			};
-			['lobby','shop','stage_easy','stage_hard','clear','defeated'].forEach(function (id) {
+			['lobby','shop','stage_easy','stage_hard','stage_hard_2','clear','defeated'].forEach(function (id) {
 				if (window.__cdBgm[id]) return;
 				var a = new Audio('bgm/' + id + '.wav');
 				a.preload = 'auto';
 				a.loop = false;
-				window.__cdBindBgm(a, id, id !== 'clear' && id !== 'defeated');
+				var loopable = id !== 'clear' && id !== 'defeated';
+				window.__cdBindBgm(a, id, loopable);
 				window.__cdBgm[id] = a;
 			});
-			console.log('[Audio/html] preload bgm + loop fade');
+			console.log('[Audio/html] preload bgm + playlist fade');
 		})();
 	""")
 
@@ -246,37 +292,21 @@ func _html_bgm_play(id: String, loop: bool) -> void:
 			try {
 				window.__cdBgm = window.__cdBgm || {};
 				window.__cdBgmVol = %s;
-				var id = %s;
+				var logical = %s;
 				var loop = %s;
-				Object.keys(window.__cdBgm).forEach(function (k) {
-					var el = window.__cdBgm[k];
-					if (!el || k === id) return;
-					el.pause();
-					if (el.__cdFadeIn) { clearInterval(el.__cdFadeIn); el.__cdFadeIn = null; }
-					el.__cdFading = false;
-					try { el.currentTime = 0; } catch (e) {}
-				});
-				var a = window.__cdBgm[id];
-				if (!a) {
-					a = new Audio('bgm/' + id + '.wav');
-					a.preload = 'auto';
-					a.loop = false;
-					window.__cdBgm[id] = a;
+				var list = (window.__cdPlaylists || {})[logical];
+				if (list && list.length) {
+					window.__cdActivePlaylist = list;
+					window.__cdPlayTrack(list[0], false);
+				} else if (loop) {
+					window.__cdActivePlaylist = [logical];
+					window.__cdPlayTrack(logical, false);
+				} else {
+					window.__cdActivePlaylist = null;
+					window.__cdPlayTrack(logical, false);
+					var a = window.__cdBgm[logical];
+					if (a) a.__cdLoop = false;
 				}
-				if (window.__cdBindBgm) window.__cdBindBgm(a, id, !!loop);
-				a.__cdLoop = !!loop;
-				a.__cdFading = false;
-				if (a.__cdFadeIn) { clearInterval(a.__cdFadeIn); a.__cdFadeIn = null; }
-				a.volume = window.__cdBgmVol;
-				var p = a.play();
-				if (p && p.then) {
-					p.then(function () {
-						console.log('[Audio/html] playing', id, 'vol=' + a.volume);
-					}).catch(function (e) {
-						console.warn('[Audio/html] play fail', id, String(e));
-					});
-				}
-				window.__cdBgmId = id;
 			} catch (e) {
 				console.warn('[Audio/html] play error', e);
 			}
@@ -300,6 +330,7 @@ func _html_bgm_stop() -> void:
 				try { m[k].currentTime = 0; } catch (e) {}
 			});
 			window.__cdBgmId = '';
+			window.__cdActivePlaylist = null;
 		})();
 	""")
 
@@ -367,7 +398,12 @@ func _load_streams() -> void:
 	# 네이티브만 Godot 쪽으로 BGM 로드. 웹은 HTML5.
 	if not OS.has_feature("web"):
 		for id in BGM_LOOP_IDS:
-			_load_bgm_native(id, true)
+			# 플레이리스트 곡은 finished 로 다음 트랙 넘기려고 자체 루프 끔
+			_load_bgm_native(id, not BGM_PLAYLISTS.has(id))
+		for logical in BGM_PLAYLISTS.keys():
+			for track in BGM_PLAYLISTS[logical]:
+				if not _streams.has(track):
+					_load_bgm_native(str(track), false)
 		for id in BGM_STING_IDS:
 			_load_bgm_native(id, false)
 		if _streams.has("lobby"):
@@ -388,6 +424,25 @@ func _load_bgm_native(id: String, loop: bool) -> void:
 		stream = stream.duplicate()
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD if loop else AudioStreamWAV.LOOP_DISABLED
 	_streams[id] = stream
+
+
+func _on_native_bgm_finished() -> void:
+	if _bgm == null or not BGM_PLAYLISTS.has(_bgm_id):
+		return
+	var list: Array = BGM_PLAYLISTS[_bgm_id]
+	if list.is_empty():
+		return
+	_playlist_idx = (_playlist_idx + 1) % list.size()
+	_play_native_track(str(list[_playlist_idx]))
+
+
+func _play_native_track(track: String) -> void:
+	if _bgm == null or not _streams.has(track):
+		return
+	_bgm_track = track
+	_bgm.stream = _streams[track]
+	_bgm.play()
+	_alog("native play_track(%s) logical=%s" % [track, _bgm_id])
 
 
 func play(id: String, pitch := 1.0, gap_ms := 40) -> void:
@@ -434,9 +489,13 @@ func play_bgm(id: String = "lobby", force := false) -> void:
 		_html_bgm_play(id, id in BGM_LOOP_IDS)
 		return
 	# 네이티브
-	if _bgm == null or not _streams.has(id):
+	var start_track := id
+	if BGM_PLAYLISTS.has(id):
+		start_track = str(BGM_PLAYLISTS[id][0])
+	if _bgm == null or not _streams.has(start_track):
 		if _streams.has("lobby"):
 			id = "lobby"
+			start_track = "lobby"
 		else:
 			return
 	if Save.volume_master() <= 0.001 or Save.volume_bgm() <= 0.001:
@@ -444,8 +503,8 @@ func play_bgm(id: String = "lobby", force := false) -> void:
 	if _bgm_id == id and _bgm.playing:
 		return
 	_bgm_id = id
-	_bgm.stream = _streams[id]
-	_bgm.play()
+	_playlist_idx = 0
+	_play_native_track(start_track)
 
 
 func play_stage_bgm(stage_id: int) -> void:
@@ -472,6 +531,8 @@ func play_sting(id: String) -> void:
 
 func stop_bgm() -> void:
 	_bgm_id = ""
+	_bgm_track = ""
+	_playlist_idx = 0
 	_pending_bgm = ""
 	if OS.has_feature("web"):
 		_html_bgm_stop()

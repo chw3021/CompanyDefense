@@ -67,6 +67,7 @@ jobs:
           mkdir -p build/web/bgm
           cp assets/bgm/lobby.wav assets/bgm/shop.wav \
              assets/bgm/stage_easy.wav assets/bgm/stage_hard.wav \
+             assets/bgm/stage_hard_2.wav \
              assets/bgm/clear.wav assets/bgm/defeated.wav \
              build/web/bgm/
           ls -la build/web/bgm
